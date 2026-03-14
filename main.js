@@ -65,9 +65,9 @@ function createHeroAnimations(scene, heroKey) {
 function createForestLadyAnimations(scene) {
   const animations = [
     { key: 'forestLady-idle-left', sheet: 'forestLady-idle', row: 1, start: 0, end: 1, rate: 3, repeat: -1 },
-    { key: 'forestLady-idle-right', sheet: 'forestLady-idle', row: 2, start: 0, end: 1, rate: 3, repeat: -1 },
+    { key: 'forestLady-idle-right', sheet: 'forestLady-idle', row: 3, start: 0, end: 1, rate: 3, repeat: -1 },
     { key: 'forestLady-walk-left', sheet: 'forestLady-walk', row: 1, start: 0, end: 8, rate: 8, repeat: -1 },
-    { key: 'forestLady-walk-right', sheet: 'forestLady-walk', row: 2, start: 0, end: 8, rate: 8, repeat: -1 },
+    { key: 'forestLady-walk-right', sheet: 'forestLady-walk', row: 3, start: 0, end: 8, rate: 8, repeat: -1 },
   ];
 
   animations.forEach((anim) => {
@@ -786,10 +786,10 @@ class PrototypeScene extends Phaser.Scene {
     const dim = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x05070a, 0.54).setOrigin(0, 0);
     this.dialogueOverlay.add(dim);
 
-    const panelX = 180;
-    const panelY = 510;
-    const panelW = 1240;
-    const panelH = 300;
+    const panelX = 120;
+    const panelY = 494;
+    const panelW = 1360;
+    const panelH = 320;
 
     const parchment = this.add.tileSprite(panelX + panelW / 2, panelY + panelH / 2, panelW, panelH, 'parchment');
     const parchmentSource = this.textures.get('parchment').getSourceImage();
@@ -804,33 +804,36 @@ class PrototypeScene extends Phaser.Scene {
     this.dialogueOverlay.add(borderOuter);
     this.dialogueOverlay.add(borderInner);
 
-    this.dialogueSpeakerText = this.add.text(panelX + 34, panelY + 24, FOREST_LADY.name, {
+    const portraitX = panelX + 112;
+    const portraitY = panelY + 96;
+    this.portraitFrame = this.add.rectangle(portraitX, portraitY, 176, 176, 0x000000, 0)
+      .setStrokeStyle(2, 0xdab56a, 0.95);
+    this.dialogueOverlay.add(this.portraitFrame);
+
+    this.npcPortrait = this.add.sprite(portraitX, portraitY + 2, 'forestLady-idle', 39)
+      .setScale(4.1)
+      .setCrop(10, 6, 44, 44);
+    this.dialogueOverlay.add(this.npcPortrait);
+
+    const textX = panelX + 226;
+    this.dialogueSpeakerText = this.add.text(textX, panelY + 24, FOREST_LADY.name, {
       fontFamily: 'Macondo Swash Caps',
       fontSize: '34px',
       color: '#4a2411',
     });
     this.dialogueOverlay.add(this.dialogueSpeakerText);
 
-    this.dialogueText = this.add.text(panelX + 34, panelY + 76, '', {
+    this.dialogueText = this.add.text(textX, panelY + 72, '', {
       fontFamily: 'Roboto Mono',
-      fontSize: '22px',
+      fontSize: '20px',
       color: '#2b1b0f',
       lineSpacing: 10,
-      wordWrap: { width: 860 },
+      wordWrap: { width: 960 },
     });
     this.dialogueOverlay.add(this.dialogueText);
 
-    this.dialogueOptions = this.add.container(panelX + 34, panelY + 196);
+    this.dialogueOptions = this.add.container(textX, panelY + 182);
     this.dialogueOverlay.add(this.dialogueOptions);
-
-    this.portraitFrame = this.add.rectangle(panelX + panelW - 126, panelY + 96, 170, 170, 0x000000, 0)
-      .setStrokeStyle(2, 0xdab56a, 0.95);
-    this.dialogueOverlay.add(this.portraitFrame);
-
-    this.npcPortrait = this.add.sprite(panelX + panelW - 126, panelY + 96, 'forestLady-idle', 0)
-      .setScale(2.3)
-      .setCrop(18, 4, 28, 28);
-    this.dialogueOverlay.add(this.npcPortrait);
 
     this.dialogueHint = this.add.text(panelX + panelW - 34, panelY + panelH - 26, 'Enter to choose', {
       fontFamily: 'Roboto Mono',
@@ -987,16 +990,6 @@ class PrototypeScene extends Phaser.Scene {
       this.dialogueAwaitingChoice = true;
       this.dialogueChoiceIndex = 0;
       this.renderDialogueOptions(this.currentDialogueLine.choices);
-    } else if (this.dialogueState === 'heroResponse') {
-      this.dialogueState = 'npcReply';
-      this.time.delayedCall(260, () => {
-        this.showDialogueLine({
-          speaker: FOREST_LADY.name,
-          speakerType: 'npc',
-          text: 'Then you are in luck. The gate to the city is very nearby.',
-          choices: ['Thank you.', 'I should get moving.'],
-        });
-      });
     } else if (this.dialogueState === 'npcReply') {
       this.dialogueAwaitingChoice = true;
     }
@@ -1012,17 +1005,17 @@ class PrototypeScene extends Phaser.Scene {
   talkPortrait(active) {
     this.stopTalkingPortrait();
     if (!active) {
-      this.npcPortrait.setTexture('forestLady-idle').setFrame(0);
+      this.npcPortrait.setTexture('forestLady-idle').setFrame(39);
       return;
     }
     if (!this.writingSound.isPlaying) this.writingSound.play();
     this.portraitTalkEvent = this.time.addEvent({
-      delay: 110,
+      delay: 120,
       loop: true,
       callback: () => {
         const useEmote = this.npcPortrait.texture.key !== 'forestLady-emote';
         this.npcPortrait.setTexture(useEmote ? 'forestLady-emote' : 'forestLady-idle');
-        this.npcPortrait.setFrame(useEmote ? 0 : 0);
+        this.npcPortrait.setFrame(39);
       },
     });
   }
@@ -1030,19 +1023,20 @@ class PrototypeScene extends Phaser.Scene {
   stopTalkingPortrait() {
     this.portraitTalkEvent?.remove(false);
     this.portraitTalkEvent = null;
-    this.npcPortrait.setTexture('forestLady-idle').setFrame(0);
+    this.npcPortrait.setTexture('forestLady-idle').setFrame(39);
     if (this.writingSound?.isPlaying) this.writingSound.stop();
   }
 
   renderDialogueOptions(options) {
     this.clearDialogueOptions();
     this.dialogueOptionEntries = options.map((option, index) => {
-      const y = index * 42;
-      const box = this.add.rectangle(0, y, 540, 34, 0x000000, 0).setOrigin(0, 0).setStrokeStyle(2, 0xdab56a, 0.92);
-      const text = this.add.text(14, y + 6, option, {
+      const y = index * 54;
+      const box = this.add.rectangle(0, y, 940, 42, 0x000000, 0).setOrigin(0, 0).setStrokeStyle(2, 0xdab56a, 0.92);
+      const text = this.add.text(14, y + 8, option, {
         fontFamily: 'Roboto Mono',
-        fontSize: '18px',
+        fontSize: '16px',
         color: '#3e2514',
+        wordWrap: { width: 910 },
       });
       this.dialogueOptions.add([box, text]);
       return { box, text };
@@ -1071,11 +1065,15 @@ class PrototypeScene extends Phaser.Scene {
     this.dialogueAwaitingChoice = false;
 
     if (this.dialogueState === 'intro') {
-      this.dialogueState = 'heroResponse';
+      this.dialogueState = 'npcReply';
+      const reply = selectedText === 'I was on my way to pick up supplies for my village.'
+        ? 'Then you are in luck. The city gate is very nearby, and the supply road runs straight through it.'
+        : 'A broken wagon on the city road is bad luck, but the gate is very nearby. You will have help soon enough.';
       this.showDialogueLine({
-        speaker: HEROES[this.heroKey].name,
-        speakerType: 'hero',
-        text: 'My wagon broke down on the way to the city. I was headed there to pick up supplies for my village.',
+        speaker: FOREST_LADY.name,
+        speakerType: 'npc',
+        text: reply,
+        choices: ['Thank you.', 'I should get moving.'],
       });
     } else if (this.dialogueState === 'npcReply') {
       if (selectedText) {
