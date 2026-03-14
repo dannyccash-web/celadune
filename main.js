@@ -798,10 +798,11 @@ class PrototypeScene extends Phaser.Scene {
     const dim = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x05070a, 0.54).setOrigin(0, 0);
     this.dialogueOverlay.add(dim);
 
-    const panelW = 1140;
-    const panelH = 382;
+    const panelW = 1100;
+    const panelH = 440;
     const panelX = Math.round((GAME_WIDTH - panelW) / 2);
-    const panelY = 438;
+    const panelY = Math.round((GAME_HEIGHT - panelH) / 2);
+    this.dialoguePanel = { x: panelX, y: panelY, w: panelW, h: panelH };
 
     const parchment = this.add.tileSprite(panelX + panelW / 2, panelY + panelH / 2, panelW, panelH, 'parchment');
     const parchmentSource = this.textures.get('parchment').getSourceImage();
@@ -816,12 +817,15 @@ class PrototypeScene extends Phaser.Scene {
     this.dialogueOverlay.add(borderOuter);
     this.dialogueOverlay.add(borderInner);
 
-    const contentLeft = panelX + 40;
-    const contentTop = panelY + 34;
-    const portraitSize = 192;
-    const portraitInner = 160;
+    const contentLeft = panelX + 36;
+    const contentTop = panelY + 30;
+    const contentRight = panelX + panelW - 36;
+    const portraitSize = 188;
+    const portraitInner = 158;
     const portraitX = contentLeft + portraitSize / 2;
     const portraitY = contentTop + portraitSize / 2;
+    const textX = panelX + 290;
+    const textRight = contentRight;
 
     this.portraitFrame = this.add.rectangle(portraitX, portraitY, portraitSize, portraitSize, 0x000000, 0)
       .setStrokeStyle(2, 0xdab56a, 0.95);
@@ -837,46 +841,39 @@ class PrototypeScene extends Phaser.Scene {
       width: portraitInner,
       height: portraitInner,
       bottom: portraitY + portraitInner / 2,
+      centerX: portraitX,
+      centerY: portraitY,
     };
-
-    this.portraitMaskGraphics = this.add.graphics();
-    this.portraitMaskGraphics.fillStyle(0xffffff, 1);
-    this.portraitMaskGraphics.fillRect(this.dialoguePortraitRect.left, this.dialoguePortraitRect.top, portraitInner, portraitInner);
-    this.portraitMaskGraphics.setVisible(false);
-    this.dialogueOverlay.add(this.portraitMaskGraphics);
-    const portraitMask = this.portraitMaskGraphics.createGeometryMask();
 
     this.portraitSceneBg = this.add.tileSprite(portraitX, portraitY, portraitInner, portraitInner, 'forest').setOrigin(0.5);
     this.portraitSceneBg.setTileScale(this.bgScale || 1, this.bgScale || 1);
-    this.portraitSceneBg.setMask(portraitMask);
     this.dialogueOverlay.add(this.portraitSceneBg);
 
-    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 6, 'forestLady-idle', 26)
+    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom - 4, 'forestLady-idle', 26)
       .setOrigin(0.5, 1)
-      .setScale(3.35);
-    this.npcPortrait.setMask(portraitMask);
+      .setScale(4.4)
+      .setCrop(0, 0, FRAME_W, 46);
     this.dialogueOverlay.add(this.npcPortrait);
 
-    const textX = panelX + 266;
-    const textRight = panelX + panelW - 40;
-    this.dialogueSpeakerText = this.add.text(textX, contentTop + 8, FOREST_LADY.name, {
+    this.dialogueSpeakerText = this.add.text(textX, contentTop + 10, FOREST_LADY.name, {
       fontFamily: 'Macondo Swash Caps',
       fontSize: '34px',
       color: '#4a2411',
     });
     this.dialogueOverlay.add(this.dialogueSpeakerText);
 
-    this.dialogueText = this.add.text(textX, contentTop + 62, '', {
+    this.dialogueText = this.add.text(textX, contentTop + 66, '', {
       fontFamily: 'Roboto Mono',
       fontSize: '20px',
       color: '#2b1b0f',
       lineSpacing: 10,
       wordWrap: { width: textRight - textX },
+      maxLines: 5,
     });
     this.dialogueOverlay.add(this.dialogueText);
 
-    this.dialogueOptionWidth = panelW - 80;
-    this.dialogueOptions = this.add.container(contentLeft, panelY + panelH - 104);
+    this.dialogueOptionWidth = panelW - 72;
+    this.dialogueOptions = this.add.container(contentLeft, panelY + panelH - 116);
     this.dialogueOverlay.add(this.dialogueOptions);
 
     this.dialogueHint = this.add.text(panelX + panelW - 34, panelY + 18, 'Enter to choose', {
@@ -1089,7 +1086,7 @@ class PrototypeScene extends Phaser.Scene {
   renderDialogueOptions(options) {
     this.clearDialogueOptions();
     this.dialogueOptionEntries = options.map((option, index) => {
-      const y = index * 52;
+      const y = index * 56;
       const box = this.add.rectangle(0, y, this.dialogueOptionWidth, 42, 0x000000, 0)
         .setOrigin(0, 0)
         .setStrokeStyle(2, 0xdab56a, 0.92);
