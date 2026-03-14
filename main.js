@@ -821,7 +821,7 @@ class PrototypeScene extends Phaser.Scene {
     const contentTop = panelY + 30;
     const contentRight = panelX + panelW - 36;
     const portraitSize = 188;
-    const portraitInner = 158;
+    const portraitInner = portraitSize - 12;
     const portraitX = contentLeft + portraitSize / 2;
     const portraitY = contentTop + portraitSize / 2;
     const textX = panelX + 290;
@@ -830,10 +830,6 @@ class PrototypeScene extends Phaser.Scene {
     this.portraitFrame = this.add.rectangle(portraitX, portraitY, portraitSize, portraitSize, 0x000000, 0)
       .setStrokeStyle(2, 0xdab56a, 0.95);
     this.dialogueOverlay.add(this.portraitFrame);
-
-    this.portraitInnerFrame = this.add.rectangle(portraitX, portraitY, portraitInner, portraitInner, 0x000000, 0)
-      .setStrokeStyle(1, 0xdab56a, 0.55);
-    this.dialogueOverlay.add(this.portraitInnerFrame);
 
     this.dialoguePortraitRect = {
       left: portraitX - portraitInner / 2,
@@ -849,10 +845,10 @@ class PrototypeScene extends Phaser.Scene {
     this.portraitSceneBg.setTileScale(this.bgScale || 1, this.bgScale || 1);
     this.dialogueOverlay.add(this.portraitSceneBg);
 
-    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom - 4, 'forestLady-idle', 26)
+    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 8, 'forestLady-idle', 26)
       .setOrigin(0.5, 1)
-      .setScale(4.4)
-      .setCrop(0, 0, FRAME_W, 46);
+      .setScale(4.1)
+      .setCrop(0, 0, FRAME_W, 48);
     this.dialogueOverlay.add(this.npcPortrait);
 
     this.dialogueSpeakerText = this.add.text(textX, contentTop + 10, FOREST_LADY.name, {
@@ -873,7 +869,7 @@ class PrototypeScene extends Phaser.Scene {
     this.dialogueOverlay.add(this.dialogueText);
 
     this.dialogueOptionWidth = panelW - 72;
-    this.dialogueOptions = this.add.container(contentLeft, panelY + panelH - 116);
+    this.dialogueOptions = this.add.container(contentLeft, panelY + panelH - 142);
     this.dialogueOverlay.add(this.dialogueOptions);
 
     this.dialogueHint = this.add.text(panelX + panelW - 34, panelY + 18, 'Enter to choose', {
