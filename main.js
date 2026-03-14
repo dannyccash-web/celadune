@@ -25,7 +25,7 @@ const HEROES = {
 
 const FOREST_LADY = {
   key: 'forestLady',
-  name: 'Morel',
+  name: 'Mirelle',
   idle: 'assets/npcs/forest_lady/idle.png',
   walk: 'assets/npcs/forest_lady/walk.png',
   emote: 'assets/npcs/forest_lady/emote.png',
@@ -44,8 +44,8 @@ function createHeroAnimations(scene, heroKey) {
   const animations = [
     { key: `${heroKey}-walk-left`, sheet: `${heroKey}-walk`, row: 1, start: 0, end: 8, rate: 10, repeat: -1 },
     { key: `${heroKey}-walk-right`, sheet: `${heroKey}-walk`, row: 3, start: 0, end: 8, rate: 10, repeat: -1 },
-    { key: `${heroKey}-idle-left`, sheet: `${heroKey}-idle`, row: 1, start: 0, end: 0, rate: 1, repeat: -1 },
-    { key: `${heroKey}-idle-right`, sheet: `${heroKey}-idle`, row: 3, start: 0, end: 0, rate: 1, repeat: -1 },
+    { key: `${heroKey}-idle-left`, sheet: `${heroKey}-idle`, row: 1, start: 0, end: 1, rate: 3, repeat: -1 },
+    { key: `${heroKey}-idle-right`, sheet: `${heroKey}-idle`, row: 3, start: 0, end: 1, rate: 3, repeat: -1 },
     { key: `${heroKey}-jump-left`, sheet: `${heroKey}-jump`, row: 1, start: 0, end: 3, rate: 12, repeat: 0 },
     { key: `${heroKey}-jump-right`, sheet: `${heroKey}-jump`, row: 3, start: 0, end: 3, rate: 12, repeat: 0 },
   ];
@@ -496,16 +496,6 @@ class PrototypeScene extends Phaser.Scene {
 
     this.physics.add.collider(this.player, this.ground);
 
-    this.playerIdleTween = this.tweens.add({
-      targets: this.player,
-      scaleX: this.playerBaseScaleX * 0.985,
-      scaleY: this.playerBaseScaleY * 1.02,
-      duration: 950,
-      ease: 'Sine.inOut',
-      yoyo: true,
-      repeat: -1,
-      paused: true,
-    });
   }
 
   createNPC() {
@@ -565,23 +555,22 @@ class PrototypeScene extends Phaser.Scene {
 
 
   createProps() {
-    this.propDepth = 8;
-    this.frontPropDepth = 11;
+    this.propDepth = 7;
 
-    this.wagon = this.add.image(360, 642, 'brokenWagon')
+    this.wagon = this.add.image(360, 770, 'brokenWagon')
       .setOrigin(0.5, 1)
       .setScale(0.44)
       .setDepth(this.propDepth);
 
-    this.hut = this.add.image(2240, 654, 'forestHut')
+    this.hut = this.add.image(2240, 770, 'forestHut')
       .setOrigin(0.5, 1)
       .setScale(0.80)
       .setDepth(this.propDepth);
 
-    this.onionPatch = this.add.image(2790, 690, 'onionPatch')
+    this.onionPatch = this.add.image(2790, 772, 'onionPatch')
       .setOrigin(0.5, 1)
       .setScale(0.34)
-      .setDepth(this.frontPropDepth);
+      .setDepth(this.propDepth);
 
     this.onionPatchTooltip = this.add.container(0, 0).setDepth(30).setVisible(false);
     const onionTooltipBg = this.add.rectangle(0, 0, 132, 30, 0x1c1209, 0.82).setStrokeStyle(2, 0xdab56a, 0.95);
@@ -883,9 +872,21 @@ class PrototypeScene extends Phaser.Scene {
     this.portraitSceneBg.setTileScale(this.bgScale || 1, this.bgScale || 1);
     this.dialogueOverlay.add(this.portraitSceneBg);
 
+    this.portraitMaskGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+    this.portraitMaskGraphics.fillStyle(0xffffff, 1);
+    this.portraitMaskGraphics.fillRect(
+      this.dialoguePortraitRect.left,
+      this.dialoguePortraitRect.top,
+      this.dialoguePortraitRect.width,
+      this.dialoguePortraitRect.height
+    );
+    this.portraitMask = this.portraitMaskGraphics.createGeometryMask();
+    this.portraitSceneBg.setMask(this.portraitMask);
+
     this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom, 'forestLady-idle', 26)
       .setOrigin(0.5, 1)
-      .setScale(5.1);
+      .setScale(5.1)
+      .setMask(this.portraitMask);
     this.dialogueOverlay.add(this.npcPortrait);
 
     this.dialogueSpeakerText = this.add.text(textX, contentTop + 10, FOREST_LADY.name, {
@@ -1405,25 +1406,17 @@ class PrototypeScene extends Phaser.Scene {
 
     const animPrefix = this.facing === 'left' ? 'left' : 'right';
     if (!onGround) {
-      if (this.playerIdleTween) {
-        this.playerIdleTween.pause();
-        this.player.setScale(this.playerBaseScaleX, this.playerBaseScaleY);
-      }
+      this.player.setScale(this.playerBaseScaleX, this.playerBaseScaleY);
       this.player.anims.play(`${this.heroKey}-jump-${animPrefix}`, true);
       if (this.player.body.velocity.y > -20) {
         this.player.anims.pause(this.player.anims.currentFrame);
       }
     } else if (Math.abs(velocityX) > 5) {
-      if (this.playerIdleTween) {
-        this.playerIdleTween.pause();
-        this.player.setScale(this.playerBaseScaleX, this.playerBaseScaleY);
-      }
+      this.player.setScale(this.playerBaseScaleX, this.playerBaseScaleY);
       this.player.anims.play(`${this.heroKey}-walk-${animPrefix}`, true);
     } else {
+      this.player.setScale(this.playerBaseScaleX, this.playerBaseScaleY);
       this.player.anims.play(`${this.heroKey}-idle-${animPrefix}`, true);
-      if (this.playerIdleTween && (this.playerIdleTween.isPaused() || !this.playerIdleTween.isPlaying())) {
-        this.playerIdleTween.play();
-      }
     }
 
     this.player.setDepth(9);
