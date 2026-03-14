@@ -474,7 +474,9 @@ class PrototypeScene extends Phaser.Scene {
 
   createPlayer() {
     this.player = this.physics.add.sprite(300, 620, `${this.heroKey}-idle`, 39);
-    this.player.setScale(3.1);
+    this.playerBaseScaleX = 3.1;
+    this.playerBaseScaleY = 3.1;
+    this.player.setScale(this.playerBaseScaleX, this.playerBaseScaleY);
     this.player.setCollideWorldBounds(true);
     this.player.setDepth(9);
     this.player.body.setSize(20, 34);
@@ -484,6 +486,17 @@ class PrototypeScene extends Phaser.Scene {
     this.player.body.setBounce(0);
 
     this.physics.add.collider(this.player, this.ground);
+
+    this.playerIdleTween = this.tweens.add({
+      targets: this.player,
+      scaleX: this.playerBaseScaleX * 0.985,
+      scaleY: this.playerBaseScaleY * 1.02,
+      duration: 950,
+      ease: 'Sine.inOut',
+      yoyo: true,
+      repeat: -1,
+      paused: true,
+    });
   }
 
   createNPC() {
@@ -814,9 +827,16 @@ class PrototypeScene extends Phaser.Scene {
       .setStrokeStyle(1, 0xdab56a, 0.55);
     this.dialogueOverlay.add(this.portraitInnerFrame);
 
-    this.npcPortrait = this.add.sprite(portraitX, portraitY + 68, 'forestLady-idle', 26)
+    this.portraitMaskGraphics = this.add.graphics();
+    this.portraitMaskGraphics.fillStyle(0xffffff, 1);
+    this.portraitMaskGraphics.fillRect(portraitX - 74, portraitY - 74, 148, 148);
+    this.portraitMaskGraphics.setVisible(false);
+    this.dialogueOverlay.add(this.portraitMaskGraphics);
+
+    this.npcPortrait = this.add.sprite(portraitX, portraitY + 74, 'forestLady-idle', 26)
       .setOrigin(0.5, 1)
-      .setScale(2.15);
+      .setScale(2.2);
+    this.npcPortrait.setMask(this.portraitMaskGraphics.createGeometryMask());
     this.dialogueOverlay.add(this.npcPortrait);
 
     const textX = panelX + 226;
@@ -1193,28 +1213,24 @@ class PrototypeScene extends Phaser.Scene {
 
     const animPrefix = this.facing === 'left' ? 'left' : 'right';
     if (!onGround) {
-      if (this.playerBreathing) {
-        this.playerBreathing = false;
-        this.playerBreathTween.pause();
-        this.player.y = this.playerBaseY;
+      if (this.playerIdleTween) {
+        this.playerIdleTween.pause();
+        this.player.setScale(this.playerBaseScaleX, this.playerBaseScaleY);
       }
       this.player.anims.play(`${this.heroKey}-jump-${animPrefix}`, true);
       if (this.player.body.velocity.y > -20) {
         this.player.anims.pause(this.player.anims.currentFrame);
       }
     } else if (Math.abs(velocityX) > 5) {
-      if (this.playerBreathing) {
-        this.playerBreathing = false;
-        this.playerBreathTween.pause();
-        this.player.y = this.playerBaseY;
+      if (this.playerIdleTween) {
+        this.playerIdleTween.pause();
+        this.player.setScale(this.playerBaseScaleX, this.playerBaseScaleY);
       }
       this.player.anims.play(`${this.heroKey}-walk-${animPrefix}`, true);
     } else {
       this.player.anims.play(`${this.heroKey}-idle-${animPrefix}`, true);
-      if (!this.playerBreathing) {
-        this.playerBaseY = this.player.y;
-        this.playerBreathing = true;
-        this.playerBreathTween.play();
+      if (this.playerIdleTween && (this.playerIdleTween.isPaused() || !this.playerIdleTween.isPlaying())) {
+        this.playerIdleTween.play();
       }
     }
 
