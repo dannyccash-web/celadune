@@ -821,7 +821,7 @@ class PrototypeScene extends Phaser.Scene {
     const contentTop = panelY + 30;
     const contentRight = panelX + panelW - 36;
     const portraitSize = 188;
-    const portraitInner = portraitSize - 12;
+    const portraitInner = portraitSize - 4;
     const portraitX = contentLeft + portraitSize / 2;
     const portraitY = contentTop + portraitSize / 2;
     const textX = panelX + 290;
@@ -845,10 +845,21 @@ class PrototypeScene extends Phaser.Scene {
     this.portraitSceneBg.setTileScale(this.bgScale || 1, this.bgScale || 1);
     this.dialogueOverlay.add(this.portraitSceneBg);
 
-    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 28, 'forestLady-idle', 26)
+    this.dialoguePortraitMaskShape = this.make.graphics({ x: 0, y: 0, add: false });
+    this.dialoguePortraitMaskShape.fillStyle(0xffffff, 1);
+    this.dialoguePortraitMaskShape.fillRect(
+      this.dialoguePortraitRect.left,
+      this.dialoguePortraitRect.top,
+      this.dialoguePortraitRect.width,
+      this.dialoguePortraitRect.height,
+    );
+    this.dialoguePortraitMask = this.dialoguePortraitMaskShape.createGeometryMask();
+    this.portraitSceneBg.setMask(this.dialoguePortraitMask);
+
+    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 74, 'forestLady-idle', 26)
       .setOrigin(0.5, 1)
-      .setScale(4.45)
-      .setCrop(0, 0, FRAME_W, 48);
+      .setScale(4.9);
+    this.npcPortrait.setMask(this.dialoguePortraitMask);
     this.dialogueOverlay.add(this.npcPortrait);
 
     this.dialogueSpeakerText = this.add.text(textX, contentTop + 10, FOREST_LADY.name, {
