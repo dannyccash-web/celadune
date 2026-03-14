@@ -21,12 +21,14 @@ class StartScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('#08111a');
 
     const bg = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'start-bg');
-    bg.setDisplaySize(GAME_WIDTH, GAME_HEIGHT);
+    const bgTexture = this.textures.get('start-bg').getSourceImage();
+    const bgScale = Math.max(GAME_WIDTH / bgTexture.width, GAME_HEIGHT / bgTexture.height);
+    bg.setScale(bgScale);
 
     this.logo = this.add.image(GAME_WIDTH / 2, 290, 'celadune-logo');
     const logoTexture = this.textures.get('celadune-logo').getSourceImage();
-    const maxLogoWidth = 1080;
-    const maxLogoHeight = 360;
+    const maxLogoWidth = 1240;
+    const maxLogoHeight = 420;
     const logoScale = Math.min(maxLogoWidth / logoTexture.width, maxLogoHeight / logoTexture.height);
     this.logo.setScale(logoScale);
 
@@ -64,26 +66,28 @@ class StartScene extends Phaser.Scene {
   }
 
   createSheen() {
-    const sheenWidth = 180;
-    const sheenHeight = 440;
-    const sheen = this.add.rectangle(this.logo.x - 700, this.logo.y, sheenWidth, sheenHeight, 0xffffff, 0.18)
+    const bounds = this.logo.getBounds();
+    const sheen = this.add.rectangle(bounds.x - 220, this.logo.y, 150, bounds.height * 1.15, 0xffffff, 0.22)
       .setAngle(-18)
       .setBlendMode(Phaser.BlendModes.SCREEN)
-      .setVisible(false);
+      .setVisible(false)
+      .setDepth(this.logo.depth + 1);
 
-    const maskShape = this.make.graphics({ x: 0, y: 0, add: false });
-    const bounds = this.logo.getBounds();
-    maskShape.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-    const mask = maskShape.createGeometryMask();
-    sheen.setMask(mask);
+    const maskImage = this.add.image(this.logo.x, this.logo.y, 'celadune-logo')
+      .setScale(this.logo.scaleX, this.logo.scaleY)
+      .setVisible(false);
+    sheen.setMask(maskImage.createBitmapMask());
 
     const runSheen = () => {
+      const logoBounds = this.logo.getBounds();
+      sheen.height = logoBounds.height * 1.15;
+      sheen.y = this.logo.y;
+      sheen.x = logoBounds.x - 160;
       sheen.setVisible(true);
-      sheen.x = bounds.x - 140;
       this.tweens.add({
         targets: sheen,
-        x: bounds.right + 140,
-        duration: 1100,
+        x: logoBounds.right + 160,
+        duration: 1000,
         ease: 'Sine.easeInOut',
         onComplete: () => {
           sheen.setVisible(false);
@@ -507,26 +511,20 @@ class PrototypeScene extends Phaser.Scene {
       this.menuOverlay.add(tabText);
     });
 
-    this.contentDivider = this.add.line(0, 0, panelX + 265, panelY + 118, panelX + 265, panelY + panelH - 50, 0x6b4016, 0.8)
+    this.contentDivider = this.add.line(0, 0, panelX + 265, panelY + 90, panelX + 265, panelY + panelH - 90, 0x6b4016, 0.8)
       .setLineWidth(2, 2);
     this.menuOverlay.add(this.contentDivider);
 
-    this.contentHeader = this.add.text(panelX + 320, panelY + 150, '', {
-      fontFamily: 'Macondo Swash Caps',
-      fontSize: '34px',
-      color: '#4a2411',
-    });
-    this.contentBody = this.add.text(panelX + 320, panelY + 215, '', {
+    this.contentBody = this.add.text(panelX + 320, panelY + 150, '', {
       fontFamily: 'Roboto Mono',
       fontSize: '22px',
       color: '#2b1b0f',
       lineSpacing: 12,
       wordWrap: { width: 800 },
     });
-    this.menuOverlay.add(this.contentHeader);
     this.menuOverlay.add(this.contentBody);
 
-    this.inventoryList = this.add.container(panelX + 320, panelY + 215);
+    this.inventoryList = this.add.container(panelX + 320, panelY + 150);
     this.menuOverlay.add(this.inventoryList);
 
     this.refreshMenuPage();
@@ -555,18 +553,16 @@ class PrototypeScene extends Phaser.Scene {
   refreshMenuPage() {
     this.tabTexts.forEach((tab, index) => {
       const active = index === this.selectedMenuIndex;
-      tab.box.setFillStyle(active ? 0xb58c51 : 0x8d6a3b, active ? 0.38 : 0.18);
+      tab.box.setFillStyle(active ? 0x8d6a3b : 0xb58c51, active ? 0.00 : 0.38);
       tab.box.setStrokeStyle(active ? 4 : 3, active ? 0xe3c78d : 0x6b4016, 0.95);
       tab.text.setColor(active ? '#3c1d0d' : '#5b3417');
     });
 
     const currentPage = this.menuPages[this.selectedMenuIndex];
     this.menuTitle.setText(currentPage);
-    this.contentHeader.setText(currentPage);
 
     this.inventoryList.removeAll(true);
     this.contentBody.setVisible(false);
-    this.contentHeader.setVisible(true);
 
     if (currentPage === 'Inventory') {
       let y = 0;
