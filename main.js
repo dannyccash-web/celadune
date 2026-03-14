@@ -6,6 +6,373 @@ const GROUND_Y = 740;
 const FRAME_W = 64;
 const FRAME_H = 64;
 
+class StartScene extends Phaser.Scene {
+  constructor() {
+    super('StartScene');
+    this.menuIndex = 0;
+  }
+
+  preload() {
+    this.load.image('start-bg', 'assets/bg/celadune_start_screen_background.png');
+    this.load.image('celadune-logo', 'assets/ui/celadune_logo.png');
+    // Temporary title-screen music fallback until celadore_theme.mp3 is provided.
+    this.load.audio('titleTheme', 'assets/Fantasy_Score_2.mp3');
+    this.load.audio('forestTheme', 'assets/Fantasy_Score_2.mp3');
+  }
+
+  create() {
+    this.createBackground();
+    this.createLogo();
+    this.createMenu();
+    this.createInput();
+    this.createTitleMusic();
+    this.fadeIn();
+  }
+
+  createBackground() {
+    const texture = this.textures.get('start-bg').getSourceImage();
+    const bgScale = Math.max(GAME_WIDTH / texture.width, GAME_HEIGHT / texture.height) * 1.08;
+
+    this.bg = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'start-bg')
+      .setScale(bgScale)
+      .setDepth(-10);
+
+    this.tweens.add({
+      targets: this.bg,
+      scaleX: bgScale * 1.055,
+      scaleY: bgScale * 1.055,
+      x: GAME_WIDTH / 2 - 18,
+      y: GAME_HEIGHT / 2 - 12,
+      duration: 22000,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1,
+    });
+
+    this.screenShade = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x081018, 0.18)
+      .setDepth(-5);
+
+    this.createVignetteTexture();
+    this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'start-vignette')
+      .setDepth(30)
+      .setBlendMode(Phaser.BlendModes.MULTIPLY)
+      .setAlpha(0.95);
+  }
+
+  createLogo() {
+    const maxLogoWidth = 1040;
+    this.logo = this.add.image(GAME_WIDTH / 2, 325, 'celadune-logo')
+      .setOrigin(0.5)
+      .setDepth(10);
+
+    const logoScale = Math.min(1, maxLogoWidth / this.logo.width);
+    this.logo.setScale(logoScale);
+
+    this.logoShadow = this.add.image(this.logo.x, this.logo.y + 12, 'celadune-logo')
+      .setOrigin(0.5)
+      .setScale(logoScale)
+      .setTint(0x102032)
+      .setAlpha(0.22)
+      .setDepth(8);
+
+    this.tweens.add({
+      targets: [this.logo, this.logoShadow],
+      y: '+=4',
+      duration: 2800,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1,
+    });
+
+    this.createSheenTexture();
+    this.logoMaskImage = this.add.image(this.logo.x, this.logo.y, 'celadune-logo')
+      .setOrigin(0.5)
+      .setScale(logoScale)
+      .setVisible(false);
+
+    this.sheen = this.add.image(this.logo.x - this.logo.displayWidth * 0.8, this.logo.y, 'logo-sheen')
+      .setDepth(12)
+      .setScale(1.25, 1.25)
+      .setAlpha(0)
+      .setBlendMode(Phaser.BlendModes.ADD);
+
+    this.sheen.setMask(new Phaser.Display.Masks.BitmapMask(this, this.logoMaskImage));
+
+    this.time.addEvent({
+      delay: 4200,
+      loop: true,
+      callback: () => {
+        this.sheen.setX(this.logo.x - this.logo.displayWidth * 0.8);
+        this.sheen.setAlpha(0);
+        this.tweens.add({
+          targets: this.sheen,
+          x: this.logo.x + this.logo.displayWidth * 0.8,
+          alpha: { from: 0, to: 0.85 },
+          duration: 1200,
+          ease: 'Sine.easeInOut',
+          onComplete: () => this.sheen.setAlpha(0),
+        });
+      },
+    });
+  }
+
+  createMenu() {
+    this.buttonY = 685;
+
+    this.buttonContainer = this.add.container(GAME_WIDTH / 2, this.buttonY).setDepth(20);
+
+    this.createButtonTextures();
+    this.buttonBg = this.add.image(0, 0, 'start-btn');
+    this.buttonHighlight = this.add.image(0, 0, 'start-btn-highlight').setAlpha(0);
+
+    this.buttonText = this.add.text(0, -4, 'START', {
+      fontFamily: 'Macondo Swash Caps, serif',
+      fontSize: '42px',
+      color: '#f8edc2',
+      stroke: '#43250c',
+      strokeThickness: 6,
+      shadow: {
+        offsetX: 0,
+        offsetY: 3,
+        color: '#000000',
+        blur: 2,
+        fill: true,
+      },
+    }).setOrigin(0.5);
+
+    this.buttonHint = this.add.text(0, 50, 'Press Enter / Space / Gamepad A', {
+      fontFamily: 'Arial',
+      fontSize: '20px',
+      color: '#eef4ff',
+      stroke: '#081018',
+      strokeThickness: 4,
+    }).setOrigin(0.5);
+
+    this.buttonContainer.add([this.buttonBg, this.buttonHighlight, this.buttonText, this.buttonHint]);
+
+    this.titlePrompt = this.add.text(GAME_WIDTH / 2, 794, 'An old-world fantasy adventure begins', {
+      fontFamily: 'Macondo Swash Caps, serif',
+      fontSize: '28px',
+      color: '#e5d6ad',
+      stroke: '#13202c',
+      strokeThickness: 5,
+    }).setOrigin(0.5).setDepth(20).setAlpha(0.92);
+
+    this.updateMenuSelection();
+
+    this.tweens.add({
+      targets: this.buttonContainer,
+      y: this.buttonY + 4,
+      duration: 1800,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1,
+    });
+  }
+
+  createInput() {
+    this.keys = this.input.keyboard.addKeys({
+      up: Phaser.Input.Keyboard.KeyCodes.UP,
+      down: Phaser.Input.Keyboard.KeyCodes.DOWN,
+      left: Phaser.Input.Keyboard.KeyCodes.LEFT,
+      right: Phaser.Input.Keyboard.KeyCodes.RIGHT,
+      enter: Phaser.Input.Keyboard.KeyCodes.ENTER,
+      space: Phaser.Input.Keyboard.KeyCodes.SPACE,
+    });
+
+    this.input.gamepad.once('connected', (pad) => {
+      this.activePad = pad;
+    });
+  }
+
+  createTitleMusic() {
+    this.titleMusic = this.sound.add('titleTheme', {
+      loop: true,
+      volume: 0.45,
+    });
+
+    if (!this.sound.locked) {
+      this.titleMusic.play();
+    } else {
+      this.sound.once(Phaser.Sound.Events.UNLOCKED, () => {
+        if (!this.titleMusic.isPlaying) {
+          this.titleMusic.play();
+        }
+      });
+    }
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      if (this.titleMusic) {
+        this.titleMusic.stop();
+      }
+    });
+
+    this.events.once(Phaser.Scenes.Events.DESTROY, () => {
+      if (this.titleMusic) {
+        this.titleMusic.destroy();
+      }
+    });
+  }
+
+  createVignetteTexture() {
+    if (this.textures.exists('start-vignette')) {
+      return;
+    }
+
+    const canvas = this.textures.createCanvas('start-vignette', GAME_WIDTH, GAME_HEIGHT);
+    const ctx = canvas.getContext();
+    const gradient = ctx.createRadialGradient(
+      GAME_WIDTH / 2,
+      GAME_HEIGHT / 2,
+      GAME_HEIGHT * 0.16,
+      GAME_WIDTH / 2,
+      GAME_HEIGHT / 2,
+      GAME_WIDTH * 0.62,
+    );
+
+    gradient.addColorStop(0, 'rgba(0, 0, 0, 0.00)');
+    gradient.addColorStop(0.46, 'rgba(0, 0, 0, 0.10)');
+    gradient.addColorStop(0.74, 'rgba(0, 0, 0, 0.38)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0.80)');
+
+    ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    canvas.refresh();
+  }
+
+  createSheenTexture() {
+    if (this.textures.exists('logo-sheen')) {
+      return;
+    }
+
+    const width = 300;
+    const height = 500;
+    const canvas = this.textures.createCanvas('logo-sheen', width, height);
+    const ctx = canvas.getContext();
+
+    const gradient = ctx.createLinearGradient(0, 0, width, 0);
+    gradient.addColorStop(0, 'rgba(255,255,255,0.00)');
+    gradient.addColorStop(0.35, 'rgba(255,255,255,0.04)');
+    gradient.addColorStop(0.5, 'rgba(255,255,255,0.92)');
+    gradient.addColorStop(0.65, 'rgba(255,255,255,0.08)');
+    gradient.addColorStop(1, 'rgba(255,255,255,0.00)');
+
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.moveTo(width * 0.28, 0);
+    ctx.lineTo(width * 0.74, 0);
+    ctx.lineTo(width * 0.58, height);
+    ctx.lineTo(width * 0.12, height);
+    ctx.closePath();
+    ctx.fill();
+    canvas.refresh();
+  }
+
+  createButtonTextures() {
+    if (this.textures.exists('start-btn') && this.textures.exists('start-btn-highlight')) {
+      return;
+    }
+
+    const width = 420;
+    const height = 108;
+    const drawPanel = (key, brighten = false) => {
+      const canvas = this.textures.createCanvas(key, width, height);
+      const ctx = canvas.getContext();
+      const radius = 22;
+      const topColor = brighten ? '#c39953' : '#9d7238';
+      const bottomColor = brighten ? '#6f4a1f' : '#563614';
+      const trimColor = brighten ? '#ffe7a8' : '#e8c77e';
+
+      ctx.clearRect(0, 0, width, height);
+      ctx.beginPath();
+      ctx.moveTo(radius, 8);
+      ctx.lineTo(width - radius, 8);
+      ctx.quadraticCurveTo(width - 8, 8, width - 8, radius);
+      ctx.lineTo(width - 8, height - radius);
+      ctx.quadraticCurveTo(width - 8, height - 8, width - radius, height - 8);
+      ctx.lineTo(radius, height - 8);
+      ctx.quadraticCurveTo(8, height - 8, 8, height - radius);
+      ctx.lineTo(8, radius);
+      ctx.quadraticCurveTo(8, 8, radius, 8);
+      ctx.closePath();
+
+      const fill = ctx.createLinearGradient(0, 8, 0, height - 8);
+      fill.addColorStop(0, topColor);
+      fill.addColorStop(0.5, brighten ? '#9d6f35' : '#7b5627');
+      fill.addColorStop(1, bottomColor);
+      ctx.fillStyle = fill;
+      ctx.fill();
+
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = '#3b220f';
+      ctx.stroke();
+
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = trimColor;
+      ctx.strokeRect(20, 18, width - 40, height - 36);
+
+      const shine = ctx.createLinearGradient(0, 8, 0, height * 0.6);
+      shine.addColorStop(0, brighten ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.18)');
+      shine.addColorStop(1, 'rgba(255,255,255,0.00)');
+      ctx.fillStyle = shine;
+      ctx.fillRect(18, 14, width - 36, height * 0.35);
+
+      canvas.refresh();
+    };
+
+    drawPanel('start-btn', false);
+    drawPanel('start-btn-highlight', true);
+  }
+
+  updateMenuSelection() {
+    const selected = this.menuIndex === 0;
+    this.buttonHighlight.setAlpha(selected ? 1 : 0);
+    this.buttonText.setScale(selected ? 1.03 : 1);
+    this.buttonHint.setAlpha(selected ? 0.95 : 0.75);
+  }
+
+  fadeIn() {
+    this.cameras.main.fadeIn(500, 0, 0, 0);
+  }
+
+  startGame() {
+    if (this.isStarting) {
+      return;
+    }
+    this.isStarting = true;
+
+    this.tweens.add({
+      targets: this.buttonContainer,
+      scaleX: 0.96,
+      scaleY: 0.96,
+      yoyo: true,
+      duration: 120,
+      repeat: 0,
+    });
+
+    this.cameras.main.fadeOut(700, 0, 0, 0);
+    this.time.delayedCall(720, () => {
+      this.scene.start('PrototypeScene');
+    });
+  }
+
+  update() {
+    const pad = this.activePad;
+    const confirmPressed = Phaser.Input.Keyboard.JustDown(this.keys.enter)
+      || Phaser.Input.Keyboard.JustDown(this.keys.space)
+      || (pad && pad.justPressed(0, 250));
+
+    if (confirmPressed) {
+      this.startGame();
+    }
+
+    this.logoMaskImage.setPosition(this.logo.x, this.logo.y);
+    this.logoShadow.setPosition(this.logo.x, this.logo.y + 12);
+  }
+}
+
 class PrototypeScene extends Phaser.Scene {
   constructor() {
     super('PrototypeScene');
@@ -17,7 +384,7 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('ground1', 'assets/tiles/ground_tile_1.png');
     this.load.image('ground2', 'assets/tiles/ground_tile_2.png');
     this.load.image('ground3', 'assets/tiles/ground_tile_3.png');
-    this.load.audio('fantasyScore', 'assets/Fantasy_Score_2.mp3');
+    this.load.audio('forestTheme', 'assets/Fantasy_Score_2.mp3');
     this.load.spritesheet('walk', 'assets/characters/walk.png', {
       frameWidth: FRAME_W,
       frameHeight: FRAME_H,
@@ -89,7 +456,6 @@ class PrototypeScene extends Phaser.Scene {
       body.setVisible(false);
       body.setDisplaySize(GROUND_TILE, GROUND_TILE);
       body.refreshBody();
-
     }
 
     this.groundShadow = this.add.rectangle(WORLD_WIDTH / 2, GROUND_Y - 4, WORLD_WIDTH, 18, 0x13210f, 0.35)
@@ -283,7 +649,7 @@ class PrototypeScene extends Phaser.Scene {
   }
 
   createAudio() {
-    this.music = this.sound.add('fantasyScore', {
+    this.music = this.sound.add('forestTheme', {
       loop: true,
       volume: 0.42,
     });
@@ -382,7 +748,10 @@ const config = {
       debug: false,
     },
   },
-  scene: [PrototypeScene],
+  input: {
+    gamepad: true,
+  },
+  scene: [StartScene, PrototypeScene],
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
