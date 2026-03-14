@@ -773,10 +773,8 @@ class PrototypeScene extends Phaser.Scene {
       this.menuOverlay.add(tabText);
     });
 
-    const dividerTop = panelY + 60;
-    const dividerBottom = panelY + panelH - 60;
-    this.contentDivider = this.add.line(0, 0, panelX + 265, dividerTop, panelX + 265, dividerBottom, 0x6b4016, 0.8)
-      .setLineWidth(2, 2);
+    this.contentDivider = this.add.rectangle(panelX + 265, panelY + panelH / 2, 2, panelH - 120, 0x6b4016, 0.8)
+      .setOrigin(0.5, 0.5);
     this.menuOverlay.add(this.contentDivider);
 
     this.contentBody = this.add.text(panelX + 320, panelY + 132, '', {
@@ -827,16 +825,10 @@ class PrototypeScene extends Phaser.Scene {
       .setStrokeStyle(1, 0xdab56a, 0.55);
     this.dialogueOverlay.add(this.portraitInnerFrame);
 
-    this.portraitMaskGraphics = this.add.graphics();
-    this.portraitMaskGraphics.fillStyle(0xffffff, 1);
-    this.portraitMaskGraphics.fillRect(portraitX - 74, portraitY - 74, 148, 148);
-    this.portraitMaskGraphics.setVisible(false);
-    this.dialogueOverlay.add(this.portraitMaskGraphics);
-
-    this.npcPortrait = this.add.sprite(portraitX, portraitY + 74, 'forestLady-idle', 26)
+    this.npcPortrait = this.add.sprite(portraitX, portraitY + 68, 'forestLady-idle', 26)
       .setOrigin(0.5, 1)
-      .setScale(2.2);
-    this.npcPortrait.setMask(this.portraitMaskGraphics.createGeometryMask());
+      .setScale(2.1)
+      .setDepth(1);
     this.dialogueOverlay.add(this.npcPortrait);
 
     const textX = panelX + 226;
