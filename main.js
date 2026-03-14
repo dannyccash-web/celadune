@@ -6,6 +6,54 @@ const GROUND_Y = 740;
 const FRAME_W = 64;
 const FRAME_H = 64;
 
+const HEROES = {
+  caelan: {
+    key: 'caelan',
+    name: 'Caelan',
+    walk: 'assets/characters/caelan/walk.png',
+    idle: 'assets/characters/caelan/idle.png',
+    jump: 'assets/characters/caelan/jump.png',
+  },
+  nerisse: {
+    key: 'nerisse',
+    name: 'Nerisse',
+    walk: 'assets/characters/nerisse/walk.png',
+    idle: 'assets/characters/nerisse/idle.png',
+    jump: 'assets/characters/nerisse/jump.png',
+  },
+};
+
+function createHeroAnimations(scene, heroKey) {
+  const rowStart = (row) => row * 13;
+  const frameList = (sheet, row, start, end) => {
+    const out = [];
+    for (let i = start; i <= end; i += 1) {
+      out.push({ key: sheet, frame: rowStart(row) + i });
+    }
+    return out;
+  };
+
+  const animations = [
+    { key: `${heroKey}-walk-left`, sheet: `${heroKey}-walk`, row: 1, start: 0, end: 8, rate: 10, repeat: -1 },
+    { key: `${heroKey}-walk-right`, sheet: `${heroKey}-walk`, row: 3, start: 0, end: 8, rate: 10, repeat: -1 },
+    { key: `${heroKey}-idle-left`, sheet: `${heroKey}-idle`, row: 1, start: 0, end: 1, rate: 3, repeat: -1 },
+    { key: `${heroKey}-idle-right`, sheet: `${heroKey}-idle`, row: 3, start: 0, end: 1, rate: 3, repeat: -1 },
+    { key: `${heroKey}-jump-left`, sheet: `${heroKey}-jump`, row: 1, start: 0, end: 3, rate: 12, repeat: 0 },
+    { key: `${heroKey}-jump-right`, sheet: `${heroKey}-jump`, row: 3, start: 0, end: 3, rate: 12, repeat: 0 },
+  ];
+
+  animations.forEach((anim) => {
+    if (!scene.anims.exists(anim.key)) {
+      scene.anims.create({
+        key: anim.key,
+        frames: frameList(anim.sheet, anim.row, anim.start, anim.end),
+        frameRate: anim.rate,
+        repeat: anim.repeat,
+      });
+    }
+  });
+}
+
 class StartScene extends Phaser.Scene {
   constructor() {
     super('StartScene');
@@ -25,16 +73,16 @@ class StartScene extends Phaser.Scene {
     const bgScale = Math.max(GAME_WIDTH / bgTexture.width, GAME_HEIGHT / bgTexture.height);
     bg.setScale(bgScale);
 
-    this.logo = this.add.image(GAME_WIDTH / 2, 338, 'celadune-logo');
+    this.logo = this.add.image(GAME_WIDTH / 2, 362, 'celadune-logo');
     const logoTexture = this.textures.get('celadune-logo').getSourceImage();
-    const maxLogoWidth = 1500;
-    const maxLogoHeight = 620;
+    const maxLogoWidth = 2250;
+    const maxLogoHeight = 930;
     const logoScale = Math.min(maxLogoWidth / logoTexture.width, maxLogoHeight / logoTexture.height);
     this.logo.setScale(logoScale);
 
-    this.add.rectangle(GAME_WIDTH / 2, 760, 320, 88, 0x1e140a, 0.72).setStrokeStyle(4, 0xdab56a, 0.9);
-    this.add.rectangle(GAME_WIDTH / 2, 760, 300, 68, 0x41250d, 0.94).setStrokeStyle(2, 0xf3dfae, 0.9);
-    this.startButton = this.add.text(GAME_WIDTH / 2, 760, 'Start', {
+    this.add.rectangle(GAME_WIDTH / 2, 768, 320, 88, 0x1e140a, 0.72).setStrokeStyle(4, 0xdab56a, 0.9);
+    this.add.rectangle(GAME_WIDTH / 2, 768, 300, 68, 0x41250d, 0.94).setStrokeStyle(2, 0xf3dfae, 0.9);
+    this.startButton = this.add.text(GAME_WIDTH / 2, 768, 'Start', {
       fontFamily: 'Macondo Swash Caps',
       fontSize: '42px',
       color: '#fff3d0',
@@ -49,7 +97,7 @@ class StartScene extends Phaser.Scene {
       },
     }).setOrigin(0.5);
 
-    this.promptText = this.add.text(GAME_WIDTH / 2, 832, 'Press Enter to begin', {
+    this.promptText = this.add.text(GAME_WIDTH / 2, 838, 'Press Enter to begin', {
       fontFamily: 'Roboto Mono',
       fontSize: '22px',
       color: '#efe6cf',
@@ -66,37 +114,34 @@ class StartScene extends Phaser.Scene {
   }
 
   createSheen() {
-    const bounds = this.logo.getBounds();
-    const sheen = this.add.rectangle(bounds.x - 220, this.logo.y, 150, bounds.height * 1.15, 0xffffff, 0.22)
+    const maskImage = this.make.image({ x: this.logo.x, y: this.logo.y, key: 'celadune-logo', add: false });
+    maskImage.setScale(this.logo.scaleX, this.logo.scaleY);
+    const mask = maskImage.createBitmapMask();
+
+    const sheen = this.add.rectangle(this.logo.x - 920, this.logo.y, 210, 980, 0xffffff, 0.20)
       .setAngle(-18)
       .setBlendMode(Phaser.BlendModes.SCREEN)
       .setVisible(false)
       .setDepth(this.logo.depth + 1);
-
-    const maskImage = this.add.image(this.logo.x, this.logo.y, 'celadune-logo')
-      .setScale(this.logo.scaleX, this.logo.scaleY)
-      .setVisible(false);
-    sheen.setMask(maskImage.createBitmapMask());
+    sheen.setMask(mask);
 
     const runSheen = () => {
-      const logoBounds = this.logo.getBounds();
-      sheen.height = logoBounds.height * 1.15;
+      sheen.x = this.logo.x - 920;
       sheen.y = this.logo.y;
-      sheen.x = logoBounds.x - 160;
       sheen.setVisible(true);
       this.tweens.add({
         targets: sheen,
-        x: logoBounds.right + 160,
-        duration: 1000,
+        x: this.logo.x + 920,
+        duration: 950,
         ease: 'Sine.easeInOut',
         onComplete: () => {
           sheen.setVisible(false);
-          this.time.delayedCall(4200, runSheen);
+          this.time.delayedCall(4300, runSheen);
         },
       });
     };
 
-    this.time.delayedCall(1500, runSheen);
+    this.time.delayedCall(1400, runSheen);
   }
 
   createAudio() {
@@ -127,7 +172,149 @@ class StartScene extends Phaser.Scene {
     if (this.transitioning) return;
     this.transitioning = true;
     this.cameras.main.fadeOut(500, 0, 0, 0);
-    this.time.delayedCall(520, () => this.scene.start('PrototypeScene'));
+    this.time.delayedCall(520, () => this.scene.start('HeroSelectScene'));
+  }
+}
+
+class HeroSelectScene extends Phaser.Scene {
+  constructor() {
+    super('HeroSelectScene');
+    this.selectedHeroIndex = 0;
+    this.heroOrder = ['caelan', 'nerisse'];
+  }
+
+  preload() {
+    this.load.image('start-bg', 'assets/ui/celadune_start_screen_background.png');
+    this.load.image('parchment', 'assets/ui/parchment.png');
+
+    Object.values(HEROES).forEach((hero) => {
+      this.load.spritesheet(`${hero.key}-idle`, hero.idle, {
+        frameWidth: FRAME_W,
+        frameHeight: FRAME_H,
+      });
+    });
+  }
+
+  create() {
+    this.cameras.main.setBackgroundColor('#08111a');
+
+    const bg = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'start-bg');
+    const bgTexture = this.textures.get('start-bg').getSourceImage();
+    const bgScale = Math.max(GAME_WIDTH / bgTexture.width, GAME_HEIGHT / bgTexture.height);
+    bg.setScale(bgScale);
+
+    const panelX = 265;
+    const panelY = 152;
+    const panelW = 1070;
+    const panelH = 596;
+
+    const parchment = this.add.tileSprite(panelX + panelW / 2, panelY + panelH / 2, panelW, panelH, 'parchment');
+    const parchmentSource = this.textures.get('parchment').getSourceImage();
+    parchment.setTileScale(160 / parchmentSource.width, 160 / parchmentSource.height);
+    parchment.setAlpha(0.98);
+
+    this.add.rectangle(panelX + panelW / 2, panelY + panelH / 2, panelW, panelH, 0x000000, 0)
+      .setStrokeStyle(6, 0x5b3717, 1);
+    this.add.rectangle(panelX + panelW / 2, panelY + panelH / 2, panelW - 18, panelH - 18, 0x000000, 0)
+      .setStrokeStyle(2, 0xdab56a, 0.95);
+
+    this.add.text(GAME_WIDTH / 2, panelY + 62, 'Select Your Hero', {
+      fontFamily: 'Macondo Swash Caps',
+      fontSize: '48px',
+      color: '#4a2411',
+      stroke: '#f5e2b6',
+      strokeThickness: 3,
+    }).setOrigin(0.5);
+
+    this.add.text(GAME_WIDTH / 2, panelY + panelH - 54, 'Left / Right to choose  •  Enter to confirm', {
+      fontFamily: 'Roboto Mono',
+      fontSize: '20px',
+      color: '#4e3720',
+    }).setOrigin(0.5);
+
+    this.heroCards = this.heroOrder.map((heroKey, index) => {
+      const x = index === 0 ? 640 : 960;
+      const y = 488;
+
+      const outer = this.add.rectangle(x, y, 250, 332, 0x000000, 0).setStrokeStyle(4, 0xdab56a, 0.98);
+      const inner = this.add.rectangle(x, y, 232, 314, 0x000000, 0).setStrokeStyle(2, 0xe9cf96, 0.92);
+      const portraitGlow = this.add.rectangle(x, y - 26, 166, 196, 0xa37a3f, 0.08).setStrokeStyle(1, 0xb88945, 0.22);
+      const sprite = this.add.sprite(x, y - 28, `${heroKey}-idle`, 39).setScale(3.2);
+      const name = this.add.text(x, y + 122, HEROES[heroKey].name, {
+        fontFamily: 'Macondo Swash Caps',
+        fontSize: '34px',
+        color: '#4a2411',
+      }).setOrigin(0.5);
+      const role = this.add.text(x, y + 160, heroKey === 'caelan' ? 'Fighter' : 'Mage', {
+        fontFamily: 'Roboto Mono',
+        fontSize: '18px',
+        color: '#5c4528',
+      }).setOrigin(0.5);
+
+      return { key: heroKey, outer, inner, portraitGlow, sprite, name, role };
+    });
+
+    this.ensurePreviewAnimations();
+    this.heroCards.forEach((card) => card.sprite.play(`${card.key}-preview`, true));
+    this.refreshSelection();
+
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
+    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.escapeKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+  }
+
+  ensurePreviewAnimations() {
+    this.heroOrder.forEach((heroKey) => {
+      const key = `${heroKey}-preview`;
+      if (!this.anims.exists(key)) {
+        this.anims.create({
+          key,
+          frames: [
+            { key: `${heroKey}-idle`, frame: 39 },
+            { key: `${heroKey}-idle`, frame: 40 },
+          ],
+          frameRate: 3,
+          repeat: -1,
+        });
+      }
+    });
+  }
+
+  refreshSelection() {
+    this.heroCards.forEach((card, index) => {
+      const active = index === this.selectedHeroIndex;
+      card.outer.setStrokeStyle(active ? 4 : 3, active ? 0x6b4016 : 0xdab56a, 0.98);
+      card.inner.setStrokeStyle(active ? 2 : 1, active ? 0x3f2410 : 0xe9cf96, active ? 0.98 : 0.82);
+      card.portraitGlow.setAlpha(active ? 0.12 : 0.05);
+      card.name.setColor(active ? '#3a1b0a' : '#6d4f24');
+      card.role.setColor(active ? '#4a311a' : '#7e6541');
+    });
+  }
+
+  confirmSelection() {
+    if (this.transitioning) return;
+    this.transitioning = true;
+    const selectedHero = this.heroOrder[this.selectedHeroIndex];
+    this.cameras.main.fadeOut(400, 0, 0, 0);
+    this.time.delayedCall(420, () => this.scene.start('PrototypeScene', { heroKey: selectedHero }));
+  }
+
+  update() {
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.left)) {
+      this.selectedHeroIndex = Phaser.Math.Wrap(this.selectedHeroIndex - 1, 0, this.heroOrder.length);
+      this.refreshSelection();
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.right)) {
+      this.selectedHeroIndex = Phaser.Math.Wrap(this.selectedHeroIndex + 1, 0, this.heroOrder.length);
+      this.refreshSelection();
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.enterKey) || Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+      this.confirmSelection();
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.escapeKey)) {
+      this.scene.start('StartScene');
+    }
   }
 }
 
@@ -144,6 +331,10 @@ class PrototypeScene extends Phaser.Scene {
     ];
   }
 
+  init(data) {
+    this.heroKey = data?.heroKey || 'caelan';
+  }
+
   preload() {
     this.load.image('forest', 'assets/bg/forest.png');
     this.load.image('ground1', 'assets/tiles/ground_tile_1.png');
@@ -151,17 +342,20 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('ground3', 'assets/tiles/ground_tile_3.png');
     this.load.image('parchment', 'assets/ui/parchment.png');
     this.load.audio('forestTheme', 'assets/audio/celadune_forest.mp3');
-    this.load.spritesheet('walk', 'assets/characters/walk.png', {
-      frameWidth: FRAME_W,
-      frameHeight: FRAME_H,
-    });
-    this.load.spritesheet('idle', 'assets/characters/idle.png', {
-      frameWidth: FRAME_W,
-      frameHeight: FRAME_H,
-    });
-    this.load.spritesheet('jump', 'assets/characters/jump.png', {
-      frameWidth: FRAME_W,
-      frameHeight: FRAME_H,
+
+    Object.values(HEROES).forEach((hero) => {
+      this.load.spritesheet(`${hero.key}-walk`, hero.walk, {
+        frameWidth: FRAME_W,
+        frameHeight: FRAME_H,
+      });
+      this.load.spritesheet(`${hero.key}-idle`, hero.idle, {
+        frameWidth: FRAME_W,
+        frameHeight: FRAME_H,
+      });
+      this.load.spritesheet(`${hero.key}-jump`, hero.jump, {
+        frameWidth: FRAME_W,
+        frameHeight: FRAME_H,
+      });
     });
   }
 
@@ -246,38 +440,11 @@ class PrototypeScene extends Phaser.Scene {
   }
 
   createAnimations() {
-    const rowStart = (row) => row * 13;
-    const frameList = (sheet, row, start, end) => {
-      const out = [];
-      for (let i = start; i <= end; i += 1) {
-        out.push({ key: sheet, frame: rowStart(row) + i });
-      }
-      return out;
-    };
-
-    const animations = [
-      { key: 'walk-left', sheet: 'walk', row: 1, start: 0, end: 8, rate: 10, repeat: -1 },
-      { key: 'walk-right', sheet: 'walk', row: 3, start: 0, end: 8, rate: 10, repeat: -1 },
-      { key: 'idle-left', sheet: 'idle', row: 1, start: 0, end: 1, rate: 3, repeat: -1 },
-      { key: 'idle-right', sheet: 'idle', row: 3, start: 0, end: 1, rate: 3, repeat: -1 },
-      { key: 'jump-left', sheet: 'jump', row: 1, start: 0, end: 3, rate: 12, repeat: 0 },
-      { key: 'jump-right', sheet: 'jump', row: 3, start: 0, end: 3, rate: 12, repeat: 0 },
-    ];
-
-    animations.forEach((anim) => {
-      if (!this.anims.exists(anim.key)) {
-        this.anims.create({
-          key: anim.key,
-          frames: frameList(anim.sheet, anim.row, anim.start, anim.end),
-          frameRate: anim.rate,
-          repeat: anim.repeat,
-        });
-      }
-    });
+    Object.keys(HEROES).forEach((heroKey) => createHeroAnimations(this, heroKey));
   }
 
   createPlayer() {
-    this.player = this.physics.add.sprite(300, 634, 'idle', 39);
+    this.player = this.physics.add.sprite(300, 634, `${this.heroKey}-idle`, 39);
     this.player.setScale(3.1);
     this.player.setCollideWorldBounds(true);
     this.player.setDepth(10);
@@ -511,22 +678,22 @@ class PrototypeScene extends Phaser.Scene {
       this.menuOverlay.add(tabText);
     });
 
-    const dividerTop = panelY + 32;
-    const dividerBottom = panelY + panelH - 32;
+    const dividerTop = panelY + 60;
+    const dividerBottom = panelY + panelH - 60;
     this.contentDivider = this.add.line(0, 0, panelX + 265, dividerTop, panelX + 265, dividerBottom, 0x6b4016, 0.8)
       .setLineWidth(2, 2);
     this.menuOverlay.add(this.contentDivider);
 
-    this.contentBody = this.add.text(panelX + 320, panelY + 150, '', {
+    this.contentBody = this.add.text(panelX + 320, panelY + 132, '', {
       fontFamily: 'Roboto Mono',
       fontSize: '22px',
       color: '#2b1b0f',
       lineSpacing: 12,
-      wordWrap: { width: 760 },
+      wordWrap: { width: 720 },
     });
     this.menuOverlay.add(this.contentBody);
 
-    this.inventoryList = this.add.container(panelX + 320, panelY + 150);
+    this.inventoryList = this.add.container(panelX + 320, panelY + 132);
     this.menuOverlay.add(this.inventoryList);
 
     this.refreshMenuPage();
@@ -569,7 +736,7 @@ class PrototypeScene extends Phaser.Scene {
     if (currentPage === 'Inventory') {
       let y = 0;
       this.inventoryItems.forEach((item) => {
-        const row = this.add.rectangle(0, y + 18, 760, 46, 0x9b7740, 0.08)
+        const row = this.add.rectangle(0, y + 18, 690, 46, 0x9b7740, 0.08)
           .setOrigin(0, 0);
         const icon = this.add.text(18, y + 6, item.icon, {
           fontFamily: 'Macondo Swash Caps',
@@ -578,7 +745,7 @@ class PrototypeScene extends Phaser.Scene {
         });
         const label = this.add.text(66, y + 8, item.name, {
           fontFamily: 'Roboto Mono',
-          fontSize: '22px',
+          fontSize: '20px',
           color: '#2b1b0f',
         });
         this.inventoryList.add([row, icon, label]);
@@ -645,16 +812,16 @@ class PrototypeScene extends Phaser.Scene {
     const animPrefix = this.facing === 'left' ? 'left' : 'right';
 
     if (!onGround) {
-      this.player.anims.play(`jump-${animPrefix}`, true);
+      this.player.anims.play(`${this.heroKey}-jump-${animPrefix}`, true);
       if (this.player.body.velocity.y > -20) {
         this.player.anims.pause(this.player.anims.currentFrame);
       }
       this.player.setDepth(10);
     } else if (Math.abs(velocityX) > 5) {
-      this.player.anims.play(`walk-${animPrefix}`, true);
+      this.player.anims.play(`${this.heroKey}-walk-${animPrefix}`, true);
       this.player.setDepth(10);
     } else {
-      this.player.anims.play(`idle-${animPrefix}`, true);
+      this.player.anims.play(`${this.heroKey}-idle-${animPrefix}`, true);
       this.player.setDepth(10);
     }
 
@@ -676,7 +843,7 @@ const config = {
       debug: false,
     },
   },
-  scene: [StartScene, PrototypeScene],
+  scene: [StartScene, HeroSelectScene, PrototypeScene],
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
