@@ -25,16 +25,16 @@ class StartScene extends Phaser.Scene {
     const bgScale = Math.max(GAME_WIDTH / bgTexture.width, GAME_HEIGHT / bgTexture.height);
     bg.setScale(bgScale);
 
-    this.logo = this.add.image(GAME_WIDTH / 2, 290, 'celadune-logo');
+    this.logo = this.add.image(GAME_WIDTH / 2, 338, 'celadune-logo');
     const logoTexture = this.textures.get('celadune-logo').getSourceImage();
-    const maxLogoWidth = 1240;
-    const maxLogoHeight = 420;
+    const maxLogoWidth = 1500;
+    const maxLogoHeight = 620;
     const logoScale = Math.min(maxLogoWidth / logoTexture.width, maxLogoHeight / logoTexture.height);
     this.logo.setScale(logoScale);
 
-    this.add.rectangle(GAME_WIDTH / 2, 748, 320, 88, 0x1e140a, 0.72).setStrokeStyle(4, 0xdab56a, 0.9);
-    this.add.rectangle(GAME_WIDTH / 2, 748, 300, 68, 0x41250d, 0.94).setStrokeStyle(2, 0xf3dfae, 0.9);
-    this.startButton = this.add.text(GAME_WIDTH / 2, 748, 'Start', {
+    this.add.rectangle(GAME_WIDTH / 2, 760, 320, 88, 0x1e140a, 0.72).setStrokeStyle(4, 0xdab56a, 0.9);
+    this.add.rectangle(GAME_WIDTH / 2, 760, 300, 68, 0x41250d, 0.94).setStrokeStyle(2, 0xf3dfae, 0.9);
+    this.startButton = this.add.text(GAME_WIDTH / 2, 760, 'Start', {
       fontFamily: 'Macondo Swash Caps',
       fontSize: '42px',
       color: '#fff3d0',
@@ -49,7 +49,7 @@ class StartScene extends Phaser.Scene {
       },
     }).setOrigin(0.5);
 
-    this.promptText = this.add.text(GAME_WIDTH / 2, 820, 'Press Enter to begin', {
+    this.promptText = this.add.text(GAME_WIDTH / 2, 832, 'Press Enter to begin', {
       fontFamily: 'Roboto Mono',
       fontSize: '22px',
       color: '#efe6cf',
@@ -499,8 +499,8 @@ class PrototypeScene extends Phaser.Scene {
     this.tabTexts = [];
     const tabStartY = panelY + 152;
     this.menuPages.forEach((page, index) => {
-      const tabBox = this.add.rectangle(panelX + 135, tabStartY + index * 88, 220, 58, 0x8d6a3b, 0.18)
-        .setStrokeStyle(3, 0x6b4016, 0.7);
+      const tabBox = this.add.rectangle(panelX + 135, tabStartY + index * 88, 220, 58, 0x000000, 0)
+        .setStrokeStyle(3, 0xdab56a, 0.95);
       const tabText = this.add.text(panelX + 135, tabStartY + index * 88, page, {
         fontFamily: 'Macondo Swash Caps',
         fontSize: '28px',
@@ -511,7 +511,9 @@ class PrototypeScene extends Phaser.Scene {
       this.menuOverlay.add(tabText);
     });
 
-    this.contentDivider = this.add.line(0, 0, panelX + 265, panelY + 90, panelX + 265, panelY + panelH - 90, 0x6b4016, 0.8)
+    const dividerTop = panelY + 32;
+    const dividerBottom = panelY + panelH - 32;
+    this.contentDivider = this.add.line(0, 0, panelX + 265, dividerTop, panelX + 265, dividerBottom, 0x6b4016, 0.8)
       .setLineWidth(2, 2);
     this.menuOverlay.add(this.contentDivider);
 
@@ -520,7 +522,7 @@ class PrototypeScene extends Phaser.Scene {
       fontSize: '22px',
       color: '#2b1b0f',
       lineSpacing: 12,
-      wordWrap: { width: 800 },
+      wordWrap: { width: 760 },
     });
     this.menuOverlay.add(this.contentBody);
 
@@ -553,9 +555,9 @@ class PrototypeScene extends Phaser.Scene {
   refreshMenuPage() {
     this.tabTexts.forEach((tab, index) => {
       const active = index === this.selectedMenuIndex;
-      tab.box.setFillStyle(active ? 0x8d6a3b : 0xb58c51, active ? 0.00 : 0.38);
-      tab.box.setStrokeStyle(active ? 4 : 3, active ? 0xe3c78d : 0x6b4016, 0.95);
-      tab.text.setColor(active ? '#3c1d0d' : '#5b3417');
+      tab.box.setFillStyle(0x000000, 0);
+      tab.box.setStrokeStyle(active ? 4 : 3, active ? 0x6b4016 : 0xdab56a, 0.98);
+      tab.text.setColor(active ? '#3c1d0d' : '#7f6131');
     });
 
     const currentPage = this.menuPages[this.selectedMenuIndex];
@@ -567,7 +569,7 @@ class PrototypeScene extends Phaser.Scene {
     if (currentPage === 'Inventory') {
       let y = 0;
       this.inventoryItems.forEach((item) => {
-        const row = this.add.rectangle(420, y + 18, 840, 46, 0x9b7740, 0.10)
+        const row = this.add.rectangle(0, y + 18, 760, 46, 0x9b7740, 0.08)
           .setOrigin(0, 0);
         const icon = this.add.text(18, y + 6, item.icon, {
           fontFamily: 'Macondo Swash Caps',
