@@ -44,8 +44,8 @@ function createHeroAnimations(scene, heroKey) {
   const animations = [
     { key: `${heroKey}-walk-left`, sheet: `${heroKey}-walk`, row: 1, start: 0, end: 8, rate: 10, repeat: -1 },
     { key: `${heroKey}-walk-right`, sheet: `${heroKey}-walk`, row: 3, start: 0, end: 8, rate: 10, repeat: -1 },
-    { key: `${heroKey}-idle-left`, sheet: `${heroKey}-idle`, row: 1, start: 0, end: 1, rate: 3, repeat: -1 },
-    { key: `${heroKey}-idle-right`, sheet: `${heroKey}-idle`, row: 3, start: 0, end: 1, rate: 3, repeat: -1 },
+    { key: `${heroKey}-idle-left`, sheet: `${heroKey}-idle`, row: 1, start: 0, end: 0, rate: 1, repeat: -1 },
+    { key: `${heroKey}-idle-right`, sheet: `${heroKey}-idle`, row: 3, start: 0, end: 0, rate: 1, repeat: -1 },
     { key: `${heroKey}-jump-left`, sheet: `${heroKey}-jump`, row: 1, start: 0, end: 3, rate: 12, repeat: 0 },
     { key: `${heroKey}-jump-right`, sheet: `${heroKey}-jump`, row: 3, start: 0, end: 3, rate: 12, repeat: 0 },
   ];
@@ -804,22 +804,19 @@ class PrototypeScene extends Phaser.Scene {
     this.dialogueOverlay.add(borderOuter);
     this.dialogueOverlay.add(borderInner);
 
-    const portraitX = panelX + 112;
-    const portraitY = panelY + 112;
+    const portraitX = panelX + 118;
+    const portraitY = panelY + 126;
     this.portraitFrame = this.add.rectangle(portraitX, portraitY, 176, 176, 0x000000, 0)
       .setStrokeStyle(2, 0xdab56a, 0.95);
     this.dialogueOverlay.add(this.portraitFrame);
 
-    this.portraitMaskGraphics = this.add.graphics();
-    this.portraitMaskGraphics.fillStyle(0xffffff, 1);
-    this.portraitMaskGraphics.fillRect(portraitX - 74, portraitY - 74, 148, 148);
-    this.portraitMaskGraphics.setVisible(false);
-    this.dialogueOverlay.add(this.portraitMaskGraphics);
+    this.portraitInnerFrame = this.add.rectangle(portraitX, portraitY, 148, 148, 0x000000, 0)
+      .setStrokeStyle(1, 0xdab56a, 0.55);
+    this.dialogueOverlay.add(this.portraitInnerFrame);
 
-    this.npcPortrait = this.add.sprite(portraitX, portraitY + 72, 'forestLady-idle', 26)
+    this.npcPortrait = this.add.sprite(portraitX, portraitY + 68, 'forestLady-idle', 26)
       .setOrigin(0.5, 1)
-      .setScale(4.1);
-    this.npcPortrait.setMask(this.portraitMaskGraphics.createGeometryMask());
+      .setScale(2.15);
     this.dialogueOverlay.add(this.npcPortrait);
 
     const textX = panelX + 226;
@@ -1021,9 +1018,7 @@ class PrototypeScene extends Phaser.Scene {
     if (!this.writingSound.isPlaying) this.writingSound.play();
     const talkFrames = [
       { texture: 'forestLady-idle', frame: 26 },
-      { texture: 'forestLady-walk', frame: 27 },
       { texture: 'forestLady-idle', frame: 27 },
-      { texture: 'forestLady-walk', frame: 28 },
     ];
     let talkIndex = 0;
     this.portraitTalkEvent = this.time.addEvent({
@@ -1198,14 +1193,29 @@ class PrototypeScene extends Phaser.Scene {
 
     const animPrefix = this.facing === 'left' ? 'left' : 'right';
     if (!onGround) {
+      if (this.playerBreathing) {
+        this.playerBreathing = false;
+        this.playerBreathTween.pause();
+        this.player.y = this.playerBaseY;
+      }
       this.player.anims.play(`${this.heroKey}-jump-${animPrefix}`, true);
       if (this.player.body.velocity.y > -20) {
         this.player.anims.pause(this.player.anims.currentFrame);
       }
     } else if (Math.abs(velocityX) > 5) {
+      if (this.playerBreathing) {
+        this.playerBreathing = false;
+        this.playerBreathTween.pause();
+        this.player.y = this.playerBaseY;
+      }
       this.player.anims.play(`${this.heroKey}-walk-${animPrefix}`, true);
     } else {
       this.player.anims.play(`${this.heroKey}-idle-${animPrefix}`, true);
+      if (!this.playerBreathing) {
+        this.playerBaseY = this.player.y;
+        this.playerBreathing = true;
+        this.playerBreathTween.play();
+      }
     }
 
     this.player.setDepth(9);
