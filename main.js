@@ -846,7 +846,7 @@ class PrototypeScene extends Phaser.Scene {
     this.portraitSceneBg.setTileScale(this.bgScale || 1, this.bgScale || 1);
     this.dialogueOverlay.add(this.portraitSceneBg);
 
-    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom, 'forestLady-portrait', 0)
+    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom, 'forestLady-idle', 26)
       .setOrigin(0.5, 1)
       .setScale(5.1);
     this.dialogueOverlay.add(this.npcPortrait);
@@ -1007,7 +1007,7 @@ class PrototypeScene extends Phaser.Scene {
     this.typewriterIndex = 0;
     this.isTyping = true;
     if (line.speakerType === 'npc') {
-      this.npcPortrait.setTexture('forestLady-portrait').setFrame(0);
+      this.npcPortrait.setTexture('forestLady-idle').setFrame(26);
     }
     this.talkPortrait(line.speakerType === 'npc');
 
@@ -1052,13 +1052,13 @@ class PrototypeScene extends Phaser.Scene {
   talkPortrait(active) {
     this.stopTalkingPortrait();
     if (!active) {
-      this.npcPortrait.setTexture('forestLady-portrait').setFrame(0);
+      this.npcPortrait.setTexture('forestLady-idle').setFrame(26);
       return;
     }
     if (!this.writingSound.isPlaying) this.writingSound.play();
     const talkFrames = [
-      { texture: 'forestLady-portrait', frame: 0 },
-      { texture: 'forestLady-portrait', frame: 1 },
+      { texture: 'forestLady-idle', frame: 26 },
+      { texture: 'forestLady-idle', frame: 27 },
     ];
     let talkIndex = 0;
     this.portraitTalkEvent = this.time.addEvent({
@@ -1075,7 +1075,7 @@ class PrototypeScene extends Phaser.Scene {
   stopTalkingPortrait() {
     this.portraitTalkEvent?.remove(false);
     this.portraitTalkEvent = null;
-    this.npcPortrait.setTexture('forestLady-portrait').setFrame(0);
+    this.npcPortrait.setTexture('forestLady-idle').setFrame(26);
     if (this.writingSound?.isPlaying) this.writingSound.stop();
   }
 
