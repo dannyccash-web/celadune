@@ -404,6 +404,7 @@ class PrototypeScene extends Phaser.Scene {
   createParallaxBackground() {
     const forestTexture = this.textures.get('forest').getSourceImage();
     const scale = GAME_HEIGHT / forestTexture.height;
+    this.bgScale = scale;
 
     this.bg = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'forest')
       .setOrigin(0, 0)
@@ -797,10 +798,10 @@ class PrototypeScene extends Phaser.Scene {
     const dim = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x05070a, 0.54).setOrigin(0, 0);
     this.dialogueOverlay.add(dim);
 
-    const panelX = 120;
-    const panelY = 494;
-    const panelW = 1360;
-    const panelH = 320;
+    const panelW = 1140;
+    const panelH = 382;
+    const panelX = Math.round((GAME_WIDTH - panelW) / 2);
+    const panelY = 438;
 
     const parchment = this.add.tileSprite(panelX + panelW / 2, panelY + panelH / 2, panelW, panelH, 'parchment');
     const parchmentSource = this.textures.get('parchment').getSourceImage();
@@ -815,48 +816,81 @@ class PrototypeScene extends Phaser.Scene {
     this.dialogueOverlay.add(borderOuter);
     this.dialogueOverlay.add(borderInner);
 
-    const portraitX = panelX + 118;
-    const portraitY = panelY + 126;
-    this.portraitFrame = this.add.rectangle(portraitX, portraitY, 176, 176, 0x000000, 0)
+    const contentLeft = panelX + 40;
+    const contentTop = panelY + 34;
+    const portraitSize = 192;
+    const portraitInner = 160;
+    const portraitX = contentLeft + portraitSize / 2;
+    const portraitY = contentTop + portraitSize / 2;
+
+    this.portraitFrame = this.add.rectangle(portraitX, portraitY, portraitSize, portraitSize, 0x000000, 0)
       .setStrokeStyle(2, 0xdab56a, 0.95);
     this.dialogueOverlay.add(this.portraitFrame);
 
-    this.portraitInnerFrame = this.add.rectangle(portraitX, portraitY, 148, 148, 0x000000, 0)
+    this.portraitInnerFrame = this.add.rectangle(portraitX, portraitY, portraitInner, portraitInner, 0x000000, 0)
       .setStrokeStyle(1, 0xdab56a, 0.55);
     this.dialogueOverlay.add(this.portraitInnerFrame);
 
-    this.npcPortrait = this.add.sprite(portraitX, portraitY + 68, 'forestLady-idle', 26)
+    this.dialoguePortraitRect = {
+      left: portraitX - portraitInner / 2,
+      top: portraitY - portraitInner / 2,
+      width: portraitInner,
+      height: portraitInner,
+      bottom: portraitY + portraitInner / 2,
+    };
+
+    this.portraitMaskGraphics = this.add.graphics();
+    this.portraitMaskGraphics.fillStyle(0xffffff, 1);
+    this.portraitMaskGraphics.fillRect(this.dialoguePortraitRect.left, this.dialoguePortraitRect.top, portraitInner, portraitInner);
+    this.portraitMaskGraphics.setVisible(false);
+    this.dialogueOverlay.add(this.portraitMaskGraphics);
+    const portraitMask = this.portraitMaskGraphics.createGeometryMask();
+
+    this.portraitSceneBg = this.add.tileSprite(portraitX, portraitY, portraitInner, portraitInner, 'forest').setOrigin(0.5);
+    this.portraitSceneBg.setTileScale(this.bgScale || 1, this.bgScale || 1);
+    this.portraitSceneBg.setMask(portraitMask);
+    this.dialogueOverlay.add(this.portraitSceneBg);
+
+    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 6, 'forestLady-idle', 26)
       .setOrigin(0.5, 1)
-      .setScale(2.1)
-      .setDepth(1);
+      .setScale(3.35);
+    this.npcPortrait.setMask(portraitMask);
     this.dialogueOverlay.add(this.npcPortrait);
 
-    const textX = panelX + 226;
-    this.dialogueSpeakerText = this.add.text(textX, panelY + 24, FOREST_LADY.name, {
+    const textX = panelX + 266;
+    const textRight = panelX + panelW - 40;
+    this.dialogueSpeakerText = this.add.text(textX, contentTop + 8, FOREST_LADY.name, {
       fontFamily: 'Macondo Swash Caps',
       fontSize: '34px',
       color: '#4a2411',
     });
     this.dialogueOverlay.add(this.dialogueSpeakerText);
 
-    this.dialogueText = this.add.text(textX, panelY + 72, '', {
+    this.dialogueText = this.add.text(textX, contentTop + 62, '', {
       fontFamily: 'Roboto Mono',
       fontSize: '20px',
       color: '#2b1b0f',
       lineSpacing: 10,
-      wordWrap: { width: 960 },
+      wordWrap: { width: textRight - textX },
     });
     this.dialogueOverlay.add(this.dialogueText);
 
-    this.dialogueOptions = this.add.container(textX, panelY + 182);
+    this.dialogueOptionWidth = panelW - 80;
+    this.dialogueOptions = this.add.container(contentLeft, panelY + panelH - 104);
     this.dialogueOverlay.add(this.dialogueOptions);
 
-    this.dialogueHint = this.add.text(panelX + panelW - 34, panelY + panelH - 26, 'Enter to choose', {
+    this.dialogueHint = this.add.text(panelX + panelW - 34, panelY + 18, 'Enter to choose', {
       fontFamily: 'Roboto Mono',
       fontSize: '16px',
       color: '#4e3720',
-    }).setOrigin(1, 1);
+    }).setOrigin(1, 0);
     this.dialogueOverlay.add(this.dialogueHint);
+  }
+
+  syncDialoguePortraitBackground() {
+    if (!this.portraitSceneBg || !this.dialoguePortraitRect) return;
+    this.portraitSceneBg.tilePositionX = (this.bg?.tilePositionX || 0) + this.dialoguePortraitRect.left;
+    this.portraitSceneBg.tilePositionY = this.dialoguePortraitRect.top;
   }
 
   openMenu() {
@@ -943,6 +977,7 @@ class PrototypeScene extends Phaser.Scene {
     this.npc.setVelocityX(0);
     this.player.anims.play(`${this.heroKey}-idle-${this.facing}`, true);
     this.npc.anims.play(this.npcFacing === 'left' ? 'forestLady-idle-left' : 'forestLady-idle-right', true);
+    this.syncDialoguePortraitBackground();
     this.startDialogueSequence();
   }
 
@@ -1054,13 +1089,15 @@ class PrototypeScene extends Phaser.Scene {
   renderDialogueOptions(options) {
     this.clearDialogueOptions();
     this.dialogueOptionEntries = options.map((option, index) => {
-      const y = index * 54;
-      const box = this.add.rectangle(0, y, 940, 42, 0x000000, 0).setOrigin(0, 0).setStrokeStyle(2, 0xdab56a, 0.92);
+      const y = index * 52;
+      const box = this.add.rectangle(0, y, this.dialogueOptionWidth, 42, 0x000000, 0)
+        .setOrigin(0, 0)
+        .setStrokeStyle(2, 0xdab56a, 0.92);
       const text = this.add.text(14, y + 8, option, {
         fontFamily: 'Roboto Mono',
         fontSize: '16px',
         color: '#3e2514',
-        wordWrap: { width: 910 },
+        wordWrap: { width: this.dialogueOptionWidth - 28 },
       });
       this.dialogueOptions.add([box, text]);
       return { box, text };
