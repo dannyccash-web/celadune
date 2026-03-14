@@ -423,6 +423,10 @@ class PrototypeScene extends Phaser.Scene {
     const rng = this.createSeededRandom(0xC0FFEE);
     let previousKey = null;
 
+    const blackVisualOffsetY = 34;
+    const collisionStripY = GROUND_Y + 24;
+    const collisionStripHeight = 22;
+
     for (let i = 0; i < tilesAcross; i += 1) {
       let tileKey = decorativeKeys[Math.floor(rng() * decorativeKeys.length)];
       if (decorativeKeys.length > 1 && tileKey === previousKey) {
@@ -431,25 +435,24 @@ class PrototypeScene extends Phaser.Scene {
       previousKey = tileKey;
 
       const x = i * GROUND_TILE + GROUND_TILE / 2;
-      const y = GROUND_Y + GROUND_TILE / 2;
+      const visualY = GROUND_Y + GROUND_TILE / 2;
 
-      const blackBase = this.add.image(x, y, 'blackTile')
-        .setDisplaySize(GROUND_TILE, GROUND_TILE)
+      const blackBase = this.add.image(x, visualY + blackVisualOffsetY, 'blackTile')
+        .setDisplaySize(GROUND_TILE, 150)
         .setDepth(2);
       this.groundBack.add(blackBase);
 
-      const body = this.ground.create(x, y, 'blackTile');
-      body.setVisible(false);
-      body.setDisplaySize(GROUND_TILE, GROUND_TILE);
-      body.refreshBody();
+      const collider = this.add.rectangle(x, collisionStripY, GROUND_TILE, collisionStripHeight, 0x000000, 0);
+      this.physics.add.existing(collider, true);
+      this.ground.add(collider);
 
-      const frontTile = this.add.image(x, y, tileKey)
+      const frontTile = this.add.image(x, visualY, tileKey)
         .setDisplaySize(GROUND_TILE, GROUND_TILE)
         .setDepth(12);
       this.groundFront.add(frontTile);
     }
 
-    this.groundShadow = this.add.rectangle(WORLD_WIDTH / 2, GROUND_Y - 4, WORLD_WIDTH, 18, 0x13210f, 0.18)
+    this.groundShadow = this.add.rectangle(WORLD_WIDTH / 2, GROUND_Y + 10, WORLD_WIDTH, 18, 0x13210f, 0.12)
       .setDepth(3);
   }
 
@@ -470,7 +473,7 @@ class PrototypeScene extends Phaser.Scene {
   }
 
   createPlayer() {
-    this.player = this.physics.add.sprite(300, 666, `${this.heroKey}-idle`, 39);
+    this.player = this.physics.add.sprite(300, 620, `${this.heroKey}-idle`, 39);
     this.player.setScale(3.1);
     this.player.setCollideWorldBounds(true);
     this.player.setDepth(9);
@@ -484,7 +487,7 @@ class PrototypeScene extends Phaser.Scene {
   }
 
   createNPC() {
-    this.npc = this.physics.add.sprite(2540, 666, 'forestLady-idle', 26);
+    this.npc = this.physics.add.sprite(2540, 620, 'forestLady-idle', 26);
     this.npc.setScale(3.0);
     this.npc.setDepth(9);
     this.npc.body.setSize(20, 34);
