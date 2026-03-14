@@ -557,17 +557,17 @@ class PrototypeScene extends Phaser.Scene {
   createProps() {
     this.propDepth = 7;
 
-    this.wagon = this.add.image(360, 770, 'brokenWagon')
+    this.wagon = this.add.image(360, 744, 'brokenWagon')
       .setOrigin(0.5, 1)
       .setScale(0.44)
       .setDepth(this.propDepth);
 
-    this.hut = this.add.image(2240, 770, 'forestHut')
+    this.hut = this.add.image(2240, 744, 'forestHut')
       .setOrigin(0.5, 1)
       .setScale(0.80)
       .setDepth(this.propDepth);
 
-    this.onionPatch = this.add.image(2790, 772, 'onionPatch')
+    this.onionPatch = this.add.image(2790, 744, 'onionPatch')
       .setOrigin(0.5, 1)
       .setScale(0.34)
       .setDepth(this.propDepth);
@@ -872,21 +872,9 @@ class PrototypeScene extends Phaser.Scene {
     this.portraitSceneBg.setTileScale(this.bgScale || 1, this.bgScale || 1);
     this.dialogueOverlay.add(this.portraitSceneBg);
 
-    this.portraitMaskGraphics = this.make.graphics({ x: 0, y: 0, add: false });
-    this.portraitMaskGraphics.fillStyle(0xffffff, 1);
-    this.portraitMaskGraphics.fillRect(
-      this.dialoguePortraitRect.left,
-      this.dialoguePortraitRect.top,
-      this.dialoguePortraitRect.width,
-      this.dialoguePortraitRect.height
-    );
-    this.portraitMask = this.portraitMaskGraphics.createGeometryMask();
-    this.portraitSceneBg.setMask(this.portraitMask);
-
     this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom, 'forestLady-idle', 26)
       .setOrigin(0.5, 1)
-      .setScale(5.1)
-      .setMask(this.portraitMask);
+      .setScale(5.1);
     this.dialogueOverlay.add(this.npcPortrait);
 
     this.dialogueSpeakerText = this.add.text(textX, contentTop + 10, FOREST_LADY.name, {
@@ -1324,7 +1312,7 @@ class PrototypeScene extends Phaser.Scene {
     const nearOnionPatch = onionDistance < 180;
     this.onionPatchTooltip?.setVisible(nearOnionPatch && !this.isDialogueOpen && !this.isMenuOpen && this.scriptedNpcTargetX === null);
     if (nearOnionPatch) {
-      this.onionPatchTooltip.setPosition(this.onionPatch.x, this.onionPatch.y - 122);
+      this.onionPatchTooltip.setPosition(this.onionPatch.x, this.onionPatch.y - 106);
     }
 
     if (this.updateScriptedNpcMovement()) {
