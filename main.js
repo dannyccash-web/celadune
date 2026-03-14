@@ -6,6 +6,61 @@ const GROUND_Y = 740;
 const FRAME_W = 64;
 const FRAME_H = 64;
 
+
+function addOrnamentalPanel(scene, x, y, w, h, textureKey = 'parchment') {
+  const container = scene.add.container(0, 0);
+  const panel = scene.add.tileSprite(x + w / 2, y + h / 2, w, h, textureKey);
+  const source = scene.textures.get(textureKey).getSourceImage();
+  panel.setTileScale(160 / source.width, 160 / source.height);
+  panel.setAlpha(0.985);
+
+  const shadow = scene.add.rectangle(x + w / 2 + 8, y + h / 2 + 10, w, h, 0x000000, 0.16);
+  const outer = scene.add.rectangle(x + w / 2, y + h / 2, w, h, 0x000000, 0).setStrokeStyle(7, 0x5b3717, 1);
+  const inner = scene.add.rectangle(x + w / 2, y + h / 2, w - 18, h - 18, 0x000000, 0).setStrokeStyle(2, 0xdab56a, 0.95);
+  const inset = scene.add.rectangle(x + w / 2, y + h / 2, w - 42, h - 42, 0x000000, 0).setStrokeStyle(1, 0xe8d9b2, 0.7);
+
+  const accents = [];
+  const cornerLen = 28;
+  const offset = 24;
+  const makeCorner = (cx, cy, sx, sy) => {
+    const hLine = scene.add.line(0, 0, cx, cy, cx + sx * cornerLen, cy, 0x8e6328, 0.9).setLineWidth(2, 2);
+    const vLine = scene.add.line(0, 0, cx, cy, cx, cy + sy * cornerLen, 0x8e6328, 0.9).setLineWidth(2, 2);
+    const dot = scene.add.circle(cx, cy, 2.5, 0x8e6328, 0.95);
+    accents.push(hLine, vLine, dot);
+  };
+  makeCorner(x + offset, y + offset, 1, 1);
+  makeCorner(x + w - offset, y + offset, -1, 1);
+  makeCorner(x + offset, y + h - offset, 1, -1);
+  makeCorner(x + w - offset, y + h - offset, -1, -1);
+
+  const titleRuleLeft = scene.add.line(0, 0, x + 62, y + 78, x + w / 2 - 170, y + 78, 0xcea85d, 0.95).setLineWidth(2, 2);
+  const titleRuleRight = scene.add.line(0, 0, x + w / 2 + 170, y + 78, x + w - 62, y + 78, 0xcea85d, 0.95).setLineWidth(2, 2);
+  const titleGem = scene.add.circle(x + w / 2, y + 78, 4, 0x8e6328, 0.95);
+  const titleGemInner = scene.add.circle(x + w / 2, y + 78, 2, 0xf5e2b6, 0.95);
+
+  container.add([shadow, panel, outer, inner, inset, titleRuleLeft, titleRuleRight, titleGem, titleGemInner, ...accents]);
+  return { container, panel, outer, inner, inset };
+}
+
+function addOutlinedButton(scene, x, y, w, h, label, active = false, fontSize = '28px') {
+  const box = scene.add.rectangle(x, y, w, h, 0x000000, 0)
+    .setStrokeStyle(active ? 4 : 3, active ? 0x6b4016 : 0xdab56a, 0.98);
+  const inner = scene.add.rectangle(x, y, w - 12, h - 12, 0x000000, 0)
+    .setStrokeStyle(active ? 1 : 1, active ? 0x3f2410 : 0xe7cd96, active ? 0.9 : 0.75);
+  const textObj = scene.add.text(x, y, label, {
+    fontFamily: 'Macondo Swash Caps',
+    fontSize,
+    color: active ? '#3c1d0d' : '#7f6131',
+  }).setOrigin(0.5);
+
+  return { box, inner, text: textObj, setActive(isActive) {
+    box.setStrokeStyle(isActive ? 4 : 3, isActive ? 0x6b4016 : 0xdab56a, 0.98);
+    inner.setStrokeStyle(1, isActive ? 0x3f2410 : 0xe7cd96, isActive ? 0.9 : 0.75);
+    textObj.setColor(isActive ? '#3c1d0d' : '#7f6131');
+  }};
+}
+
+
 const HEROES = {
   caelan: {
     key: 'caelan',
@@ -73,10 +128,10 @@ class StartScene extends Phaser.Scene {
     const bgScale = Math.max(GAME_WIDTH / bgTexture.width, GAME_HEIGHT / bgTexture.height);
     bg.setScale(bgScale);
 
-    this.logo = this.add.image(GAME_WIDTH / 2, 362, 'celadune-logo');
+    this.logo = this.add.image(GAME_WIDTH / 2, 350, 'celadune-logo');
     const logoTexture = this.textures.get('celadune-logo').getSourceImage();
-    const maxLogoWidth = 2250;
-    const maxLogoHeight = 930;
+    const maxLogoWidth = 1875;
+    const maxLogoHeight = 775;
     const logoScale = Math.min(maxLogoWidth / logoTexture.width, maxLogoHeight / logoTexture.height);
     this.logo.setScale(logoScale);
 
@@ -203,55 +258,66 @@ class HeroSelectScene extends Phaser.Scene {
     const bgScale = Math.max(GAME_WIDTH / bgTexture.width, GAME_HEIGHT / bgTexture.height);
     bg.setScale(bgScale);
 
-    const panelX = 265;
-    const panelY = 152;
-    const panelW = 1070;
-    const panelH = 596;
+    const panelX = 245;
+    const panelY = 118;
+    const panelW = 1110;
+    const panelH = 620;
+    const panelBits = addOrnamentalPanel(this, panelX, panelY, panelW, panelH, 'parchment');
 
-    const parchment = this.add.tileSprite(panelX + panelW / 2, panelY + panelH / 2, panelW, panelH, 'parchment');
-    const parchmentSource = this.textures.get('parchment').getSourceImage();
-    parchment.setTileScale(160 / parchmentSource.width, 160 / parchmentSource.height);
-    parchment.setAlpha(0.98);
-
-    this.add.rectangle(panelX + panelW / 2, panelY + panelH / 2, panelW, panelH, 0x000000, 0)
-      .setStrokeStyle(6, 0x5b3717, 1);
-    this.add.rectangle(panelX + panelW / 2, panelY + panelH / 2, panelW - 18, panelH - 18, 0x000000, 0)
-      .setStrokeStyle(2, 0xdab56a, 0.95);
-
-    this.add.text(GAME_WIDTH / 2, panelY + 62, 'Select Your Hero', {
+    this.add.text(GAME_WIDTH / 2, panelY + 66, 'Select Your Hero', {
       fontFamily: 'Macondo Swash Caps',
-      fontSize: '48px',
+      fontSize: '52px',
       color: '#4a2411',
       stroke: '#f5e2b6',
       strokeThickness: 3,
     }).setOrigin(0.5);
 
-    this.add.text(GAME_WIDTH / 2, panelY + panelH - 54, 'Left / Right to choose  •  Enter to confirm', {
+    this.add.text(GAME_WIDTH / 2, panelY + 108, 'Choose the champion who will begin your journey into Celadune', {
       fontFamily: 'Roboto Mono',
-      fontSize: '20px',
-      color: '#4e3720',
+      fontSize: '16px',
+      color: '#6d5634',
     }).setOrigin(0.5);
 
-    this.heroCards = this.heroOrder.map((heroKey, index) => {
-      const x = index === 0 ? 640 : 960;
-      const y = 488;
+    const instructionPlate = this.add.rectangle(GAME_WIDTH / 2, panelY + panelH - 52, 470, 44, 0x000000, 0)
+      .setStrokeStyle(2, 0xdab56a, 0.95);
+    const instructionInner = this.add.rectangle(GAME_WIDTH / 2, panelY + panelH - 52, 456, 32, 0x000000, 0)
+      .setStrokeStyle(1, 0xe7cd96, 0.75);
+    this.add.text(GAME_WIDTH / 2, panelY + panelH - 52, 'Left / Right to choose  •  Enter to confirm', {
+      fontFamily: 'Roboto Mono',
+      fontSize: '18px',
+      color: '#4e3720',
+    }).setOrigin(0.5);
+    panelBits.container.add([instructionPlate, instructionInner]);
 
-      const outer = this.add.rectangle(x, y, 250, 332, 0x000000, 0).setStrokeStyle(4, 0xdab56a, 0.98);
-      const inner = this.add.rectangle(x, y, 232, 314, 0x000000, 0).setStrokeStyle(2, 0xe9cf96, 0.92);
-      const portraitGlow = this.add.rectangle(x, y - 26, 166, 196, 0xa37a3f, 0.08).setStrokeStyle(1, 0xb88945, 0.22);
-      const sprite = this.add.sprite(x, y - 28, `${heroKey}-idle`, 39).setScale(3.2);
-      const name = this.add.text(x, y + 122, HEROES[heroKey].name, {
+    this.heroCards = this.heroOrder.map((heroKey, index) => {
+      const x = index === 0 ? 620 : 980;
+      const y = 438;
+
+      const cardPanel = addOrnamentalPanel(this, x - 140, y - 150, 280, 340, 'parchment');
+      cardPanel.outer.setStrokeStyle(4, 0xdab56a, 0.98);
+      cardPanel.inner.setStrokeStyle(2, 0xe7cd96, 0.82);
+      cardPanel.inset.setStrokeStyle(1, 0xf1e6c9, 0.5);
+      const portraitStage = this.add.rectangle(x, y - 18, 168, 168, 0x9b7740, 0.06)
+        .setStrokeStyle(1, 0xb88945, 0.22);
+      const sprite = this.add.sprite(x, y - 24, `${heroKey}-idle`, 39).setScale(3.35);
+      const name = this.add.text(x, y + 88, HEROES[heroKey].name, {
         fontFamily: 'Macondo Swash Caps',
         fontSize: '34px',
         color: '#4a2411',
       }).setOrigin(0.5);
-      const role = this.add.text(x, y + 160, heroKey === 'caelan' ? 'Fighter' : 'Mage', {
+      const role = this.add.text(x, y + 118, heroKey === 'caelan' ? 'Fighter' : 'Mage', {
         fontFamily: 'Roboto Mono',
-        fontSize: '18px',
+        fontSize: '17px',
         color: '#5c4528',
       }).setOrigin(0.5);
+      const flavor = this.add.text(x, y + 148, heroKey === 'caelan' ? 'Steel, grit, and close combat' : 'Arcane talent and ancient insight', {
+        fontFamily: 'Roboto Mono',
+        fontSize: '13px',
+        color: '#7a6340',
+        align: 'center',
+      }).setOrigin(0.5);
 
-      return { key: heroKey, outer, inner, portraitGlow, sprite, name, role };
+      return { key: heroKey, panel: cardPanel, portraitStage, sprite, name, role, flavor };
     });
 
     this.ensurePreviewAnimations();
@@ -284,11 +350,15 @@ class HeroSelectScene extends Phaser.Scene {
   refreshSelection() {
     this.heroCards.forEach((card, index) => {
       const active = index === this.selectedHeroIndex;
-      card.outer.setStrokeStyle(active ? 4 : 3, active ? 0x6b4016 : 0xdab56a, 0.98);
-      card.inner.setStrokeStyle(active ? 2 : 1, active ? 0x3f2410 : 0xe9cf96, active ? 0.98 : 0.82);
-      card.portraitGlow.setAlpha(active ? 0.12 : 0.05);
+      card.panel.outer.setStrokeStyle(active ? 5 : 4, active ? 0x6b4016 : 0xdab56a, 0.98);
+      card.panel.inner.setStrokeStyle(active ? 2 : 1, active ? 0x3f2410 : 0xe7cd96, active ? 0.95 : 0.72);
+      card.panel.inset.setStrokeStyle(1, active ? 0x8e6328 : 0xf1e6c9, active ? 0.55 : 0.4);
+      card.portraitStage.setAlpha(active ? 0.12 : 0.06);
+      card.portraitStage.setStrokeStyle(1, active ? 0x8e6328 : 0xb88945, active ? 0.5 : 0.22);
       card.name.setColor(active ? '#3a1b0a' : '#6d4f24');
       card.role.setColor(active ? '#4a311a' : '#7e6541');
+      card.flavor.setColor(active ? '#604527' : '#8f7751');
+      card.sprite.setScale(active ? 3.45 : 3.25);
     });
   }
 
@@ -625,75 +695,61 @@ class PrototypeScene extends Phaser.Scene {
   createMenu() {
     this.menuOverlay = this.add.container(0, 0).setScrollFactor(0).setDepth(200).setVisible(false);
 
-    const dim = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x05070a, 0.62)
-      .setOrigin(0, 0);
+    const dim = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x05070a, 0.62).setOrigin(0, 0);
     this.menuOverlay.add(dim);
 
-    const panelX = 180;
-    const panelY = 110;
-    const panelW = 1240;
-    const panelH = 680;
+    const panelX = 168;
+    const panelY = 102;
+    const panelW = 1264;
+    const panelH = 696;
+    const panelBits = addOrnamentalPanel(this, panelX, panelY, panelW, panelH, 'parchment');
+    this.menuOverlay.add(panelBits.container);
 
-    const parchment = this.add.tileSprite(panelX + panelW / 2, panelY + panelH / 2, panelW, panelH, 'parchment');
-    const parchmentSource = this.textures.get('parchment').getSourceImage();
-    parchment.setTileScale(160 / parchmentSource.width, 160 / parchmentSource.height);
-    parchment.setAlpha(0.98);
-    this.menuOverlay.add(parchment);
-
-    const borderOuter = this.add.rectangle(panelX + panelW / 2, panelY + panelH / 2, panelW, panelH, 0x000000, 0)
-      .setStrokeStyle(6, 0x5b3717, 1);
-    const borderInner = this.add.rectangle(panelX + panelW / 2, panelY + panelH / 2, panelW - 18, panelH - 18, 0x000000, 0)
-      .setStrokeStyle(2, 0xdab56a, 0.95);
-    this.menuOverlay.add(borderOuter);
-    this.menuOverlay.add(borderInner);
-
-    this.menuTitle = this.add.text(panelX + 410, panelY + 56, 'Inventory', {
+    this.menuTitle = this.add.text(panelX + panelW / 2, panelY + 64, 'Inventory', {
       fontFamily: 'Macondo Swash Caps',
-      fontSize: '46px',
+      fontSize: '50px',
       color: '#4a2411',
       stroke: '#f5e2b6',
       strokeThickness: 3,
-    }).setOrigin(0.5, 0.5);
+    }).setOrigin(0.5);
     this.menuOverlay.add(this.menuTitle);
 
-    this.menuHint = this.add.text(panelX + panelW - 40, panelY + 38, 'M / Esc / Backspace to close', {
+    this.menuHint = this.add.text(panelX + panelW - 38, panelY + 34, 'M / Esc / Backspace to close', {
       fontFamily: 'Roboto Mono',
       fontSize: '16px',
       color: '#4e3720',
     }).setOrigin(1, 0);
     this.menuOverlay.add(this.menuHint);
 
-    this.tabTexts = [];
-    const tabStartY = panelY + 152;
+    this.tabButtons = [];
+    const tabStartY = panelY + 176;
     this.menuPages.forEach((page, index) => {
-      const tabBox = this.add.rectangle(panelX + 135, tabStartY + index * 88, 220, 58, 0x000000, 0)
-        .setStrokeStyle(3, 0xdab56a, 0.95);
-      const tabText = this.add.text(panelX + 135, tabStartY + index * 88, page, {
-        fontFamily: 'Macondo Swash Caps',
-        fontSize: '28px',
-        color: '#5b3417',
-      }).setOrigin(0.5);
-      this.tabTexts.push({ box: tabBox, text: tabText });
-      this.menuOverlay.add(tabBox);
-      this.menuOverlay.add(tabText);
+      const button = addOutlinedButton(this, panelX + 146, tabStartY + index * 92, 232, 60, page, index === this.selectedMenuIndex, '28px');
+      this.tabButtons.push(button);
+      this.menuOverlay.add([button.box, button.inner, button.text]);
     });
 
-    const dividerTop = panelY + 60;
-    const dividerBottom = panelY + panelH - 60;
-    this.contentDivider = this.add.line(0, 0, panelX + 265, dividerTop, panelX + 265, dividerBottom, 0x6b4016, 0.8)
+    const dividerX = panelX + 282;
+    this.contentDivider = this.add.line(0, 0, dividerX, panelY + 124, dividerX, panelY + panelH - 124, 0x6b4016, 0.8)
       .setLineWidth(2, 2);
     this.menuOverlay.add(this.contentDivider);
 
-    this.contentBody = this.add.text(panelX + 320, panelY + 132, '', {
+    this.contentFrameOuter = this.add.rectangle(panelX + 762, panelY + 390, 884, 498, 0x000000, 0)
+      .setStrokeStyle(2, 0xdab56a, 0.6);
+    this.contentFrameInner = this.add.rectangle(panelX + 762, panelY + 390, 866, 480, 0x000000, 0)
+      .setStrokeStyle(1, 0xe7cd96, 0.45);
+    this.menuOverlay.add([this.contentFrameOuter, this.contentFrameInner]);
+
+    this.contentBody = this.add.text(panelX + 344, panelY + 166, '', {
       fontFamily: 'Roboto Mono',
       fontSize: '22px',
       color: '#2b1b0f',
-      lineSpacing: 12,
-      wordWrap: { width: 720 },
+      lineSpacing: 14,
+      wordWrap: { width: 790 },
     });
     this.menuOverlay.add(this.contentBody);
 
-    this.inventoryList = this.add.container(panelX + 320, panelY + 132);
+    this.inventoryList = this.add.container(panelX + 344, panelY + 166);
     this.menuOverlay.add(this.inventoryList);
 
     this.refreshMenuPage();
@@ -720,11 +776,8 @@ class PrototypeScene extends Phaser.Scene {
   }
 
   refreshMenuPage() {
-    this.tabTexts.forEach((tab, index) => {
-      const active = index === this.selectedMenuIndex;
-      tab.box.setFillStyle(0x000000, 0);
-      tab.box.setStrokeStyle(active ? 4 : 3, active ? 0x6b4016 : 0xdab56a, 0.98);
-      tab.text.setColor(active ? '#3c1d0d' : '#7f6131');
+    this.tabButtons.forEach((button, index) => {
+      button.setActive(index === this.selectedMenuIndex);
     });
 
     const currentPage = this.menuPages[this.selectedMenuIndex];
@@ -735,21 +788,28 @@ class PrototypeScene extends Phaser.Scene {
 
     if (currentPage === 'Inventory') {
       let y = 0;
-      this.inventoryItems.forEach((item) => {
-        const row = this.add.rectangle(0, y + 18, 690, 46, 0x9b7740, 0.08)
-          .setOrigin(0, 0);
-        const icon = this.add.text(18, y + 6, item.icon, {
+      this.inventoryItems.forEach((item, index) => {
+        const rowOuter = this.add.rectangle(370, y + 22, 740, 52, 0x000000, 0)
+          .setStrokeStyle(index === 0 ? 2 : 1, index === 0 ? 0xdab56a : 0xe7cd96, index === 0 ? 0.55 : 0.35);
+        const rowInner = this.add.rectangle(370, y + 22, 724, 38, 0x9b7740, 0.05)
+          .setStrokeStyle(1, 0xf1e6c9, 0.18);
+        const icon = this.add.text(28, y + 5, item.icon, {
           fontFamily: 'Macondo Swash Caps',
           fontSize: '28px',
           color: '#6b4016',
         });
-        const label = this.add.text(66, y + 8, item.name, {
+        const label = this.add.text(76, y + 8, item.name, {
           fontFamily: 'Roboto Mono',
           fontSize: '20px',
           color: '#2b1b0f',
         });
-        this.inventoryList.add([row, icon, label]);
-        y += 62;
+        const desc = this.add.text(520, y + 10, index === 0 ? 'Worn and weatherproof' : index === 1 ? 'Shows the nearby wilds' : 'A few days of provisions', {
+          fontFamily: 'Roboto Mono',
+          fontSize: '15px',
+          color: '#7a6340',
+        }).setOrigin(0.5, 0);
+        this.inventoryList.add([rowOuter, rowInner, icon, label, desc]);
+        y += 68;
       });
       this.inventoryList.setVisible(true);
     } else {
@@ -757,17 +817,17 @@ class PrototypeScene extends Phaser.Scene {
       this.contentBody.setVisible(true);
       this.contentBody.setText(
         'Keyboard\n' +
-        'Arrow Left / Right  Move\n' +
-        'Arrow Up            Jump\n' +
-        'Enter               Confirm / Interact\n' +
-        'Space               Action\n' +
-        'M                   Open Menu\n' +
-        'Esc / Backspace     Cancel / Close\n\n' +
+        'Arrow Left / Right   Move\n' +
+        'Arrow Up             Jump\n' +
+        'Enter                Confirm / Interact\n' +
+        'Space                Action\n' +
+        'M                    Open Menu\n' +
+        'Esc / Backspace      Cancel / Close\n\n' +
         'Controller (planned)\n' +
-        'D-pad / Left Stick  Move / Navigate\n' +
-        'South Button        Confirm / Interact\n' +
-        'East Button         Cancel / Back\n' +
-        'Menu / Start        Open Menu'
+        'D-pad / Left Stick   Move / Navigate\n' +
+        'South Button         Confirm / Interact\n' +
+        'East Button          Cancel / Back\n' +
+        'Menu / Start         Open Menu'
       );
     }
   }
