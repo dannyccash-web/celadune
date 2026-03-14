@@ -9,367 +9,121 @@ const FRAME_H = 64;
 class StartScene extends Phaser.Scene {
   constructor() {
     super('StartScene');
-    this.menuIndex = 0;
   }
 
   preload() {
-    this.load.image('start-bg', 'assets/bg/celadune_start_screen_background.png');
+    this.load.image('start-bg', 'assets/ui/celadune_start_screen_background.png');
     this.load.image('celadune-logo', 'assets/ui/celadune_logo.png');
-    // Temporary title-screen music fallback until celadore_theme.mp3 is provided.
-    this.load.audio('titleTheme', 'assets/Fantasy_Score_2.mp3');
-    this.load.audio('forestTheme', 'assets/Fantasy_Score_2.mp3');
+    this.load.audio('celaduneTheme', 'assets/audio/celadune_theme.mp3');
   }
 
   create() {
-    this.createBackground();
-    this.createLogo();
-    this.createMenu();
-    this.createInput();
-    this.createTitleMusic();
-    this.fadeIn();
-  }
+    this.cameras.main.setBackgroundColor('#08111a');
 
-  createBackground() {
-    const texture = this.textures.get('start-bg').getSourceImage();
-    const bgScale = Math.max(GAME_WIDTH / texture.width, GAME_HEIGHT / texture.height) * 1.08;
+    const bg = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'start-bg');
+    bg.setDisplaySize(GAME_WIDTH, GAME_HEIGHT);
 
-    this.bg = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'start-bg')
-      .setScale(bgScale)
-      .setDepth(-10);
-
-    this.tweens.add({
-      targets: this.bg,
-      scaleX: bgScale * 1.055,
-      scaleY: bgScale * 1.055,
-      x: GAME_WIDTH / 2 - 18,
-      y: GAME_HEIGHT / 2 - 12,
-      duration: 22000,
-      ease: 'Sine.easeInOut',
-      yoyo: true,
-      repeat: -1,
-    });
-
-    this.screenShade = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x081018, 0.18)
-      .setDepth(-5);
-
-    this.createVignetteTexture();
-    this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'start-vignette')
-      .setDepth(30)
-      .setBlendMode(Phaser.BlendModes.MULTIPLY)
-      .setAlpha(0.95);
-  }
-
-  createLogo() {
-    const maxLogoWidth = 1040;
-    this.logo = this.add.image(GAME_WIDTH / 2, 325, 'celadune-logo')
-      .setOrigin(0.5)
-      .setDepth(10);
-
-    const logoScale = Math.min(1, maxLogoWidth / this.logo.width);
+    this.logo = this.add.image(GAME_WIDTH / 2, 290, 'celadune-logo');
+    const logoTexture = this.textures.get('celadune-logo').getSourceImage();
+    const maxLogoWidth = 1080;
+    const maxLogoHeight = 360;
+    const logoScale = Math.min(maxLogoWidth / logoTexture.width, maxLogoHeight / logoTexture.height);
     this.logo.setScale(logoScale);
 
-    this.logoShadow = this.add.image(this.logo.x, this.logo.y + 12, 'celadune-logo')
-      .setOrigin(0.5)
-      .setScale(logoScale)
-      .setTint(0x102032)
-      .setAlpha(0.22)
-      .setDepth(8);
-
-    this.tweens.add({
-      targets: [this.logo, this.logoShadow],
-      y: '+=4',
-      duration: 2800,
-      ease: 'Sine.easeInOut',
-      yoyo: true,
-      repeat: -1,
-    });
-
-    this.createSheenTexture();
-    this.logoMaskImage = this.add.image(this.logo.x, this.logo.y, 'celadune-logo')
-      .setOrigin(0.5)
-      .setScale(logoScale)
-      .setVisible(false);
-
-    this.sheen = this.add.image(this.logo.x - this.logo.displayWidth * 0.8, this.logo.y, 'logo-sheen')
-      .setDepth(12)
-      .setScale(1.25, 1.25)
-      .setAlpha(0)
-      .setBlendMode(Phaser.BlendModes.ADD);
-
-    this.sheen.setMask(new Phaser.Display.Masks.BitmapMask(this, this.logoMaskImage));
-
-    this.time.addEvent({
-      delay: 4200,
-      loop: true,
-      callback: () => {
-        this.sheen.setX(this.logo.x - this.logo.displayWidth * 0.8);
-        this.sheen.setAlpha(0);
-        this.tweens.add({
-          targets: this.sheen,
-          x: this.logo.x + this.logo.displayWidth * 0.8,
-          alpha: { from: 0, to: 0.85 },
-          duration: 1200,
-          ease: 'Sine.easeInOut',
-          onComplete: () => this.sheen.setAlpha(0),
-        });
-      },
-    });
-  }
-
-  createMenu() {
-    this.buttonY = 685;
-
-    this.buttonContainer = this.add.container(GAME_WIDTH / 2, this.buttonY).setDepth(20);
-
-    this.createButtonTextures();
-    this.buttonBg = this.add.image(0, 0, 'start-btn');
-    this.buttonHighlight = this.add.image(0, 0, 'start-btn-highlight').setAlpha(0);
-
-    this.buttonText = this.add.text(0, -4, 'START', {
-      fontFamily: 'Macondo Swash Caps, serif',
+    this.add.rectangle(GAME_WIDTH / 2, 748, 320, 88, 0x1e140a, 0.72).setStrokeStyle(4, 0xdab56a, 0.9);
+    this.add.rectangle(GAME_WIDTH / 2, 748, 300, 68, 0x41250d, 0.94).setStrokeStyle(2, 0xf3dfae, 0.9);
+    this.startButton = this.add.text(GAME_WIDTH / 2, 748, 'Start', {
+      fontFamily: 'Macondo Swash Caps',
       fontSize: '42px',
-      color: '#f8edc2',
-      stroke: '#43250c',
+      color: '#fff3d0',
+      stroke: '#4f280a',
       strokeThickness: 6,
       shadow: {
         offsetX: 0,
-        offsetY: 3,
+        offsetY: 2,
         color: '#000000',
-        blur: 2,
+        blur: 6,
         fill: true,
       },
     }).setOrigin(0.5);
 
-    this.buttonHint = this.add.text(0, 50, 'Press Enter / Space / Gamepad A', {
-      fontFamily: 'Arial',
-      fontSize: '20px',
-      color: '#eef4ff',
-      stroke: '#081018',
-      strokeThickness: 4,
+    this.promptText = this.add.text(GAME_WIDTH / 2, 820, 'Press Enter to begin', {
+      fontFamily: 'Roboto Mono',
+      fontSize: '22px',
+      color: '#efe6cf',
+      stroke: '#111111',
+      strokeThickness: 3,
     }).setOrigin(0.5);
 
-    this.buttonContainer.add([this.buttonBg, this.buttonHighlight, this.buttonText, this.buttonHint]);
+    this.createSheen();
+    this.createAudio();
 
-    this.titlePrompt = this.add.text(GAME_WIDTH / 2, 794, 'An old-world fantasy adventure begins', {
-      fontFamily: 'Macondo Swash Caps, serif',
-      fontSize: '28px',
-      color: '#e5d6ad',
-      stroke: '#13202c',
-      strokeThickness: 5,
-    }).setOrigin(0.5).setDepth(20).setAlpha(0.92);
-
-    this.updateMenuSelection();
-
-    this.tweens.add({
-      targets: this.buttonContainer,
-      y: this.buttonY + 4,
-      duration: 1800,
-      ease: 'Sine.easeInOut',
-      yoyo: true,
-      repeat: -1,
-    });
+    this.input.keyboard.once('keydown-ENTER', () => this.startGame());
+    this.input.keyboard.once('keydown-SPACE', () => this.startGame());
+    this.input.once('pointerdown', () => this.startGame());
   }
 
-  createInput() {
-    this.keys = this.input.keyboard.addKeys({
-      up: Phaser.Input.Keyboard.KeyCodes.UP,
-      down: Phaser.Input.Keyboard.KeyCodes.DOWN,
-      left: Phaser.Input.Keyboard.KeyCodes.LEFT,
-      right: Phaser.Input.Keyboard.KeyCodes.RIGHT,
-      enter: Phaser.Input.Keyboard.KeyCodes.ENTER,
-      space: Phaser.Input.Keyboard.KeyCodes.SPACE,
-    });
+  createSheen() {
+    const sheenWidth = 180;
+    const sheenHeight = 440;
+    const sheen = this.add.rectangle(this.logo.x - 700, this.logo.y, sheenWidth, sheenHeight, 0xffffff, 0.18)
+      .setAngle(-18)
+      .setBlendMode(Phaser.BlendModes.SCREEN)
+      .setVisible(false);
 
-    this.input.gamepad.once('connected', (pad) => {
-      this.activePad = pad;
-    });
+    const maskShape = this.make.graphics({ x: 0, y: 0, add: false });
+    const bounds = this.logo.getBounds();
+    maskShape.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+    const mask = maskShape.createGeometryMask();
+    sheen.setMask(mask);
+
+    const runSheen = () => {
+      sheen.setVisible(true);
+      sheen.x = bounds.x - 140;
+      this.tweens.add({
+        targets: sheen,
+        x: bounds.right + 140,
+        duration: 1100,
+        ease: 'Sine.easeInOut',
+        onComplete: () => {
+          sheen.setVisible(false);
+          this.time.delayedCall(4200, runSheen);
+        },
+      });
+    };
+
+    this.time.delayedCall(1500, runSheen);
   }
 
-  createTitleMusic() {
-    this.titleMusic = this.sound.add('titleTheme', {
+  createAudio() {
+    this.music = this.sound.add('celaduneTheme', {
       loop: true,
-      volume: 0.45,
+      volume: 0.52,
     });
 
     if (!this.sound.locked) {
-      this.titleMusic.play();
+      this.music.play();
     } else {
       this.sound.once(Phaser.Sound.Events.UNLOCKED, () => {
-        if (!this.titleMusic.isPlaying) {
-          this.titleMusic.play();
+        if (!this.music.isPlaying) {
+          this.music.play();
         }
       });
     }
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      if (this.titleMusic) {
-        this.titleMusic.stop();
-      }
+      if (this.music) this.music.stop();
     });
-
     this.events.once(Phaser.Scenes.Events.DESTROY, () => {
-      if (this.titleMusic) {
-        this.titleMusic.destroy();
-      }
+      if (this.music) this.music.destroy();
     });
-  }
-
-  createVignetteTexture() {
-    if (this.textures.exists('start-vignette')) {
-      return;
-    }
-
-    const canvas = this.textures.createCanvas('start-vignette', GAME_WIDTH, GAME_HEIGHT);
-    const ctx = canvas.getContext();
-    const gradient = ctx.createRadialGradient(
-      GAME_WIDTH / 2,
-      GAME_HEIGHT / 2,
-      GAME_HEIGHT * 0.16,
-      GAME_WIDTH / 2,
-      GAME_HEIGHT / 2,
-      GAME_WIDTH * 0.62,
-    );
-
-    gradient.addColorStop(0, 'rgba(0, 0, 0, 0.00)');
-    gradient.addColorStop(0.46, 'rgba(0, 0, 0, 0.10)');
-    gradient.addColorStop(0.74, 'rgba(0, 0, 0, 0.38)');
-    gradient.addColorStop(1, 'rgba(0, 0, 0, 0.80)');
-
-    ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    canvas.refresh();
-  }
-
-  createSheenTexture() {
-    if (this.textures.exists('logo-sheen')) {
-      return;
-    }
-
-    const width = 300;
-    const height = 500;
-    const canvas = this.textures.createCanvas('logo-sheen', width, height);
-    const ctx = canvas.getContext();
-
-    const gradient = ctx.createLinearGradient(0, 0, width, 0);
-    gradient.addColorStop(0, 'rgba(255,255,255,0.00)');
-    gradient.addColorStop(0.35, 'rgba(255,255,255,0.04)');
-    gradient.addColorStop(0.5, 'rgba(255,255,255,0.92)');
-    gradient.addColorStop(0.65, 'rgba(255,255,255,0.08)');
-    gradient.addColorStop(1, 'rgba(255,255,255,0.00)');
-
-    ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.moveTo(width * 0.28, 0);
-    ctx.lineTo(width * 0.74, 0);
-    ctx.lineTo(width * 0.58, height);
-    ctx.lineTo(width * 0.12, height);
-    ctx.closePath();
-    ctx.fill();
-    canvas.refresh();
-  }
-
-  createButtonTextures() {
-    if (this.textures.exists('start-btn') && this.textures.exists('start-btn-highlight')) {
-      return;
-    }
-
-    const width = 420;
-    const height = 108;
-    const drawPanel = (key, brighten = false) => {
-      const canvas = this.textures.createCanvas(key, width, height);
-      const ctx = canvas.getContext();
-      const radius = 22;
-      const topColor = brighten ? '#c39953' : '#9d7238';
-      const bottomColor = brighten ? '#6f4a1f' : '#563614';
-      const trimColor = brighten ? '#ffe7a8' : '#e8c77e';
-
-      ctx.clearRect(0, 0, width, height);
-      ctx.beginPath();
-      ctx.moveTo(radius, 8);
-      ctx.lineTo(width - radius, 8);
-      ctx.quadraticCurveTo(width - 8, 8, width - 8, radius);
-      ctx.lineTo(width - 8, height - radius);
-      ctx.quadraticCurveTo(width - 8, height - 8, width - radius, height - 8);
-      ctx.lineTo(radius, height - 8);
-      ctx.quadraticCurveTo(8, height - 8, 8, height - radius);
-      ctx.lineTo(8, radius);
-      ctx.quadraticCurveTo(8, 8, radius, 8);
-      ctx.closePath();
-
-      const fill = ctx.createLinearGradient(0, 8, 0, height - 8);
-      fill.addColorStop(0, topColor);
-      fill.addColorStop(0.5, brighten ? '#9d6f35' : '#7b5627');
-      fill.addColorStop(1, bottomColor);
-      ctx.fillStyle = fill;
-      ctx.fill();
-
-      ctx.lineWidth = 5;
-      ctx.strokeStyle = '#3b220f';
-      ctx.stroke();
-
-      ctx.lineWidth = 2.5;
-      ctx.strokeStyle = trimColor;
-      ctx.strokeRect(20, 18, width - 40, height - 36);
-
-      const shine = ctx.createLinearGradient(0, 8, 0, height * 0.6);
-      shine.addColorStop(0, brighten ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.18)');
-      shine.addColorStop(1, 'rgba(255,255,255,0.00)');
-      ctx.fillStyle = shine;
-      ctx.fillRect(18, 14, width - 36, height * 0.35);
-
-      canvas.refresh();
-    };
-
-    drawPanel('start-btn', false);
-    drawPanel('start-btn-highlight', true);
-  }
-
-  updateMenuSelection() {
-    const selected = this.menuIndex === 0;
-    this.buttonHighlight.setAlpha(selected ? 1 : 0);
-    this.buttonText.setScale(selected ? 1.03 : 1);
-    this.buttonHint.setAlpha(selected ? 0.95 : 0.75);
-  }
-
-  fadeIn() {
-    this.cameras.main.fadeIn(500, 0, 0, 0);
   }
 
   startGame() {
-    if (this.isStarting) {
-      return;
-    }
-    this.isStarting = true;
-
-    this.tweens.add({
-      targets: this.buttonContainer,
-      scaleX: 0.96,
-      scaleY: 0.96,
-      yoyo: true,
-      duration: 120,
-      repeat: 0,
-    });
-
-    this.cameras.main.fadeOut(700, 0, 0, 0);
-    this.time.delayedCall(720, () => {
-      this.scene.start('PrototypeScene');
-    });
-  }
-
-  update() {
-    const pad = this.activePad;
-    const confirmPressed = Phaser.Input.Keyboard.JustDown(this.keys.enter)
-      || Phaser.Input.Keyboard.JustDown(this.keys.space)
-      || (pad && pad.justPressed(0, 250));
-
-    if (confirmPressed) {
-      this.startGame();
-    }
-
-    this.logoMaskImage.setPosition(this.logo.x, this.logo.y);
-    this.logoShadow.setPosition(this.logo.x, this.logo.y + 12);
+    if (this.transitioning) return;
+    this.transitioning = true;
+    this.cameras.main.fadeOut(500, 0, 0, 0);
+    this.time.delayedCall(520, () => this.scene.start('PrototypeScene'));
   }
 }
 
@@ -377,6 +131,13 @@ class PrototypeScene extends Phaser.Scene {
   constructor() {
     super('PrototypeScene');
     this.facing = 'right';
+    this.selectedMenuIndex = 0;
+    this.menuPages = ['Inventory', 'Controls'];
+    this.inventoryItems = [
+      { icon: '◆', name: 'Traveler\'s Cloak' },
+      { icon: '✦', name: 'Forest Map' },
+      { icon: '✧', name: 'Field Rations' },
+    ];
   }
 
   preload() {
@@ -384,7 +145,8 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('ground1', 'assets/tiles/ground_tile_1.png');
     this.load.image('ground2', 'assets/tiles/ground_tile_2.png');
     this.load.image('ground3', 'assets/tiles/ground_tile_3.png');
-    this.load.audio('forestTheme', 'assets/Fantasy_Score_2.mp3');
+    this.load.image('parchment', 'assets/ui/parchment.png');
+    this.load.audio('forestTheme', 'assets/audio/celadune_forest.mp3');
     this.load.spritesheet('walk', 'assets/characters/walk.png', {
       frameWidth: FRAME_W,
       frameHeight: FRAME_H,
@@ -410,8 +172,14 @@ class PrototypeScene extends Phaser.Scene {
     this.createCamera();
     this.createUI();
     this.createAudio();
+    this.createMenu();
 
     this.cursors = this.input.keyboard.createCursorKeys();
+    this.menuKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
+    this.enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
+    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.escapeKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+    this.backspaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.BACKSPACE);
   }
 
   createParallaxBackground() {
@@ -571,9 +339,7 @@ class PrototypeScene extends Phaser.Scene {
   }
 
   createLightBeamTexture() {
-    if (this.textures.exists('light-beam')) {
-      return;
-    }
+    if (this.textures.exists('light-beam')) return;
 
     const width = 520;
     const height = 1100;
@@ -615,14 +381,11 @@ class PrototypeScene extends Phaser.Scene {
     ctx.closePath();
     ctx.fill();
     ctx.restore();
-
     canvas.refresh();
   }
 
   createVignetteTexture() {
-    if (this.textures.exists('vignette')) {
-      return;
-    }
+    if (this.textures.exists('vignette')) return;
 
     const canvas = this.textures.createCanvas('vignette', GAME_WIDTH, GAME_HEIGHT);
     const ctx = canvas.getContext();
@@ -658,22 +421,16 @@ class PrototypeScene extends Phaser.Scene {
       this.music.play();
     } else {
       this.sound.once(Phaser.Sound.Events.UNLOCKED, () => {
-        if (!this.music.isPlaying) {
-          this.music.play();
-        }
+        if (!this.music.isPlaying) this.music.play();
       });
     }
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      if (this.music) {
-        this.music.stop();
-      }
+      if (this.music) this.music.stop();
     });
 
     this.events.once(Phaser.Scenes.Events.DESTROY, () => {
-      if (this.music) {
-        this.music.destroy();
-      }
+      if (this.music) this.music.destroy();
     });
   }
 
@@ -685,16 +442,189 @@ class PrototypeScene extends Phaser.Scene {
   }
 
   createUI() {
-    this.hud = this.add.text(22, 18, '← → Move   ↑ Jump', {
-      fontFamily: 'Arial',
-      fontSize: '26px',
+    this.hud = this.add.text(22, 18, 'Press M for Menu', {
+      fontFamily: 'Roboto Mono',
+      fontSize: '24px',
       color: '#eef7ff',
       stroke: '#0a1218',
       strokeThickness: 5,
     }).setScrollFactor(0).setDepth(60);
   }
 
+  createMenu() {
+    this.menuOverlay = this.add.container(0, 0).setScrollFactor(0).setDepth(200).setVisible(false);
+
+    const dim = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x05070a, 0.62)
+      .setOrigin(0, 0);
+    this.menuOverlay.add(dim);
+
+    const panelX = 180;
+    const panelY = 110;
+    const panelW = 1240;
+    const panelH = 680;
+
+    const parchment = this.add.tileSprite(panelX + panelW / 2, panelY + panelH / 2, panelW, panelH, 'parchment');
+    const parchmentSource = this.textures.get('parchment').getSourceImage();
+    parchment.setTileScale(160 / parchmentSource.width, 160 / parchmentSource.height);
+    parchment.setAlpha(0.98);
+    this.menuOverlay.add(parchment);
+
+    const borderOuter = this.add.rectangle(panelX + panelW / 2, panelY + panelH / 2, panelW, panelH, 0x000000, 0)
+      .setStrokeStyle(6, 0x5b3717, 1);
+    const borderInner = this.add.rectangle(panelX + panelW / 2, panelY + panelH / 2, panelW - 18, panelH - 18, 0x000000, 0)
+      .setStrokeStyle(2, 0xdab56a, 0.95);
+    this.menuOverlay.add(borderOuter);
+    this.menuOverlay.add(borderInner);
+
+    this.menuTitle = this.add.text(panelX + 410, panelY + 56, 'Inventory', {
+      fontFamily: 'Macondo Swash Caps',
+      fontSize: '46px',
+      color: '#4a2411',
+      stroke: '#f5e2b6',
+      strokeThickness: 3,
+    }).setOrigin(0.5, 0.5);
+    this.menuOverlay.add(this.menuTitle);
+
+    this.menuHint = this.add.text(panelX + panelW - 40, panelY + 38, 'M / Esc / Backspace to close', {
+      fontFamily: 'Roboto Mono',
+      fontSize: '16px',
+      color: '#4e3720',
+    }).setOrigin(1, 0);
+    this.menuOverlay.add(this.menuHint);
+
+    this.tabTexts = [];
+    const tabStartY = panelY + 152;
+    this.menuPages.forEach((page, index) => {
+      const tabBox = this.add.rectangle(panelX + 135, tabStartY + index * 88, 220, 58, 0x8d6a3b, 0.18)
+        .setStrokeStyle(3, 0x6b4016, 0.7);
+      const tabText = this.add.text(panelX + 135, tabStartY + index * 88, page, {
+        fontFamily: 'Macondo Swash Caps',
+        fontSize: '28px',
+        color: '#5b3417',
+      }).setOrigin(0.5);
+      this.tabTexts.push({ box: tabBox, text: tabText });
+      this.menuOverlay.add(tabBox);
+      this.menuOverlay.add(tabText);
+    });
+
+    this.contentDivider = this.add.line(0, 0, panelX + 265, panelY + 118, panelX + 265, panelY + panelH - 50, 0x6b4016, 0.8)
+      .setLineWidth(2, 2);
+    this.menuOverlay.add(this.contentDivider);
+
+    this.contentHeader = this.add.text(panelX + 320, panelY + 150, '', {
+      fontFamily: 'Macondo Swash Caps',
+      fontSize: '34px',
+      color: '#4a2411',
+    });
+    this.contentBody = this.add.text(panelX + 320, panelY + 215, '', {
+      fontFamily: 'Roboto Mono',
+      fontSize: '22px',
+      color: '#2b1b0f',
+      lineSpacing: 12,
+      wordWrap: { width: 800 },
+    });
+    this.menuOverlay.add(this.contentHeader);
+    this.menuOverlay.add(this.contentBody);
+
+    this.inventoryList = this.add.container(panelX + 320, panelY + 215);
+    this.menuOverlay.add(this.inventoryList);
+
+    this.refreshMenuPage();
+  }
+
+  openMenu() {
+    if (this.isMenuOpen) return;
+    this.isMenuOpen = true;
+    this.menuOverlay.setVisible(true);
+    this.physics.world.pause();
+    this.player.anims.pause();
+  }
+
+  closeMenu() {
+    if (!this.isMenuOpen) return;
+    this.isMenuOpen = false;
+    this.menuOverlay.setVisible(false);
+    this.physics.world.resume();
+  }
+
+  changeMenuPage(direction) {
+    this.selectedMenuIndex = Phaser.Math.Wrap(this.selectedMenuIndex + direction, 0, this.menuPages.length);
+    this.refreshMenuPage();
+  }
+
+  refreshMenuPage() {
+    this.tabTexts.forEach((tab, index) => {
+      const active = index === this.selectedMenuIndex;
+      tab.box.setFillStyle(active ? 0xb58c51 : 0x8d6a3b, active ? 0.38 : 0.18);
+      tab.box.setStrokeStyle(active ? 4 : 3, active ? 0xe3c78d : 0x6b4016, 0.95);
+      tab.text.setColor(active ? '#3c1d0d' : '#5b3417');
+    });
+
+    const currentPage = this.menuPages[this.selectedMenuIndex];
+    this.menuTitle.setText(currentPage);
+    this.contentHeader.setText(currentPage);
+
+    this.inventoryList.removeAll(true);
+    this.contentBody.setVisible(false);
+    this.contentHeader.setVisible(true);
+
+    if (currentPage === 'Inventory') {
+      let y = 0;
+      this.inventoryItems.forEach((item) => {
+        const row = this.add.rectangle(420, y + 18, 840, 46, 0x9b7740, 0.10)
+          .setOrigin(0, 0);
+        const icon = this.add.text(18, y + 6, item.icon, {
+          fontFamily: 'Macondo Swash Caps',
+          fontSize: '28px',
+          color: '#6b4016',
+        });
+        const label = this.add.text(66, y + 8, item.name, {
+          fontFamily: 'Roboto Mono',
+          fontSize: '22px',
+          color: '#2b1b0f',
+        });
+        this.inventoryList.add([row, icon, label]);
+        y += 62;
+      });
+      this.inventoryList.setVisible(true);
+    } else {
+      this.inventoryList.setVisible(false);
+      this.contentBody.setVisible(true);
+      this.contentBody.setText(
+        'Keyboard\n' +
+        'Arrow Left / Right  Move\n' +
+        'Arrow Up            Jump\n' +
+        'Enter               Confirm / Interact\n' +
+        'Space               Action\n' +
+        'M                   Open Menu\n' +
+        'Esc / Backspace     Cancel / Close\n\n' +
+        'Controller (planned)\n' +
+        'D-pad / Left Stick  Move / Navigate\n' +
+        'South Button        Confirm / Interact\n' +
+        'East Button         Cancel / Back\n' +
+        'Menu / Start        Open Menu'
+      );
+    }
+  }
+
   update() {
+    if (Phaser.Input.Keyboard.JustDown(this.menuKey)) {
+      if (this.isMenuOpen) {
+        this.closeMenu();
+      } else {
+        this.openMenu();
+      }
+    }
+
+    if (this.isMenuOpen) {
+      if (Phaser.Input.Keyboard.JustDown(this.cursors.up)) this.changeMenuPage(-1);
+      if (Phaser.Input.Keyboard.JustDown(this.cursors.down)) this.changeMenuPage(1);
+      if (Phaser.Input.Keyboard.JustDown(this.escapeKey) || Phaser.Input.Keyboard.JustDown(this.backspaceKey)) {
+        this.closeMenu();
+      }
+      return;
+    }
+
     const moveSpeed = 260;
     const body = this.player.body;
     const onGround = body.blocked.down || body.touching.down;
@@ -747,9 +677,6 @@ const config = {
       gravity: { y: 0 },
       debug: false,
     },
-  },
-  input: {
-    gamepad: true,
   },
   scene: [StartScene, PrototypeScene],
   scale: {
