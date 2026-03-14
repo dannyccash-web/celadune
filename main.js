@@ -23,16 +23,24 @@ const HEROES = {
   },
 };
 
-function createHeroAnimations(scene, heroKey) {
-  const rowStart = (row) => row * 13;
-  const frameList = (sheet, row, start, end) => {
-    const out = [];
-    for (let i = start; i <= end; i += 1) {
-      out.push({ key: sheet, frame: rowStart(row) + i });
-    }
-    return out;
-  };
+const FOREST_LADY = {
+  key: 'forestLady',
+  name: 'Mirelle',
+  idle: 'assets/npcs/forest_lady/idle.png',
+  walk: 'assets/npcs/forest_lady/walk.png',
+  emote: 'assets/npcs/forest_lady/emote.png',
+};
 
+function lpcFrameList(sheet, row, start, end) {
+  const out = [];
+  const rowStart = row * 13;
+  for (let i = start; i <= end; i += 1) {
+    out.push({ key: sheet, frame: rowStart + i });
+  }
+  return out;
+}
+
+function createHeroAnimations(scene, heroKey) {
   const animations = [
     { key: `${heroKey}-walk-left`, sheet: `${heroKey}-walk`, row: 1, start: 0, end: 8, rate: 10, repeat: -1 },
     { key: `${heroKey}-walk-right`, sheet: `${heroKey}-walk`, row: 3, start: 0, end: 8, rate: 10, repeat: -1 },
@@ -46,7 +54,27 @@ function createHeroAnimations(scene, heroKey) {
     if (!scene.anims.exists(anim.key)) {
       scene.anims.create({
         key: anim.key,
-        frames: frameList(anim.sheet, anim.row, anim.start, anim.end),
+        frames: lpcFrameList(anim.sheet, anim.row, anim.start, anim.end),
+        frameRate: anim.rate,
+        repeat: anim.repeat,
+      });
+    }
+  });
+}
+
+function createForestLadyAnimations(scene) {
+  const animations = [
+    { key: 'forestLady-idle-left', sheet: 'forestLady-idle', row: 1, start: 0, end: 1, rate: 3, repeat: -1 },
+    { key: 'forestLady-idle-right', sheet: 'forestLady-idle', row: 2, start: 0, end: 1, rate: 3, repeat: -1 },
+    { key: 'forestLady-walk-left', sheet: 'forestLady-walk', row: 1, start: 0, end: 8, rate: 8, repeat: -1 },
+    { key: 'forestLady-walk-right', sheet: 'forestLady-walk', row: 2, start: 0, end: 8, rate: 8, repeat: -1 },
+  ];
+
+  animations.forEach((anim) => {
+    if (!scene.anims.exists(anim.key)) {
+      scene.anims.create({
+        key: anim.key,
+        frames: lpcFrameList(anim.sheet, anim.row, anim.start, anim.end),
         frameRate: anim.rate,
         repeat: anim.repeat,
       });
@@ -60,7 +88,7 @@ class StartScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('start-bg', 'assets/ui/celadune_start_screen_background.png');
+    this.load.image('start-bg', 'assets/ui/celadune_start_screen_background.jpeg');
     this.load.image('celadune-logo', 'assets/ui/celadune_logo.png');
     this.load.audio('celaduneTheme', 'assets/audio/celadune_theme.mp3');
   }
@@ -75,14 +103,14 @@ class StartScene extends Phaser.Scene {
 
     this.logo = this.add.image(GAME_WIDTH / 2, 350, 'celadune-logo');
     const logoTexture = this.textures.get('celadune-logo').getSourceImage();
-    const maxLogoWidth = 1700;
-    const maxLogoHeight = 700;
+    const maxLogoWidth = 1550;
+    const maxLogoHeight = 650;
     const logoScale = Math.min(maxLogoWidth / logoTexture.width, maxLogoHeight / logoTexture.height);
     this.logo.setScale(logoScale);
 
     this.add.rectangle(GAME_WIDTH / 2, 768, 320, 88, 0x1e140a, 0.72).setStrokeStyle(4, 0xdab56a, 0.9);
     this.add.rectangle(GAME_WIDTH / 2, 768, 300, 68, 0x41250d, 0.94).setStrokeStyle(2, 0xf3dfae, 0.9);
-    this.startButton = this.add.text(GAME_WIDTH / 2, 768, 'Start', {
+    this.add.text(GAME_WIDTH / 2, 768, 'Start', {
       fontFamily: 'Macondo Swash Caps',
       fontSize: '42px',
       color: '#fff3d0',
@@ -97,7 +125,7 @@ class StartScene extends Phaser.Scene {
       },
     }).setOrigin(0.5);
 
-    this.promptText = this.add.text(GAME_WIDTH / 2, 838, 'Press Enter to begin', {
+    this.add.text(GAME_WIDTH / 2, 838, 'Press Enter to begin', {
       fontFamily: 'Roboto Mono',
       fontSize: '22px',
       color: '#efe6cf',
@@ -118,7 +146,7 @@ class StartScene extends Phaser.Scene {
     maskImage.setScale(this.logo.scaleX, this.logo.scaleY);
     const mask = maskImage.createBitmapMask();
 
-    const sheen = this.add.rectangle(this.logo.x - 920, this.logo.y, 210, 980, 0xffffff, 0.20)
+    const sheen = this.add.rectangle(this.logo.x - 900, this.logo.y, 210, 980, 0xffffff, 0.2)
       .setAngle(-18)
       .setBlendMode(Phaser.BlendModes.SCREEN)
       .setVisible(false)
@@ -126,12 +154,12 @@ class StartScene extends Phaser.Scene {
     sheen.setMask(mask);
 
     const runSheen = () => {
-      sheen.x = this.logo.x - 920;
+      sheen.x = this.logo.x - 900;
       sheen.y = this.logo.y;
       sheen.setVisible(true);
       this.tweens.add({
         targets: sheen,
-        x: this.logo.x + 920,
+        x: this.logo.x + 900,
         duration: 950,
         ease: 'Sine.easeInOut',
         onComplete: () => {
@@ -145,27 +173,18 @@ class StartScene extends Phaser.Scene {
   }
 
   createAudio() {
-    this.music = this.sound.add('celaduneTheme', {
-      loop: true,
-      volume: 0.52,
-    });
+    this.music = this.sound.add('celaduneTheme', { loop: true, volume: 0.52 });
 
     if (!this.sound.locked) {
       this.music.play();
     } else {
       this.sound.once(Phaser.Sound.Events.UNLOCKED, () => {
-        if (!this.music.isPlaying) {
-          this.music.play();
-        }
+        if (!this.music.isPlaying) this.music.play();
       });
     }
 
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      if (this.music) this.music.stop();
-    });
-    this.events.once(Phaser.Scenes.Events.DESTROY, () => {
-      if (this.music) this.music.destroy();
-    });
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.music?.stop());
+    this.events.once(Phaser.Scenes.Events.DESTROY, () => this.music?.destroy());
   }
 
   startGame() {
@@ -184,7 +203,7 @@ class HeroSelectScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('start-bg', 'assets/ui/celadune_start_screen_background.png');
+    this.load.image('hero-select-bg', 'assets/ui/celadune_hero_select_screen_background.jpeg');
     this.load.image('parchment', 'assets/ui/parchment.png');
 
     Object.values(HEROES).forEach((hero) => {
@@ -198,8 +217,8 @@ class HeroSelectScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor('#08111a');
 
-    const bg = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'start-bg');
-    const bgTexture = this.textures.get('start-bg').getSourceImage();
+    const bg = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'hero-select-bg');
+    const bgTexture = this.textures.get('hero-select-bg').getSourceImage();
     const bgScale = Math.max(GAME_WIDTH / bgTexture.width, GAME_HEIGHT / bgTexture.height);
     bg.setScale(bgScale);
 
@@ -240,12 +259,12 @@ class HeroSelectScene extends Phaser.Scene {
       const inner = this.add.rectangle(x, y, 232, 314, 0x000000, 0).setStrokeStyle(2, 0xe9cf96, 0.92);
       const portraitGlow = this.add.rectangle(x, y - 26, 166, 196, 0xa37a3f, 0.08).setStrokeStyle(1, 0xb88945, 0.22);
       const sprite = this.add.sprite(x, y - 28, `${heroKey}-idle`, 39).setScale(3.2);
-      const name = this.add.text(x, y + 116, HEROES[heroKey].name, {
+      const name = this.add.text(x, y + 126, HEROES[heroKey].name, {
         fontFamily: 'Macondo Swash Caps',
         fontSize: '34px',
         color: '#4a2411',
       }).setOrigin(0.5);
-      const role = this.add.text(x, y + 150, heroKey === 'caelan' ? 'Fighter' : 'Mage', {
+      const role = this.add.text(x, y + 160, heroKey === 'caelan' ? 'Fighter' : 'Mage', {
         fontFamily: 'Roboto Mono',
         fontSize: '18px',
         color: '#5c4528',
@@ -329,6 +348,9 @@ class PrototypeScene extends Phaser.Scene {
       { icon: '✦', name: 'Forest Map' },
       { icon: '✧', name: 'Field Rations' },
     ];
+    this.npcState = 'idle';
+    this.npcFacing = 'right';
+    this.dialogueChoiceIndex = 0;
   }
 
   init(data) {
@@ -342,20 +364,15 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('ground3', 'assets/tiles/ground_tile_3.png');
     this.load.image('parchment', 'assets/ui/parchment.png');
     this.load.audio('forestTheme', 'assets/audio/celadune_forest.mp3');
+    this.load.audio('writingSfx', 'assets/sfx/writing.wav');
+    this.load.spritesheet('forestLady-idle', FOREST_LADY.idle, { frameWidth: FRAME_W, frameHeight: FRAME_H });
+    this.load.spritesheet('forestLady-walk', FOREST_LADY.walk, { frameWidth: FRAME_W, frameHeight: FRAME_H });
+    this.load.spritesheet('forestLady-emote', FOREST_LADY.emote, { frameWidth: FRAME_W, frameHeight: FRAME_H });
 
     Object.values(HEROES).forEach((hero) => {
-      this.load.spritesheet(`${hero.key}-walk`, hero.walk, {
-        frameWidth: FRAME_W,
-        frameHeight: FRAME_H,
-      });
-      this.load.spritesheet(`${hero.key}-idle`, hero.idle, {
-        frameWidth: FRAME_W,
-        frameHeight: FRAME_H,
-      });
-      this.load.spritesheet(`${hero.key}-jump`, hero.jump, {
-        frameWidth: FRAME_W,
-        frameHeight: FRAME_H,
-      });
+      this.load.spritesheet(`${hero.key}-walk`, hero.walk, { frameWidth: FRAME_W, frameHeight: FRAME_H });
+      this.load.spritesheet(`${hero.key}-idle`, hero.idle, { frameWidth: FRAME_W, frameHeight: FRAME_H });
+      this.load.spritesheet(`${hero.key}-jump`, hero.jump, { frameWidth: FRAME_W, frameHeight: FRAME_H });
     });
   }
 
@@ -366,11 +383,13 @@ class PrototypeScene extends Phaser.Scene {
     this.createGround();
     this.createAnimations();
     this.createPlayer();
+    this.createNPC();
     this.createAtmosphere();
     this.createCamera();
     this.createUI();
     this.createAudio();
     this.createMenu();
+    this.createDialogueUI();
 
     this.cursors = this.input.keyboard.createCursorKeys();
     this.menuKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
@@ -395,20 +414,21 @@ class PrototypeScene extends Phaser.Scene {
   createGround() {
     this.ground = this.physics.add.staticGroup();
     this.groundBack = this.add.group();
+    this.groundFront = this.add.group();
 
     const tilesAcross = Math.ceil(WORLD_WIDTH / GROUND_TILE);
     const groundKeys = ['ground1', 'ground2', 'ground3'];
     const rng = this.createSeededRandom(0xC0FFEE);
     let previousKey = null;
+    this.tileLayout = [];
 
     for (let i = 0; i < tilesAcross; i += 1) {
       let tileKey = groundKeys[Math.floor(rng() * groundKeys.length)];
-
       if (groundKeys.length > 1 && tileKey === previousKey) {
         tileKey = groundKeys[(groundKeys.indexOf(tileKey) + 1 + Math.floor(rng() * (groundKeys.length - 1))) % groundKeys.length];
       }
-
       previousKey = tileKey;
+      this.tileLayout.push(tileKey);
 
       const x = i * GROUND_TILE + GROUND_TILE / 2;
       const y = GROUND_Y + GROUND_TILE / 2;
@@ -417,6 +437,13 @@ class PrototypeScene extends Phaser.Scene {
         .setDisplaySize(GROUND_TILE, GROUND_TILE)
         .setDepth(2);
       this.groundBack.add(backTile);
+
+      const frontGrass = this.add.image(x, GROUND_Y, tileKey)
+        .setOrigin(0.5, 0)
+        .setDisplaySize(GROUND_TILE, 28)
+        .setCrop(0, 0, 160, 28)
+        .setDepth(12);
+      this.groundFront.add(frontGrass);
 
       const body = this.ground.create(x, y, tileKey);
       body.setVisible(false);
@@ -441,13 +468,14 @@ class PrototypeScene extends Phaser.Scene {
 
   createAnimations() {
     Object.keys(HEROES).forEach((heroKey) => createHeroAnimations(this, heroKey));
+    createForestLadyAnimations(this);
   }
 
   createPlayer() {
-    this.player = this.physics.add.sprite(300, 634, `${this.heroKey}-idle`, 39);
+    this.player = this.physics.add.sprite(300, 652, `${this.heroKey}-idle`, 39);
     this.player.setScale(3.1);
     this.player.setCollideWorldBounds(true);
-    this.player.setDepth(10);
+    this.player.setDepth(9);
     this.player.body.setSize(20, 34);
     this.player.body.setOffset(22, 28);
     this.player.body.setMaxVelocity(350, 1200);
@@ -455,6 +483,61 @@ class PrototypeScene extends Phaser.Scene {
     this.player.body.setBounce(0);
 
     this.physics.add.collider(this.player, this.ground);
+  }
+
+  createNPC() {
+    this.npc = this.physics.add.sprite(2540, 652, 'forestLady-idle', 26);
+    this.npc.setScale(3.0);
+    this.npc.setDepth(9);
+    this.npc.body.setSize(20, 34);
+    this.npc.body.setOffset(22, 28);
+    this.npc.body.setCollideWorldBounds(true);
+    this.npc.setImmovable(false);
+    this.npcMinX = 2420;
+    this.npcMaxX = 2660;
+    this.physics.add.collider(this.npc, this.ground);
+    this.npc.anims.play('forestLady-idle-right', true);
+
+    this.npcTooltip = this.add.container(0, 0).setDepth(30).setVisible(false);
+    const tooltipBg = this.add.rectangle(0, 0, 110, 30, 0x1c1209, 0.82).setStrokeStyle(2, 0xdab56a, 0.95);
+    const tooltipText = this.add.text(0, 0, FOREST_LADY.name, {
+      fontFamily: 'Roboto Mono',
+      fontSize: '16px',
+      color: '#f7edd6',
+    }).setOrigin(0.5);
+    this.npcTooltip.add([tooltipBg, tooltipText]);
+
+    this.scheduleNpcBehavior(500);
+  }
+
+  scheduleNpcBehavior(delay = Phaser.Math.Between(900, 1800)) {
+    this.npcBehaviorEvent?.remove(false);
+    this.npcBehaviorEvent = this.time.delayedCall(delay, () => {
+      if (this.isDialogueOpen || this.isMenuOpen) {
+        this.scheduleNpcBehavior(700);
+        return;
+      }
+
+      const action = Phaser.Math.RND.pick(['idle', 'idle', 'walkLeft', 'walkRight']);
+      if (action === 'idle') {
+        this.npcState = 'idle';
+        this.npc.setVelocityX(0);
+        this.npc.anims.play(this.npcFacing === 'left' ? 'forestLady-idle-left' : 'forestLady-idle-right', true);
+        this.scheduleNpcBehavior();
+      } else if (action === 'walkLeft') {
+        this.npcState = 'walk';
+        this.npcFacing = 'left';
+        this.npc.setVelocityX(-55);
+        this.npc.anims.play('forestLady-walk-left', true);
+        this.scheduleNpcBehavior(Phaser.Math.Between(900, 1500));
+      } else {
+        this.npcState = 'walk';
+        this.npcFacing = 'right';
+        this.npc.setVelocityX(55);
+        this.npc.anims.play('forestLady-walk-right', true);
+        this.scheduleNpcBehavior(Phaser.Math.Between(900, 1500));
+      }
+    });
   }
 
   createAtmosphere() {
@@ -516,7 +599,6 @@ class PrototypeScene extends Phaser.Scene {
     const height = 1100;
     const canvas = this.textures.createCanvas('light-beam', width, height);
     const ctx = canvas.getContext();
-
     ctx.clearRect(0, 0, width, height);
     ctx.save();
     ctx.filter = 'blur(22px)';
@@ -583,10 +665,8 @@ class PrototypeScene extends Phaser.Scene {
   }
 
   createAudio() {
-    this.music = this.sound.add('forestTheme', {
-      loop: true,
-      volume: 0.42,
-    });
+    this.music = this.sound.add('forestTheme', { loop: true, volume: 0.42 });
+    this.writingSound = this.sound.add('writingSfx', { loop: true, volume: 0.18 });
 
     if (!this.sound.locked) {
       this.music.play();
@@ -597,11 +677,13 @@ class PrototypeScene extends Phaser.Scene {
     }
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      if (this.music) this.music.stop();
+      this.music?.stop();
+      this.writingSound?.stop();
     });
 
     this.events.once(Phaser.Scenes.Events.DESTROY, () => {
-      if (this.music) this.music.destroy();
+      this.music?.destroy();
+      this.writingSound?.destroy();
     });
   }
 
@@ -625,8 +707,7 @@ class PrototypeScene extends Phaser.Scene {
   createMenu() {
     this.menuOverlay = this.add.container(0, 0).setScrollFactor(0).setDepth(200).setVisible(false);
 
-    const dim = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x05070a, 0.62)
-      .setOrigin(0, 0);
+    const dim = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x05070a, 0.62).setOrigin(0, 0);
     this.menuOverlay.add(dim);
 
     const panelX = 180;
@@ -699,12 +780,72 @@ class PrototypeScene extends Phaser.Scene {
     this.refreshMenuPage();
   }
 
+  createDialogueUI() {
+    this.dialogueOverlay = this.add.container(0, 0).setScrollFactor(0).setDepth(230).setVisible(false);
+    const dim = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x05070a, 0.54).setOrigin(0, 0);
+    this.dialogueOverlay.add(dim);
+
+    const panelX = 180;
+    const panelY = 510;
+    const panelW = 1240;
+    const panelH = 300;
+
+    const parchment = this.add.tileSprite(panelX + panelW / 2, panelY + panelH / 2, panelW, panelH, 'parchment');
+    const parchmentSource = this.textures.get('parchment').getSourceImage();
+    parchment.setTileScale(160 / parchmentSource.width, 160 / parchmentSource.height);
+    parchment.setAlpha(0.98);
+    this.dialogueOverlay.add(parchment);
+
+    const borderOuter = this.add.rectangle(panelX + panelW / 2, panelY + panelH / 2, panelW, panelH, 0x000000, 0)
+      .setStrokeStyle(6, 0x5b3717, 1);
+    const borderInner = this.add.rectangle(panelX + panelW / 2, panelY + panelH / 2, panelW - 18, panelH - 18, 0x000000, 0)
+      .setStrokeStyle(2, 0xdab56a, 0.95);
+    this.dialogueOverlay.add(borderOuter);
+    this.dialogueOverlay.add(borderInner);
+
+    this.dialogueSpeakerText = this.add.text(panelX + 34, panelY + 24, FOREST_LADY.name, {
+      fontFamily: 'Macondo Swash Caps',
+      fontSize: '34px',
+      color: '#4a2411',
+    });
+    this.dialogueOverlay.add(this.dialogueSpeakerText);
+
+    this.dialogueText = this.add.text(panelX + 34, panelY + 76, '', {
+      fontFamily: 'Roboto Mono',
+      fontSize: '22px',
+      color: '#2b1b0f',
+      lineSpacing: 10,
+      wordWrap: { width: 860 },
+    });
+    this.dialogueOverlay.add(this.dialogueText);
+
+    this.dialogueOptions = this.add.container(panelX + 34, panelY + 196);
+    this.dialogueOverlay.add(this.dialogueOptions);
+
+    this.portraitFrame = this.add.rectangle(panelX + panelW - 126, panelY + 96, 170, 170, 0x000000, 0)
+      .setStrokeStyle(2, 0xdab56a, 0.95);
+    this.dialogueOverlay.add(this.portraitFrame);
+
+    this.npcPortrait = this.add.sprite(panelX + panelW - 126, panelY + 96, 'forestLady-idle', 0)
+      .setScale(2.3)
+      .setCrop(18, 4, 28, 28);
+    this.dialogueOverlay.add(this.npcPortrait);
+
+    this.dialogueHint = this.add.text(panelX + panelW - 34, panelY + panelH - 26, 'Enter to choose', {
+      fontFamily: 'Roboto Mono',
+      fontSize: '16px',
+      color: '#4e3720',
+    }).setOrigin(1, 1);
+    this.dialogueOverlay.add(this.dialogueHint);
+  }
+
   openMenu() {
-    if (this.isMenuOpen) return;
+    if (this.isMenuOpen || this.isDialogueOpen) return;
     this.isMenuOpen = true;
     this.menuOverlay.setVisible(true);
     this.physics.world.pause();
     this.player.anims.pause();
+    this.npc.anims.pause();
   }
 
   closeMenu() {
@@ -712,6 +853,8 @@ class PrototypeScene extends Phaser.Scene {
     this.isMenuOpen = false;
     this.menuOverlay.setVisible(false);
     this.physics.world.resume();
+    this.player.anims.resume();
+    this.npc.anims.resume();
   }
 
   changeMenuPage(direction) {
@@ -736,8 +879,7 @@ class PrototypeScene extends Phaser.Scene {
     if (currentPage === 'Inventory') {
       let y = 0;
       this.inventoryItems.forEach((item) => {
-        const row = this.add.rectangle(0, y + 18, 690, 46, 0x9b7740, 0.08)
-          .setOrigin(0, 0);
+        const row = this.add.rectangle(0, y + 18, 690, 46, 0x9b7740, 0.08).setOrigin(0, 0);
         const icon = this.add.text(18, y + 6, item.icon, {
           fontFamily: 'Macondo Swash Caps',
           fontSize: '28px',
@@ -772,13 +914,236 @@ class PrototypeScene extends Phaser.Scene {
     }
   }
 
+  openDialogue() {
+    if (this.isDialogueOpen || this.isMenuOpen) return;
+    this.isDialogueOpen = true;
+    this.dialogueOverlay.setVisible(true);
+    this.physics.world.pause();
+    this.player.setVelocity(0, 0);
+    this.npc.setVelocityX(0);
+    this.player.anims.play(`${this.heroKey}-idle-${this.facing}`, true);
+    this.npc.anims.play(this.npcFacing === 'left' ? 'forestLady-idle-left' : 'forestLady-idle-right', true);
+    this.startDialogueSequence();
+  }
+
+  closeDialogue() {
+    this.isDialogueOpen = false;
+    this.dialogueOverlay.setVisible(false);
+    this.clearDialogueOptions();
+    this.stopTypewriter();
+    this.physics.world.resume();
+    this.scheduleNpcBehavior(900);
+  }
+
+  startDialogueSequence() {
+    this.dialogueChoiceIndex = 0;
+    this.dialogueState = 'intro';
+    this.showDialogueLine({
+      speaker: FOREST_LADY.name,
+      speakerType: 'npc',
+      text: 'What are you up to out here, traveler?',
+      choices: [
+        'My wagon broke down on the road to the city.',
+        'I was on my way to pick up supplies for my village.',
+      ],
+    });
+  }
+
+  showDialogueLine(line) {
+    this.currentDialogueLine = line;
+    this.dialogueSpeakerText.setText(line.speaker);
+    this.dialogueText.setText('');
+    this.clearDialogueOptions();
+    this.dialogueAwaitingChoice = false;
+    this.typewriterText = line.text;
+    this.typewriterIndex = 0;
+    this.isTyping = true;
+    this.talkPortrait(line.speakerType === 'npc');
+
+    this.typewriterEvent?.remove(false);
+    this.typewriterEvent = this.time.addEvent({
+      delay: 24,
+      repeat: Math.max(line.text.length - 1, 0),
+      callback: () => {
+        this.typewriterIndex += 1;
+        this.dialogueText.setText(this.typewriterText.slice(0, this.typewriterIndex));
+        if (this.typewriterIndex >= this.typewriterText.length) {
+          this.finishTyping();
+        }
+      },
+    });
+  }
+
+  finishTyping() {
+    if (!this.isTyping) return;
+    this.isTyping = false;
+    this.dialogueText.setText(this.typewriterText);
+    this.stopTalkingPortrait();
+    this.typewriterEvent?.remove(false);
+    this.typewriterEvent = null;
+
+    if (this.currentDialogueLine?.choices) {
+      this.dialogueAwaitingChoice = true;
+      this.dialogueChoiceIndex = 0;
+      this.renderDialogueOptions(this.currentDialogueLine.choices);
+    } else if (this.dialogueState === 'heroResponse') {
+      this.dialogueState = 'npcReply';
+      this.time.delayedCall(260, () => {
+        this.showDialogueLine({
+          speaker: FOREST_LADY.name,
+          speakerType: 'npc',
+          text: 'Then you are in luck. The gate to the city is very nearby.',
+          choices: ['Thank you.', 'I should get moving.'],
+        });
+      });
+    } else if (this.dialogueState === 'npcReply') {
+      this.dialogueAwaitingChoice = true;
+    }
+  }
+
+  stopTypewriter() {
+    this.typewriterEvent?.remove(false);
+    this.typewriterEvent = null;
+    this.isTyping = false;
+    this.stopTalkingPortrait();
+  }
+
+  talkPortrait(active) {
+    this.stopTalkingPortrait();
+    if (!active) {
+      this.npcPortrait.setTexture('forestLady-idle').setFrame(0);
+      return;
+    }
+    if (!this.writingSound.isPlaying) this.writingSound.play();
+    this.portraitTalkEvent = this.time.addEvent({
+      delay: 110,
+      loop: true,
+      callback: () => {
+        const useEmote = this.npcPortrait.texture.key !== 'forestLady-emote';
+        this.npcPortrait.setTexture(useEmote ? 'forestLady-emote' : 'forestLady-idle');
+        this.npcPortrait.setFrame(useEmote ? 0 : 0);
+      },
+    });
+  }
+
+  stopTalkingPortrait() {
+    this.portraitTalkEvent?.remove(false);
+    this.portraitTalkEvent = null;
+    this.npcPortrait.setTexture('forestLady-idle').setFrame(0);
+    if (this.writingSound?.isPlaying) this.writingSound.stop();
+  }
+
+  renderDialogueOptions(options) {
+    this.clearDialogueOptions();
+    this.dialogueOptionEntries = options.map((option, index) => {
+      const y = index * 42;
+      const box = this.add.rectangle(0, y, 540, 34, 0x000000, 0).setOrigin(0, 0).setStrokeStyle(2, 0xdab56a, 0.92);
+      const text = this.add.text(14, y + 6, option, {
+        fontFamily: 'Roboto Mono',
+        fontSize: '18px',
+        color: '#3e2514',
+      });
+      this.dialogueOptions.add([box, text]);
+      return { box, text };
+    });
+    this.refreshDialogueOptions();
+  }
+
+  refreshDialogueOptions() {
+    if (!this.dialogueOptionEntries) return;
+    this.dialogueOptionEntries.forEach((entry, index) => {
+      const active = index === this.dialogueChoiceIndex;
+      entry.box.setStrokeStyle(active ? 3 : 2, active ? 0x6b4016 : 0xdab56a, 0.98);
+      entry.text.setColor(active ? '#2b1207' : '#6d4f24');
+    });
+  }
+
+  clearDialogueOptions() {
+    this.dialogueOptions.removeAll(true);
+    this.dialogueOptionEntries = [];
+  }
+
+  chooseDialogueOption() {
+    if (!this.dialogueAwaitingChoice) return;
+    const selectedText = this.currentDialogueLine.choices[this.dialogueChoiceIndex];
+    this.clearDialogueOptions();
+    this.dialogueAwaitingChoice = false;
+
+    if (this.dialogueState === 'intro') {
+      this.dialogueState = 'heroResponse';
+      this.showDialogueLine({
+        speaker: HEROES[this.heroKey].name,
+        speakerType: 'hero',
+        text: 'My wagon broke down on the way to the city. I was headed there to pick up supplies for my village.',
+      });
+    } else if (this.dialogueState === 'npcReply') {
+      if (selectedText) {
+        this.closeDialogue();
+      }
+    }
+  }
+
+  updateNPCBehavior() {
+    if (!this.npc || this.isMenuOpen || this.isDialogueOpen) return;
+
+    if (this.npc.x <= this.npcMinX) {
+      this.npcFacing = 'right';
+      this.npc.setVelocityX(55);
+      this.npc.anims.play('forestLady-walk-right', true);
+    }
+    if (this.npc.x >= this.npcMaxX) {
+      this.npcFacing = 'left';
+      this.npc.setVelocityX(-55);
+      this.npc.anims.play('forestLady-walk-left', true);
+    }
+
+    if (Math.abs(this.npc.body.velocity.x) < 5 && this.npcState !== 'idle') {
+      this.npcState = 'idle';
+      this.npc.anims.play(this.npcFacing === 'left' ? 'forestLady-idle-left' : 'forestLady-idle-right', true);
+    }
+
+    const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.npc.x, this.npc.y);
+    const canInteract = distance < 150;
+    this.npcTooltip.setVisible(canInteract);
+    if (canInteract) {
+      this.npcTooltip.setPosition(this.npc.x, this.npc.y - 96);
+    }
+  }
+
   update() {
+    this.updateNPCBehavior();
+
     if (Phaser.Input.Keyboard.JustDown(this.menuKey)) {
       if (this.isMenuOpen) {
         this.closeMenu();
-      } else {
+      } else if (!this.isDialogueOpen) {
         this.openMenu();
       }
+    }
+
+    if (this.isDialogueOpen) {
+      if (this.isTyping && (Phaser.Input.Keyboard.JustDown(this.enterKey) || Phaser.Input.Keyboard.JustDown(this.spaceKey))) {
+        this.dialogueText.setText(this.typewriterText);
+        this.finishTyping();
+        return;
+      }
+      if (this.dialogueAwaitingChoice) {
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.up)) {
+          this.dialogueChoiceIndex = Phaser.Math.Wrap(this.dialogueChoiceIndex - 1, 0, this.currentDialogueLine.choices.length);
+          this.refreshDialogueOptions();
+        }
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.down)) {
+          this.dialogueChoiceIndex = Phaser.Math.Wrap(this.dialogueChoiceIndex + 1, 0, this.currentDialogueLine.choices.length);
+          this.refreshDialogueOptions();
+        }
+        if (Phaser.Input.Keyboard.JustDown(this.enterKey) || Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+          this.chooseDialogueOption();
+        }
+      }
+      if (Phaser.Input.Keyboard.JustDown(this.escapeKey) || Phaser.Input.Keyboard.JustDown(this.backspaceKey)) {
+        this.closeDialogue();
+      }
+      return;
     }
 
     if (this.isMenuOpen) {
@@ -787,6 +1152,12 @@ class PrototypeScene extends Phaser.Scene {
       if (Phaser.Input.Keyboard.JustDown(this.escapeKey) || Phaser.Input.Keyboard.JustDown(this.backspaceKey)) {
         this.closeMenu();
       }
+      return;
+    }
+
+    const nearNpc = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.npc.x, this.npc.y) < 150;
+    if (nearNpc && (Phaser.Input.Keyboard.JustDown(this.enterKey) || Phaser.Input.Keyboard.JustDown(this.spaceKey))) {
+      this.openDialogue();
       return;
     }
 
@@ -810,21 +1181,19 @@ class PrototypeScene extends Phaser.Scene {
     }
 
     const animPrefix = this.facing === 'left' ? 'left' : 'right';
-
     if (!onGround) {
       this.player.anims.play(`${this.heroKey}-jump-${animPrefix}`, true);
       if (this.player.body.velocity.y > -20) {
         this.player.anims.pause(this.player.anims.currentFrame);
       }
-      this.player.setDepth(10);
     } else if (Math.abs(velocityX) > 5) {
       this.player.anims.play(`${this.heroKey}-walk-${animPrefix}`, true);
-      this.player.setDepth(10);
     } else {
       this.player.anims.play(`${this.heroKey}-idle-${animPrefix}`, true);
-      this.player.setDepth(10);
     }
 
+    this.player.setDepth(9);
+    this.npc.setDepth(9);
     this.bg.tilePositionX = this.cameras.main.scrollX * 0.28;
   }
 }
