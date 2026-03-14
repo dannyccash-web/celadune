@@ -845,9 +845,9 @@ class PrototypeScene extends Phaser.Scene {
     this.portraitSceneBg.setTileScale(this.bgScale || 1, this.bgScale || 1);
     this.dialogueOverlay.add(this.portraitSceneBg);
 
-    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 8, 'forestLady-idle', 26)
+    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 28, 'forestLady-idle', 26)
       .setOrigin(0.5, 1)
-      .setScale(4.1)
+      .setScale(4.45)
       .setCrop(0, 0, FRAME_W, 48);
     this.dialogueOverlay.add(this.npcPortrait);
 
