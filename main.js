@@ -253,18 +253,18 @@ class HeroSelectScene extends Phaser.Scene {
 
     this.heroCards = this.heroOrder.map((heroKey, index) => {
       const x = index === 0 ? 640 : 960;
-      const y = 478;
+      const y = 448;
 
       const outer = this.add.rectangle(x, y, 250, 332, 0x000000, 0).setStrokeStyle(4, 0xdab56a, 0.98);
       const inner = this.add.rectangle(x, y, 232, 314, 0x000000, 0).setStrokeStyle(2, 0xe9cf96, 0.92);
-      const portraitGlow = this.add.rectangle(x, y - 26, 166, 196, 0xa37a3f, 0.08).setStrokeStyle(1, 0xb88945, 0.22);
-      const sprite = this.add.sprite(x, y - 28, `${heroKey}-idle`, 39).setScale(3.2);
-      const name = this.add.text(x, y + 126, HEROES[heroKey].name, {
+      const portraitGlow = this.add.rectangle(x, y - 34, 166, 196, 0xa37a3f, 0.08).setStrokeStyle(1, 0xb88945, 0.22);
+      const sprite = this.add.sprite(x, y - 36, `${heroKey}-idle`, 39).setScale(3.2);
+      const name = this.add.text(x, y + 104, HEROES[heroKey].name, {
         fontFamily: 'Macondo Swash Caps',
         fontSize: '34px',
         color: '#4a2411',
       }).setOrigin(0.5);
-      const role = this.add.text(x, y + 160, heroKey === 'caelan' ? 'Fighter' : 'Mage', {
+      const role = this.add.text(x, y + 138, heroKey === 'caelan' ? 'Fighter' : 'Mage', {
         fontFamily: 'Roboto Mono',
         fontSize: '18px',
         color: '#5c4528',
@@ -359,6 +359,8 @@ class PrototypeScene extends Phaser.Scene {
 
   preload() {
     this.load.image('forest', 'assets/bg/forest.png');
+    this.load.image('blackTile', 'assets/tiles/black_tile.png');
+    this.load.image('ground0', 'assets/tiles/ground_tile.png');
     this.load.image('ground1', 'assets/tiles/ground_tile_1.png');
     this.load.image('ground2', 'assets/tiles/ground_tile_2.png');
     this.load.image('ground3', 'assets/tiles/ground_tile_3.png');
@@ -417,41 +419,37 @@ class PrototypeScene extends Phaser.Scene {
     this.groundFront = this.add.group();
 
     const tilesAcross = Math.ceil(WORLD_WIDTH / GROUND_TILE);
-    const groundKeys = ['ground1', 'ground2', 'ground3'];
+    const decorativeKeys = ['ground0', 'ground1', 'ground2', 'ground3'];
     const rng = this.createSeededRandom(0xC0FFEE);
     let previousKey = null;
-    this.tileLayout = [];
 
     for (let i = 0; i < tilesAcross; i += 1) {
-      let tileKey = groundKeys[Math.floor(rng() * groundKeys.length)];
-      if (groundKeys.length > 1 && tileKey === previousKey) {
-        tileKey = groundKeys[(groundKeys.indexOf(tileKey) + 1 + Math.floor(rng() * (groundKeys.length - 1))) % groundKeys.length];
+      let tileKey = decorativeKeys[Math.floor(rng() * decorativeKeys.length)];
+      if (decorativeKeys.length > 1 && tileKey === previousKey) {
+        tileKey = decorativeKeys[(decorativeKeys.indexOf(tileKey) + 1 + Math.floor(rng() * (decorativeKeys.length - 1))) % decorativeKeys.length];
       }
       previousKey = tileKey;
-      this.tileLayout.push(tileKey);
 
       const x = i * GROUND_TILE + GROUND_TILE / 2;
       const y = GROUND_Y + GROUND_TILE / 2;
 
-      const backTile = this.add.image(x, y, tileKey)
+      const blackBase = this.add.image(x, y, 'blackTile')
         .setDisplaySize(GROUND_TILE, GROUND_TILE)
         .setDepth(2);
-      this.groundBack.add(backTile);
+      this.groundBack.add(blackBase);
 
-      const frontGrass = this.add.image(x, GROUND_Y, tileKey)
-        .setOrigin(0.5, 0)
-        .setDisplaySize(GROUND_TILE, 28)
-        .setCrop(0, 0, 160, 28)
-        .setDepth(12);
-      this.groundFront.add(frontGrass);
-
-      const body = this.ground.create(x, y, tileKey);
+      const body = this.ground.create(x, y, 'blackTile');
       body.setVisible(false);
       body.setDisplaySize(GROUND_TILE, GROUND_TILE);
       body.refreshBody();
+
+      const frontTile = this.add.image(x, y, tileKey)
+        .setDisplaySize(GROUND_TILE, GROUND_TILE)
+        .setDepth(12);
+      this.groundFront.add(frontTile);
     }
 
-    this.groundShadow = this.add.rectangle(WORLD_WIDTH / 2, GROUND_Y - 4, WORLD_WIDTH, 18, 0x13210f, 0.35)
+    this.groundShadow = this.add.rectangle(WORLD_WIDTH / 2, GROUND_Y - 4, WORLD_WIDTH, 18, 0x13210f, 0.18)
       .setDepth(3);
   }
 
@@ -472,7 +470,7 @@ class PrototypeScene extends Phaser.Scene {
   }
 
   createPlayer() {
-    this.player = this.physics.add.sprite(300, 652, `${this.heroKey}-idle`, 39);
+    this.player = this.physics.add.sprite(300, 666, `${this.heroKey}-idle`, 39);
     this.player.setScale(3.1);
     this.player.setCollideWorldBounds(true);
     this.player.setDepth(9);
@@ -486,7 +484,7 @@ class PrototypeScene extends Phaser.Scene {
   }
 
   createNPC() {
-    this.npc = this.physics.add.sprite(2540, 652, 'forestLady-idle', 26);
+    this.npc = this.physics.add.sprite(2540, 666, 'forestLady-idle', 26);
     this.npc.setScale(3.0);
     this.npc.setDepth(9);
     this.npc.body.setSize(20, 34);
