@@ -44,8 +44,8 @@ function createHeroAnimations(scene, heroKey) {
   const animations = [
     { key: `${heroKey}-walk-left`, sheet: `${heroKey}-walk`, row: 1, start: 0, end: 8, rate: 10, repeat: -1 },
     { key: `${heroKey}-walk-right`, sheet: `${heroKey}-walk`, row: 3, start: 0, end: 8, rate: 10, repeat: -1 },
-    { key: `${heroKey}-idle-left`, sheet: `${heroKey}-idle`, row: 1, start: 0, end: 0, rate: 1, repeat: -1 },
-    { key: `${heroKey}-idle-right`, sheet: `${heroKey}-idle`, row: 3, start: 0, end: 0, rate: 1, repeat: -1 },
+    { key: `${heroKey}-idle-left`, sheet: `${heroKey}-idle`, row: 1, start: 0, end: 1, rate: 3, repeat: -1 },
+    { key: `${heroKey}-idle-right`, sheet: `${heroKey}-idle`, row: 3, start: 0, end: 1, rate: 3, repeat: -1 },
     { key: `${heroKey}-jump-left`, sheet: `${heroKey}-jump`, row: 1, start: 0, end: 3, rate: 12, repeat: 0 },
     { key: `${heroKey}-jump-right`, sheet: `${heroKey}-jump`, row: 3, start: 0, end: 3, rate: 12, repeat: 0 },
   ];
@@ -351,6 +351,9 @@ class PrototypeScene extends Phaser.Scene {
     this.npcState = 'idle';
     this.npcFacing = 'right';
     this.dialogueChoiceIndex = 0;
+    this.questState = 'notOffered';
+    this.scriptedNpcTargetX = null;
+    this.scriptedNpcCallback = null;
   }
 
   init(data) {
@@ -365,6 +368,9 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('ground2', 'assets/tiles/ground_tile_2.png');
     this.load.image('ground3', 'assets/tiles/ground_tile_3.png');
     this.load.image('parchment', 'assets/ui/parchment.png');
+    this.load.image('forestHut', 'assets/props/forest_hut.png');
+    this.load.image('brokenWagon', 'assets/props/broken_wagon.png');
+    this.load.image('onionPatch', 'assets/props/onion_patch.png');
     this.load.audio('forestTheme', 'assets/audio/celadune_forest.mp3');
     this.load.audio('writingSfx', 'assets/sfx/writing.wav');
     this.load.spritesheet('forestLady-idle', FOREST_LADY.idle, { frameWidth: FRAME_W, frameHeight: FRAME_H });
@@ -387,6 +393,7 @@ class PrototypeScene extends Phaser.Scene {
     this.createAnimations();
     this.createPlayer();
     this.createNPC();
+    this.createProps();
     this.createAtmosphere();
     this.createCamera();
     this.createUI();
@@ -489,16 +496,6 @@ class PrototypeScene extends Phaser.Scene {
 
     this.physics.add.collider(this.player, this.ground);
 
-    this.playerIdleTween = this.tweens.add({
-      targets: this.player,
-      scaleX: this.playerBaseScaleX * 0.985,
-      scaleY: this.playerBaseScaleY * 1.02,
-      duration: 950,
-      ease: 'Sine.inOut',
-      yoyo: true,
-      repeat: -1,
-      paused: true,
-    });
   }
 
   createNPC() {
@@ -554,6 +551,35 @@ class PrototypeScene extends Phaser.Scene {
         this.scheduleNpcBehavior(Phaser.Math.Between(900, 1500));
       }
     });
+  }
+
+
+  createProps() {
+    this.propDepth = 7;
+
+    this.wagon = this.add.image(360, 770, 'brokenWagon')
+      .setOrigin(0.5, 1)
+      .setScale(0.44)
+      .setDepth(this.propDepth);
+
+    this.hut = this.add.image(2240, 770, 'forestHut')
+      .setOrigin(0.5, 1)
+      .setScale(0.80)
+      .setDepth(this.propDepth);
+
+    this.onionPatch = this.add.image(2790, 772, 'onionPatch')
+      .setOrigin(0.5, 1)
+      .setScale(0.34)
+      .setDepth(this.propDepth);
+
+    this.onionPatchTooltip = this.add.container(0, 0).setDepth(30).setVisible(false);
+    const onionTooltipBg = this.add.rectangle(0, 0, 132, 30, 0x1c1209, 0.82).setStrokeStyle(2, 0xdab56a, 0.95);
+    const onionTooltipText = this.add.text(0, 0, 'Onion Patch', {
+      fontFamily: 'Roboto Mono',
+      fontSize: '16px',
+      color: '#f7edd6',
+    }).setOrigin(0.5);
+    this.onionPatchTooltip.add([onionTooltipBg, onionTooltipText]);
   }
 
   createAtmosphere() {
@@ -846,9 +872,21 @@ class PrototypeScene extends Phaser.Scene {
     this.portraitSceneBg.setTileScale(this.bgScale || 1, this.bgScale || 1);
     this.dialogueOverlay.add(this.portraitSceneBg);
 
+    this.portraitMaskGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+    this.portraitMaskGraphics.fillStyle(0xffffff, 1);
+    this.portraitMaskGraphics.fillRect(
+      this.dialoguePortraitRect.left,
+      this.dialoguePortraitRect.top,
+      this.dialoguePortraitRect.width,
+      this.dialoguePortraitRect.height
+    );
+    this.portraitMask = this.portraitMaskGraphics.createGeometryMask();
+    this.portraitSceneBg.setMask(this.portraitMask);
+
     this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom, 'forestLady-idle', 26)
       .setOrigin(0.5, 1)
-      .setScale(5.1);
+      .setScale(5.1)
+      .setMask(this.portraitMask);
     this.dialogueOverlay.add(this.npcPortrait);
 
     this.dialogueSpeakerText = this.add.text(textX, contentTop + 10, FOREST_LADY.name, {
@@ -884,6 +922,55 @@ class PrototypeScene extends Phaser.Scene {
     if (!this.portraitSceneBg || !this.dialoguePortraitRect) return;
     this.portraitSceneBg.tilePositionX = (this.bg?.tilePositionX || 0) + this.dialoguePortraitRect.left;
     this.portraitSceneBg.tilePositionY = this.dialoguePortraitRect.top;
+  }
+
+
+  hasInventoryItem(name) {
+    return this.inventoryItems.some((item) => item.name === name);
+  }
+
+  addInventoryItem(item) {
+    if (this.hasInventoryItem(item.name)) return;
+    this.inventoryItems.push(item);
+    if (this.isMenuOpen && this.menuPages[this.selectedMenuIndex] === 'Inventory') {
+      this.refreshMenuPage();
+    }
+  }
+
+  beginOnionPatchInteraction() {
+    if (this.isDialogueOpen || this.isMenuOpen || this.scriptedNpcTargetX !== null) return;
+    this.npcBehaviorEvent?.remove(false);
+    this.player.setVelocityX(0);
+    this.npc.setVelocityX(0);
+    const targetX = this.player.x - 84;
+    this.scriptedNpcTargetX = Phaser.Math.Clamp(targetX, this.npcMinX - 120, this.onionPatch.x + 90);
+    this.scriptedNpcCallback = () => this.openDialogue('onionQuest');
+  }
+
+  updateScriptedNpcMovement() {
+    if (this.scriptedNpcTargetX === null || !this.npc) return false;
+    const delta = this.scriptedNpcTargetX - this.npc.x;
+    if (Math.abs(delta) <= 10) {
+      this.npc.setVelocityX(0);
+      this.npcFacing = delta < 0 ? 'left' : 'right';
+      this.npc.anims.play(this.npcFacing === 'left' ? 'forestLady-idle-left' : 'forestLady-idle-right', true);
+      const callback = this.scriptedNpcCallback;
+      this.scriptedNpcTargetX = null;
+      this.scriptedNpcCallback = null;
+      callback?.();
+      return true;
+    }
+
+    if (delta < 0) {
+      this.npcFacing = 'left';
+      this.npc.setVelocityX(-95);
+      this.npc.anims.play('forestLady-walk-left', true);
+    } else {
+      this.npcFacing = 'right';
+      this.npc.setVelocityX(95);
+      this.npc.anims.play('forestLady-walk-right', true);
+    }
+    return true;
   }
 
   openMenu() {
@@ -961,8 +1048,9 @@ class PrototypeScene extends Phaser.Scene {
     }
   }
 
-  openDialogue() {
+  openDialogue(sequence = 'intro') {
     if (this.isDialogueOpen || this.isMenuOpen) return;
+    this.activeDialogueSequence = sequence;
     this.isDialogueOpen = true;
     this.dialogueOverlay.setVisible(true);
     this.physics.world.pause();
@@ -971,7 +1059,7 @@ class PrototypeScene extends Phaser.Scene {
     this.player.anims.play(`${this.heroKey}-idle-${this.facing}`, true);
     this.npc.anims.play(this.npcFacing === 'left' ? 'forestLady-idle-left' : 'forestLady-idle-right', true);
     this.syncDialoguePortraitBackground();
-    this.startDialogueSequence();
+    this.startDialogueSequence(sequence);
   }
 
   closeDialogue() {
@@ -983,8 +1071,42 @@ class PrototypeScene extends Phaser.Scene {
     this.scheduleNpcBehavior(900);
   }
 
-  startDialogueSequence() {
+  startDialogueSequence(sequence = 'intro') {
     this.dialogueChoiceIndex = 0;
+
+    if (sequence === 'onionQuest') {
+      if (this.questState === 'accepted') {
+        this.dialogueState = 'questAcceptedReminder';
+        this.showDialogueLine({
+          speaker: FOREST_LADY.name,
+          speakerType: 'npc',
+          text: 'Those onions should still be good. If you are headed into the city, the tavern owner will be glad to see them.',
+          choices: ['I will deliver them.', 'Not today.'],
+        });
+        return;
+      }
+
+      if (this.questState === 'declined') {
+        this.dialogueState = 'questReoffer';
+        this.showDialogueLine({
+          speaker: FOREST_LADY.name,
+          speakerType: 'npc',
+          text: 'I am still sorting onions for the tavern. If you have changed your mind, I would appreciate the help.',
+          choices: ['I can take the onions.', 'I still cannot help.'],
+        });
+        return;
+      }
+
+      this.dialogueState = 'onionOffer';
+      this.showDialogueLine({
+        speaker: FOREST_LADY.name,
+        speakerType: 'npc',
+        text: 'These are my onions. I grow them here and sell them to the tavern owner in the city. I am behind on my work today. Would you take a bundle to the tavern for me?',
+        choices: ['I will take them to the tavern owner.', 'I cannot help right now.'],
+      });
+      return;
+    }
+
     this.dialogueState = 'intro';
     this.showDialogueLine({
       speaker: FOREST_LADY.name,
@@ -1130,14 +1252,46 @@ class PrototypeScene extends Phaser.Scene {
         choices: ['Thank you.', 'I should get moving.'],
       });
     } else if (this.dialogueState === 'npcReply') {
-      if (selectedText) {
-        this.closeDialogue();
+      this.closeDialogue();
+    } else if (this.dialogueState === 'onionOffer' || this.dialogueState === 'questReoffer') {
+      if (selectedText === 'I will take them to the tavern owner.' || selectedText === 'I can take the onions.') {
+        this.questState = 'accepted';
+        this.addInventoryItem({ icon: '◉', name: 'Bundle of Onions' });
+        this.dialogueState = 'questAccepted';
+        this.showDialogueLine({
+          speaker: FOREST_LADY.name,
+          speakerType: 'npc',
+          text: 'Thank you. Take this bundle to the tavern owner in the city for me. I will be grateful for the help.',
+          choices: ['I will deliver the onions.'],
+        });
+      } else {
+        this.questState = 'declined';
+        this.dialogueState = 'questDeclined';
+        this.showDialogueLine({
+          speaker: FOREST_LADY.name,
+          speakerType: 'npc',
+          text: 'Very well. If you change your mind, speak to me near the patch and I will set some aside for you.',
+          choices: ['Understood.'],
+        });
       }
+    } else if (
+      this.dialogueState === 'questAccepted' ||
+      this.dialogueState === 'questDeclined' ||
+      this.dialogueState === 'questAcceptedReminder'
+    ) {
+      this.closeDialogue();
     }
   }
 
   updateNPCBehavior() {
-    if (!this.npc || this.isMenuOpen || this.isDialogueOpen) return;
+    if (!this.npc) return;
+
+    if (this.scriptedNpcTargetX !== null) {
+      this.npcTooltip.setVisible(false);
+      return;
+    }
+
+    if (this.isMenuOpen || this.isDialogueOpen) return;
 
     if (this.npc.x <= this.npcMinX) {
       this.npcFacing = 'right';
@@ -1165,6 +1319,18 @@ class PrototypeScene extends Phaser.Scene {
 
   update() {
     this.updateNPCBehavior();
+
+    const onionDistance = this.onionPatch ? Phaser.Math.Distance.Between(this.player.x, this.player.y, this.onionPatch.x, this.onionPatch.y - 40) : 9999;
+    const nearOnionPatch = onionDistance < 180;
+    this.onionPatchTooltip?.setVisible(nearOnionPatch && !this.isDialogueOpen && !this.isMenuOpen && this.scriptedNpcTargetX === null);
+    if (nearOnionPatch) {
+      this.onionPatchTooltip.setPosition(this.onionPatch.x, this.onionPatch.y - 122);
+    }
+
+    if (this.updateScriptedNpcMovement()) {
+      this.bg.tilePositionX = this.cameras.main.scrollX * 0.28;
+      return;
+    }
 
     if (Phaser.Input.Keyboard.JustDown(this.menuKey)) {
       if (this.isMenuOpen) {
@@ -1208,9 +1374,14 @@ class PrototypeScene extends Phaser.Scene {
       return;
     }
 
+    const interactPressed = Phaser.Input.Keyboard.JustDown(this.enterKey) || Phaser.Input.Keyboard.JustDown(this.spaceKey);
     const nearNpc = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.npc.x, this.npc.y) < 150;
-    if (nearNpc && (Phaser.Input.Keyboard.JustDown(this.enterKey) || Phaser.Input.Keyboard.JustDown(this.spaceKey))) {
-      this.openDialogue();
+    if (nearOnionPatch && interactPressed) {
+      this.beginOnionPatchInteraction();
+      return;
+    }
+    if (nearNpc && interactPressed) {
+      this.openDialogue('intro');
       return;
     }
 
@@ -1235,25 +1406,17 @@ class PrototypeScene extends Phaser.Scene {
 
     const animPrefix = this.facing === 'left' ? 'left' : 'right';
     if (!onGround) {
-      if (this.playerIdleTween) {
-        this.playerIdleTween.pause();
-        this.player.setScale(this.playerBaseScaleX, this.playerBaseScaleY);
-      }
+      this.player.setScale(this.playerBaseScaleX, this.playerBaseScaleY);
       this.player.anims.play(`${this.heroKey}-jump-${animPrefix}`, true);
       if (this.player.body.velocity.y > -20) {
         this.player.anims.pause(this.player.anims.currentFrame);
       }
     } else if (Math.abs(velocityX) > 5) {
-      if (this.playerIdleTween) {
-        this.playerIdleTween.pause();
-        this.player.setScale(this.playerBaseScaleX, this.playerBaseScaleY);
-      }
+      this.player.setScale(this.playerBaseScaleX, this.playerBaseScaleY);
       this.player.anims.play(`${this.heroKey}-walk-${animPrefix}`, true);
     } else {
+      this.player.setScale(this.playerBaseScaleX, this.playerBaseScaleY);
       this.player.anims.play(`${this.heroKey}-idle-${animPrefix}`, true);
-      if (this.playerIdleTween && (this.playerIdleTween.isPaused() || !this.playerIdleTween.isPlaying())) {
-        this.playerIdleTween.play();
-      }
     }
 
     this.player.setDepth(9);
