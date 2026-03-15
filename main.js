@@ -371,12 +371,20 @@ class PrototypeScene extends Phaser.Scene {
     super('PrototypeScene');
     this.facing = 'right';
     this.selectedMenuIndex = 0;
-    this.menuPages = ['Inventory', 'Controls'];
+    this.menuPages = ['Inventory', 'Equipment', 'Controls'];
+    this.menuMode = 'categories';
+    this.menuSectionIndex = 0;
+    this.menuItemIndex = 0;
+    this.menuActionIndex = 0;
     this.inventoryItems = [
-      { icon: '◆', name: 'Traveler\'s Cloak' },
-      { icon: '✦', name: 'Forest Map' },
-      { icon: '✧', name: 'Field Rations' },
+      {
+        name: 'Onions',
+        texture: 'menuOnions',
+        actions: ['Eat'],
+      },
     ];
+    this.equipmentItems = [];
+
     this.npcState = 'idle';
     this.npcFacing = 'right';
     this.dialogueChoiceIndex = 0;
@@ -402,6 +410,7 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('forestHutInterior', 'assets/bg/forest_hut_interior.jpeg');
     this.load.image('brokenWagon', 'assets/props/broken_wagon.png');
     this.load.image('onionPatch', 'assets/props/onion_patch.png');
+    this.load.image('menuOnions', 'assets/ui/onions.png');
     this.load.audio('forestTheme', 'assets/audio/celadune_forest.mp3');
     this.load.audio('writingSfx', 'assets/sfx/writing.wav');
     this.load.spritesheet('forestLady-idle', FOREST_LADY.idle, { frameWidth: FRAME_W, frameHeight: FRAME_H });
@@ -802,6 +811,7 @@ class PrototypeScene extends Phaser.Scene {
     const panelY = 110;
     const panelW = 1240;
     const panelH = 680;
+    this.menuPanel = { x: panelX, y: panelY, w: panelW, h: panelH };
 
     const parchment = this.add.tileSprite(panelX + panelW / 2, panelY + panelH / 2, panelW, panelH, 'parchment');
     const parchmentSource = this.textures.get('parchment').getSourceImage();
@@ -832,7 +842,7 @@ class PrototypeScene extends Phaser.Scene {
     }).setOrigin(1, 0);
     this.menuOverlay.add(this.menuHint);
 
-    this.tabTexts = [];
+    this.categoryButtons = [];
     const tabStartY = panelY + 152;
     this.menuPages.forEach((page, index) => {
       const tabBox = this.add.rectangle(panelX + 135, tabStartY + index * 88, 220, 58, 0x000000, 0)
@@ -842,7 +852,7 @@ class PrototypeScene extends Phaser.Scene {
         fontSize: '28px',
         color: '#5b3417',
       }).setOrigin(0.5);
-      this.tabTexts.push({ box: tabBox, text: tabText });
+      this.categoryButtons.push({ box: tabBox, text: tabText });
       this.menuOverlay.add(tabBox);
       this.menuOverlay.add(tabText);
     });
@@ -851,19 +861,214 @@ class PrototypeScene extends Phaser.Scene {
       .setOrigin(0.5, 0.5);
     this.menuOverlay.add(this.contentDivider);
 
-    this.contentBody = this.add.text(panelX + 320, panelY + 132, '', {
-      fontFamily: 'Roboto Mono',
-      fontSize: '22px',
-      color: '#2b1b0f',
-      lineSpacing: 12,
-      wordWrap: { width: 720 },
-    });
-    this.menuOverlay.add(this.contentBody);
+    this.gridContainer = this.add.container(panelX + 322, panelY + 102);
+    this.menuOverlay.add(this.gridContainer);
 
-    this.inventoryList = this.add.container(panelX + 320, panelY + 132);
-    this.menuOverlay.add(this.inventoryList);
+    this.controlsContainer = this.add.container(panelX + 322, panelY + 126);
+    this.menuOverlay.add(this.controlsContainer);
+
+    this.emptyStateText = this.add.text(panelX + 322, panelY + 150, '', {
+      fontFamily: 'Roboto Mono',
+      fontSize: '24px',
+      color: '#5d4322',
+    }).setVisible(false);
+    this.menuOverlay.add(this.emptyStateText);
+
+    this.actionMenuContainer = this.add.container(panelX + 878, panelY + 182).setVisible(false);
+    this.actionMenuBg = this.add.rectangle(0, 0, 230, 0, 0xf0e0b8, 0.96)
+      .setOrigin(0, 0)
+      .setStrokeStyle(3, 0x5b3717, 0.95);
+    this.actionMenuTitle = this.add.text(18, 14, 'Actions', {
+      fontFamily: 'Macondo Swash Caps',
+      fontSize: '28px',
+      color: '#4a2411',
+    });
+    this.actionMenuList = this.add.container(0, 0);
+    this.actionMenuContainer.add([this.actionMenuBg, this.actionMenuTitle, this.actionMenuList]);
+    this.menuOverlay.add(this.actionMenuContainer);
+
+    this.controlsHeadingKeyboard = this.add.text(0, 0, 'KEYBOARD', {
+      fontFamily: 'Roboto Mono',
+      fontSize: '24px',
+      fontStyle: 'bold',
+      color: '#3f2411',
+    });
+    this.controlsKeyboardBody = this.add.text(0, 38, '', {
+      fontFamily: 'Roboto Mono',
+      fontSize: '21px',
+      color: '#2b1b0f',
+      lineSpacing: 10,
+    });
+    this.controlsHeadingController = this.add.text(0, 282, 'CONTROLLER (PLANNED)', {
+      fontFamily: 'Roboto Mono',
+      fontSize: '24px',
+      fontStyle: 'bold',
+      color: '#3f2411',
+    });
+    this.controlsControllerBody = this.add.text(0, 320, '', {
+      fontFamily: 'Roboto Mono',
+      fontSize: '21px',
+      color: '#2b1b0f',
+      lineSpacing: 10,
+    });
+    this.controlsContainer.add([
+      this.controlsHeadingKeyboard,
+      this.controlsKeyboardBody,
+      this.controlsHeadingController,
+      this.controlsControllerBody,
+    ]);
 
     this.refreshMenuPage();
+  }
+
+  getCurrentSectionItems() {
+    const currentPage = this.menuPages[this.menuSectionIndex];
+    if (currentPage === 'Inventory') return this.inventoryItems;
+    if (currentPage === 'Equipment') return this.equipmentItems;
+    return [];
+  }
+
+  openItemActionMenu() {
+    const items = this.getCurrentSectionItems();
+    const item = items[this.menuItemIndex];
+    if (!item || !item.actions?.length) return;
+    this.menuMode = 'actions';
+    this.menuActionIndex = 0;
+    this.refreshMenuPage();
+  }
+
+  performMenuAction(actionLabel) {
+    const items = this.getCurrentSectionItems();
+    const item = items[this.menuItemIndex];
+    if (!item) return;
+
+    if (item.name === 'Onions' && actionLabel === 'Eat') {
+      items.splice(this.menuItemIndex, 1);
+      this.menuItemIndex = Math.max(0, Math.min(this.menuItemIndex, items.length - 1));
+      this.menuMode = 'section';
+      this.refreshMenuPage();
+      return;
+    }
+
+    this.menuMode = 'section';
+    this.refreshMenuPage();
+  }
+
+  refreshMenuPage() {
+    this.selectedMenuIndex = this.menuSectionIndex;
+    this.menuPages.forEach((page, index) => {
+      const focused = index === this.menuSectionIndex;
+      const active = this.menuMode === 'categories' ? focused : (this.menuMode !== 'categories' && focused);
+      const strokeColor = active ? 0x6b4016 : 0xdab56a;
+      const strokeWidth = active ? 4 : 3;
+      this.categoryButtons[index].box.setStrokeStyle(strokeWidth, strokeColor, 0.98);
+      this.categoryButtons[index].text.setColor(active ? '#3c1d0d' : '#7f6131');
+      this.categoryButtons[index].box.setFillStyle(this.menuMode === 'categories' && focused ? 0x9b7740 : 0x000000, this.menuMode === 'categories' && focused ? 0.08 : 0);
+    });
+
+    const currentPage = this.menuPages[this.menuSectionIndex];
+    this.menuTitle.setText(currentPage);
+
+    this.gridContainer.removeAll(true);
+    this.actionMenuList.removeAll(true);
+    this.gridContainer.setVisible(false);
+    this.controlsContainer.setVisible(false);
+    this.actionMenuContainer.setVisible(false);
+    this.emptyStateText.setVisible(false);
+
+    if (currentPage === 'Controls') {
+      this.controlsContainer.setVisible(true);
+      this.controlsKeyboardBody.setText(
+        'Arrow Left / Right  Move\n' +
+        'Arrow Up            Jump\n' +
+        'Enter               Confirm / Interact\n' +
+        'Space               Action\n' +
+        'M                   Open Menu\n' +
+        'Esc / Backspace     Cancel / Close'
+      );
+      this.controlsControllerBody.setText(
+        'D-pad / Left Stick  Move / Navigate\n' +
+        'South Button        Confirm / Interact\n' +
+        'East Button         Cancel / Back\n' +
+        'Menu / Start        Open Menu'
+      );
+      return;
+    }
+
+    const items = this.getCurrentSectionItems();
+    this.gridContainer.setVisible(true);
+
+    const cols = 6;
+    const slotSize = 120;
+    const gapX = 24;
+    const gapY = 30;
+    const labelGap = 8;
+    const stepX = slotSize + gapX;
+    const stepY = slotSize + 48 + gapY;
+
+    if (!items.length) {
+      this.emptyStateText.setText(currentPage === 'Equipment' ? 'No equipment yet.' : 'No items yet.');
+      this.emptyStateText.setVisible(true);
+    }
+
+    items.forEach((item, index) => {
+      const col = index % cols;
+      const row = Math.floor(index / cols);
+      const x = col * stepX;
+      const y = row * stepY;
+      const slot = this.add.rectangle(x, y, slotSize, slotSize, 0x000000, 0)
+        .setOrigin(0, 0)
+        .setStrokeStyle(3, 0xdab56a, 0.98);
+
+      const isSelected = this.menuMode !== 'categories' && index === this.menuItemIndex;
+      if (isSelected) {
+        slot.setStrokeStyle(4, 0x6b4016, 1);
+      }
+
+      const children = [slot];
+      if (item.texture) {
+        const icon = this.add.image(x + slotSize / 2, y + slotSize / 2 - 6, item.texture)
+          .setDisplaySize(86, 86)
+          .setOrigin(0.5);
+        children.push(icon);
+      }
+
+      const label = this.add.text(x + slotSize / 2, y + slotSize + labelGap, item.name, {
+        fontFamily: 'Roboto Mono',
+        fontSize: '14px',
+        color: '#2b1b0f',
+        align: 'center',
+        wordWrap: { width: slotSize + 12 },
+      }).setOrigin(0.5, 0);
+      children.push(label);
+      this.gridContainer.add(children);
+    });
+
+    if (this.menuMode === 'actions') {
+      const item = items[this.menuItemIndex];
+      if (!item) {
+        this.menuMode = 'section';
+        return this.refreshMenuPage();
+      }
+      this.actionMenuContainer.setVisible(true);
+      this.actionMenuTitle.setText(item.name);
+      const menuWidth = 230;
+      const rowHeight = 42;
+      const menuHeight = 54 + item.actions.length * rowHeight + 14;
+      this.actionMenuBg.setSize(menuWidth, menuHeight);
+      item.actions.forEach((action, index) => {
+        const optionBg = this.add.rectangle(14, 54 + index * rowHeight, menuWidth - 28, rowHeight - 2, 0x000000, 0)
+          .setOrigin(0, 0)
+          .setStrokeStyle(index === this.menuActionIndex ? 3 : 2, index === this.menuActionIndex ? 0x6b4016 : 0xdab56a, 0.95)
+          .setFillStyle(index === this.menuActionIndex ? 0x9b7740 : 0x000000, index === this.menuActionIndex ? 0.08 : 0);
+        const optionText = this.add.text(30, 61 + index * rowHeight, action, {
+          fontFamily: 'Roboto Mono',
+          fontSize: '20px',
+          color: '#2b1b0f',
+        });
+        this.actionMenuList.add([optionBg, optionText]);
+      });
+    }
   }
 
   createDialogueUI() {
@@ -1054,7 +1259,12 @@ class PrototypeScene extends Phaser.Scene {
   openMenu() {
     if (this.isMenuOpen || this.isDialogueOpen) return;
     this.isMenuOpen = true;
+    this.menuMode = 'categories';
+    this.menuSectionIndex = 0;
+    this.menuItemIndex = 0;
+    this.menuActionIndex = 0;
     this.menuOverlay.setVisible(true);
+    this.refreshMenuPage();
     this.physics.world.pause();
     this.player.anims.pause();
     this.npc.anims.pause();
@@ -1063,6 +1273,7 @@ class PrototypeScene extends Phaser.Scene {
   closeMenu() {
     if (!this.isMenuOpen) return;
     this.isMenuOpen = false;
+    this.menuMode = 'categories';
     this.menuOverlay.setVisible(false);
     this.physics.world.resume();
     this.player.anims.resume();
@@ -1070,59 +1281,87 @@ class PrototypeScene extends Phaser.Scene {
   }
 
   changeMenuPage(direction) {
-    this.selectedMenuIndex = Phaser.Math.Wrap(this.selectedMenuIndex + direction, 0, this.menuPages.length);
+    this.menuSectionIndex = Phaser.Math.Wrap(this.menuSectionIndex + direction, 0, this.menuPages.length);
     this.refreshMenuPage();
   }
 
-  refreshMenuPage() {
-    this.tabTexts.forEach((tab, index) => {
-      const active = index === this.selectedMenuIndex;
-      tab.box.setFillStyle(0x000000, 0);
-      tab.box.setStrokeStyle(active ? 4 : 3, active ? 0x6b4016 : 0xdab56a, 0.98);
-      tab.text.setColor(active ? '#3c1d0d' : '#7f6131');
-    });
+  handleMenuNavigation() {
+    const currentPage = this.menuPages[this.menuSectionIndex];
+    const items = this.getCurrentSectionItems();
 
-    const currentPage = this.menuPages[this.selectedMenuIndex];
-    this.menuTitle.setText(currentPage);
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.up)) {
+      if (this.menuMode === 'categories') {
+        this.changeMenuPage(-1);
+      } else if (this.menuMode === 'section' && currentPage !== 'Controls' && items.length) {
+        this.menuItemIndex = Phaser.Math.Wrap(this.menuItemIndex - 6, 0, items.length);
+        this.refreshMenuPage();
+      } else if (this.menuMode === 'actions') {
+        const item = items[this.menuItemIndex];
+        this.menuActionIndex = Phaser.Math.Wrap(this.menuActionIndex - 1, 0, item.actions.length);
+        this.refreshMenuPage();
+      }
+    }
 
-    this.inventoryList.removeAll(true);
-    this.contentBody.setVisible(false);
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.down)) {
+      if (this.menuMode === 'categories') {
+        this.changeMenuPage(1);
+      } else if (this.menuMode === 'section' && currentPage !== 'Controls' && items.length) {
+        this.menuItemIndex = Phaser.Math.Wrap(this.menuItemIndex + 6, 0, items.length);
+        this.refreshMenuPage();
+      } else if (this.menuMode === 'actions') {
+        const item = items[this.menuItemIndex];
+        this.menuActionIndex = Phaser.Math.Wrap(this.menuActionIndex + 1, 0, item.actions.length);
+        this.refreshMenuPage();
+      }
+    }
 
-    if (currentPage === 'Inventory') {
-      let y = 0;
-      this.inventoryItems.forEach((item) => {
-        const row = this.add.rectangle(0, y + 18, 690, 46, 0x9b7740, 0.08).setOrigin(0, 0);
-        const icon = this.add.text(18, y + 6, item.icon, {
-          fontFamily: 'Macondo Swash Caps',
-          fontSize: '28px',
-          color: '#6b4016',
-        });
-        const label = this.add.text(66, y + 8, item.name, {
-          fontFamily: 'Roboto Mono',
-          fontSize: '20px',
-          color: '#2b1b0f',
-        });
-        this.inventoryList.add([row, icon, label]);
-        y += 62;
-      });
-      this.inventoryList.setVisible(true);
-    } else {
-      this.inventoryList.setVisible(false);
-      this.contentBody.setVisible(true);
-      this.contentBody.setText(
-        'Keyboard\n' +
-        'Arrow Left / Right  Move\n' +
-        'Arrow Up            Jump\n' +
-        'Enter               Confirm / Interact\n' +
-        'Space               Action\n' +
-        'M                   Open Menu\n' +
-        'Esc / Backspace     Cancel / Close\n\n' +
-        'Controller (planned)\n' +
-        'D-pad / Left Stick  Move / Navigate\n' +
-        'South Button        Confirm / Interact\n' +
-        'East Button         Cancel / Back\n' +
-        'Menu / Start        Open Menu'
-      );
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.right)) {
+      if (this.menuMode === 'categories') {
+        this.menuMode = currentPage === 'Controls' ? 'section' : 'section';
+        this.menuItemIndex = 0;
+        this.refreshMenuPage();
+      } else if (this.menuMode === 'section' && currentPage !== 'Controls' && items.length) {
+        this.menuItemIndex = Phaser.Math.Wrap(this.menuItemIndex + 1, 0, items.length);
+        this.refreshMenuPage();
+      }
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.left)) {
+      if (this.menuMode === 'actions') {
+        this.menuMode = 'section';
+        this.refreshMenuPage();
+      } else if (this.menuMode === 'section') {
+        if (currentPage !== 'Controls' && items.length) {
+          this.menuMode = 'categories';
+        } else if (currentPage === 'Controls') {
+          this.menuMode = 'categories';
+        }
+        this.refreshMenuPage();
+      }
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.enterKey) || Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+      if (this.menuMode === 'categories') {
+        this.menuMode = 'section';
+        this.refreshMenuPage();
+      } else if (this.menuMode === 'section' && currentPage !== 'Controls') {
+        this.openItemActionMenu();
+      } else if (this.menuMode === 'actions') {
+        const item = items[this.menuItemIndex];
+        if (item) this.performMenuAction(item.actions[this.menuActionIndex]);
+      }
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.escapeKey) || Phaser.Input.Keyboard.JustDown(this.backspaceKey)) {
+      if (this.menuMode === 'actions') {
+        this.menuMode = 'section';
+        this.refreshMenuPage();
+      } else if (this.menuMode === 'section') {
+        this.menuMode = 'categories';
+        this.refreshMenuPage();
+      } else {
+        this.closeMenu();
+      }
     }
   }
 
@@ -1336,7 +1575,7 @@ class PrototypeScene extends Phaser.Scene {
     } else if (this.dialogueState === 'onionOffer' || this.dialogueState === 'questReoffer') {
       if (selectedText === 'I will take them to the tavern owner.' || selectedText === 'I can take the onions.') {
         this.questState = 'accepted';
-        this.addInventoryItem({ icon: '◉', name: 'Bundle of Onions' });
+        this.addInventoryItem({ name: 'Onions', texture: 'menuOnions', actions: ['Eat'] });
         this.dialogueState = 'questAccepted';
         this.showDialogueLine({
           speaker: FOREST_LADY.name,
@@ -1452,11 +1691,7 @@ class PrototypeScene extends Phaser.Scene {
     }
 
     if (this.isMenuOpen) {
-      if (Phaser.Input.Keyboard.JustDown(this.cursors.up)) this.changeMenuPage(-1);
-      if (Phaser.Input.Keyboard.JustDown(this.cursors.down)) this.changeMenuPage(1);
-      if (Phaser.Input.Keyboard.JustDown(this.escapeKey) || Phaser.Input.Keyboard.JustDown(this.backspaceKey)) {
-        this.closeMenu();
-      }
+      this.handleMenuNavigation();
       return;
     }
 
