@@ -415,7 +415,9 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('onionPatch', 'assets/props/onion_patch.png');
     this.load.image('menuOnions', 'assets/ui/onions.png');
     this.load.audio('forestTheme', 'assets/audio/celadune_forest.mp3');
-    this.load.audio('writingSfx', 'assets/sfx/writing.wav');
+    // Optional city track can be dropped in as assets/audio/city_theme.mp3 for the City scene.
+    this.load.audio('cityTheme', 'assets/audio/city_theme.mp3');
+    this.load.audio('writingSfx', 'assets/sfx/writing.mp3');
     this.load.spritesheet('forestLady-idle', FOREST_LADY.idle, { frameWidth: FRAME_W, frameHeight: FRAME_H });
     this.load.spritesheet('forestLady-walk', FOREST_LADY.walk, { frameWidth: FRAME_W, frameHeight: FRAME_H });
     this.load.spritesheet('forestLady-emote', FOREST_LADY.emote, { frameWidth: FRAME_W, frameHeight: FRAME_H });
@@ -453,6 +455,10 @@ class PrototypeScene extends Phaser.Scene {
     this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.escapeKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
     this.backspaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.BACKSPACE);
+  }
+
+  getMusicConfig() {
+    return { key: 'forestTheme', volume: 0.42 };
   }
 
   createParallaxBackground() {
@@ -767,16 +773,48 @@ class PrototypeScene extends Phaser.Scene {
     canvas.refresh();
   }
 
+  getMusicConfig() {
+    return { key: 'forestTheme', volume: 0.42 };
+  }
+
+  fadeOutMusic(duration = 220) {
+    if (!this.music || !this.music.isPlaying) return;
+    this.tweens.add({
+      targets: this.music,
+      volume: 0,
+      duration,
+      ease: 'Linear',
+      onComplete: () => {
+        this.music?.stop();
+        if (this.music) this.music.volume = this.musicTargetVolume ?? 0.42;
+      },
+    });
+  }
+
   createAudio() {
-    this.music = this.sound.add('forestTheme', { loop: true, volume: 0.42 });
+    const musicConfig = this.getMusicConfig();
+    this.musicTargetVolume = musicConfig.volume;
+    this.music = this.sound.add(musicConfig.key, { loop: true, volume: 0 });
     this.writingSound = this.sound.add('writingSfx', { loop: true, volume: 0.18 });
 
-    if (!this.sound.locked) {
-      this.music.play();
-    } else {
-      this.sound.once(Phaser.Sound.Events.UNLOCKED, () => {
-        if (!this.music.isPlaying) this.music.play();
+    const startMusic = () => {
+      if (!this.music.isPlaying) {
+        this.music.play();
+      }
+      this.tweens.killTweensOf(this.music);
+      this.music.volume = 0;
+      this.tweens.add({
+        targets: this.music,
+        volume: this.musicTargetVolume,
+        duration: 320,
+        ease: 'Linear',
       });
+    };
+
+    if (!this.sound.locked) {
+      startMusic();
+    } else {
+      this.sound.once(Phaser.Sound.Events.UNLOCKED, startMusic);
     }
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -1353,22 +1391,25 @@ class PrototypeScene extends Phaser.Scene {
   transitionToScene(targetSceneKey, startX, startY) {
     if (this.isSceneTransitioning) return;
     this.isSceneTransitioning = true;
+    const safeStartY = Phaser.Math.Clamp(startY, 0, GROUND_Y - 4);
     this.player.setVelocity(0, 0);
     if (this.npc) this.npc.setVelocity(0, 0);
-    this.cameras.main.fadeOut(180, 0, 0, 0);
-    this.time.delayedCall(190, () => {
+    this.fadeOutMusic(220);
+    this.cameras.main.fadeOut(220, 0, 0, 0);
+    this.time.delayedCall(230, () => {
       this.scene.start(targetSceneKey, {
         heroKey: this.heroKey,
         startX,
-        startY,
+        startY: safeStartY,
         inventoryItems: this.inventoryItems,
         equipmentItems: this.equipmentItems,
       });
     });
   }
 
-  handleSceneBoundaries(velocityX) {
+  handleSceneBoundaries(velocityX, onGround) {
     if (this.isMenuOpen || this.isDialogueOpen || this.isTransitioningToInterior || this.isSceneTransitioning) return;
+    if (!onGround) return;
     if (velocityX > 0 && this.player.x >= WORLD_WIDTH - 12) {
       this.transitionToScene('CityScene', 24, this.player.y);
     }
@@ -1435,7 +1476,7 @@ class PrototypeScene extends Phaser.Scene {
 
     if (Phaser.Input.Keyboard.JustDown(this.cursors.right)) {
       if (this.menuMode === 'categories') {
-        this.menuMode = currentPage === 'Controls' ? 'section' : 'section';
+        this.menuMode = 'section';
         this.menuItemIndex = 0;
         this.refreshMenuPage();
       } else if (this.menuMode === 'section' && currentPage !== 'Controls' && items.length) {
@@ -1867,7 +1908,7 @@ class PrototypeScene extends Phaser.Scene {
 
     this.player.setDepth(9);
     this.npc.setDepth(9);
-    this.handleSceneBoundaries(velocityX);
+    this.handleSceneBoundaries(velocityX, onGround);
     this.bg.tilePositionX = this.cameras.main.scrollX * 0.28;
   }
 }
@@ -2005,8 +2046,9 @@ class CityScene extends PrototypeScene {
     this.player.anims.resume();
   }
 
-  handleSceneBoundaries(velocityX) {
+  handleSceneBoundaries(velocityX, onGround) {
     if (this.isMenuOpen || this.isSceneTransitioning) return;
+    if (!onGround) return;
     if (velocityX < 0 && this.player.x <= 12) {
       this.transitionToScene('PrototypeScene', WORLD_WIDTH - 24, this.player.y);
     }
@@ -2066,7 +2108,7 @@ class CityScene extends PrototypeScene {
     }
 
     this.player.setDepth(9);
-    this.handleSceneBoundaries(velocityX);
+    this.handleSceneBoundaries(velocityX, onGround);
     this.bg.tilePositionX = this.cameras.main.scrollX * 0.28;
   }
 }
