@@ -376,13 +376,7 @@ class PrototypeScene extends Phaser.Scene {
     this.menuSectionIndex = 0;
     this.menuItemIndex = 0;
     this.menuActionIndex = 0;
-    this.inventoryItems = [
-      {
-        name: 'Onions',
-        texture: 'menuOnions',
-        actions: ['Eat'],
-      },
-    ];
+    this.inventoryItems = [];
     this.equipmentItems = [];
 
     this.npcState = 'idle';
@@ -437,6 +431,7 @@ class PrototypeScene extends Phaser.Scene {
     this.createAtmosphere();
     this.createCamera();
     this.createUI();
+    this.createItemReceiveUI();
     this.createAudio();
     this.createMenu();
     this.createDialogueUI();
@@ -799,6 +794,52 @@ class PrototypeScene extends Phaser.Scene {
       stroke: '#0a1218',
       strokeThickness: 5,
     }).setScrollFactor(0).setDepth(60);
+  }
+
+  createItemReceiveUI() {
+    this.itemReceiveTimer = null;
+    this.itemReceiveContainer = this.add.container(0, 0).setDepth(250).setVisible(false);
+
+    this.itemReceiveIcon = this.add.image(0, -62, 'menuOnions')
+      .setOrigin(0.5, 1)
+      .setDisplaySize(60, 60)
+      .setVisible(false);
+
+    this.itemReceiveBg = this.add.rectangle(0, 0, 180, 34, 0x1c1209, 0.86)
+      .setStrokeStyle(2, 0xdab56a, 0.95);
+
+    this.itemReceiveText = this.add.text(0, 0, '', {
+      fontFamily: 'Roboto Mono',
+      fontSize: '16px',
+      color: '#f7edd6',
+      fontStyle: 'bold',
+      align: 'center',
+    }).setOrigin(0.5);
+
+    this.itemReceiveContainer.add([this.itemReceiveIcon, this.itemReceiveBg, this.itemReceiveText]);
+  }
+
+  showItemReceivePopup(item) {
+    if (!item?.name) return;
+
+    const hasTexture = !!item.texture;
+    this.itemReceiveTimer?.remove(false);
+
+    this.itemReceiveText.setText(item.name);
+    const textWidth = Math.ceil(this.itemReceiveText.width) + 34;
+    this.itemReceiveBg.setSize(Math.max(150, textWidth), 34);
+
+    this.itemReceiveIcon.setVisible(hasTexture);
+    if (hasTexture) {
+      this.itemReceiveIcon.setTexture(item.texture).setDisplaySize(60, 60).setY(-62);
+    }
+
+    this.itemReceiveContainer.setAlpha(1).setVisible(true);
+    this.itemReceiveContainer.setPosition(this.player.x, this.player.y - 116);
+
+    this.itemReceiveTimer = this.time.delayedCall(3000, () => {
+      this.itemReceiveContainer.setVisible(false);
+    });
   }
 
   createMenu() {
@@ -1185,7 +1226,21 @@ class PrototypeScene extends Phaser.Scene {
   addInventoryItem(item) {
     if (this.hasInventoryItem(item.name)) return;
     this.inventoryItems.push(item);
+    this.showItemReceivePopup(item);
     if (this.isMenuOpen && this.menuPages[this.selectedMenuIndex] === 'Inventory') {
+      this.refreshMenuPage();
+    }
+  }
+
+  hasEquipmentItem(name) {
+    return this.equipmentItems.some((item) => item.name === name);
+  }
+
+  addEquipmentItem(item) {
+    if (this.hasEquipmentItem(item.name)) return;
+    this.equipmentItems.push(item);
+    this.showItemReceivePopup(item);
+    if (this.isMenuOpen && this.menuPages[this.selectedMenuIndex] === 'Equipment') {
       this.refreshMenuPage();
     }
   }
@@ -1331,11 +1386,7 @@ class PrototypeScene extends Phaser.Scene {
         this.menuMode = 'section';
         this.refreshMenuPage();
       } else if (this.menuMode === 'section') {
-        if (currentPage !== 'Controls' && items.length) {
-          this.menuMode = 'categories';
-        } else if (currentPage === 'Controls') {
-          this.menuMode = 'categories';
-        }
+        this.menuMode = 'categories';
         this.refreshMenuPage();
       }
     }
@@ -1650,6 +1701,10 @@ class PrototypeScene extends Phaser.Scene {
     this.hutTooltip?.setVisible(nearHutDoor && !this.isDialogueOpen && !this.isMenuOpen && this.scriptedNpcTargetX === null);
     if (nearHutDoor) {
       this.hutTooltip.setPosition(this.player.x, this.player.y - 96);
+    }
+
+    if (this.itemReceiveContainer?.visible) {
+      this.itemReceiveContainer.setPosition(this.player.x, this.player.y - 116);
     }
 
     if (this.updateScriptedNpcMovement()) {
