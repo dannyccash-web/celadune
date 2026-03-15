@@ -6,7 +6,7 @@ const GROUND_Y = 740;
 const FRAME_W = 64;
 const FRAME_H = 64;
 const BLACK_TILE_GROUND_Y = GROUND_Y + 39;
-const PROP_BASELINE_OFFSET_Y = -14;
+const PROP_BASELINE_OFFSET_Y = -24;
 const WAGON_BASELINE_Y = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
 const HUT_BASELINE_Y = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
 const ONION_PATCH_BASELINE_Y = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
@@ -378,6 +378,7 @@ class PrototypeScene extends Phaser.Scene {
     this.menuActionIndex = 0;
     this.inventoryItems = [];
     this.equipmentItems = [];
+    this.pendingItemPopupQueue = [];
 
     this.npcState = 'idle';
     this.npcFacing = 'right';
@@ -798,6 +799,7 @@ class PrototypeScene extends Phaser.Scene {
 
   createItemReceiveUI() {
     this.itemReceiveTimer = null;
+    this.itemReceiveQueueTimer = null;
     this.itemReceiveContainer = this.add.container(0, 0).setDepth(250).setVisible(false);
 
     this.itemReceiveIcon = this.add.image(0, -62, 'menuOnions')
@@ -819,11 +821,31 @@ class PrototypeScene extends Phaser.Scene {
     this.itemReceiveContainer.add([this.itemReceiveIcon, this.itemReceiveBg, this.itemReceiveText]);
   }
 
+  queueItemReceivePopup(item) {
+    if (!item?.name) return;
+    this.pendingItemPopupQueue.push({ ...item });
+  }
+
+  flushQueuedItemReceivePopups() {
+    if (this.isDialogueOpen || !this.pendingItemPopupQueue.length) return;
+    if (this.itemReceiveContainer?.visible || this.itemReceiveQueueTimer) return;
+
+    const nextItem = this.pendingItemPopupQueue.shift();
+    if (!nextItem) return;
+    this.showItemReceivePopup(nextItem);
+  }
+
   showItemReceivePopup(item) {
     if (!item?.name) return;
 
+    if (this.isDialogueOpen) {
+      this.queueItemReceivePopup(item);
+      return;
+    }
+
     const hasTexture = !!item.texture;
     this.itemReceiveTimer?.remove(false);
+    this.itemReceiveQueueTimer?.remove(false);
 
     this.itemReceiveText.setText(item.name);
     const textWidth = Math.ceil(this.itemReceiveText.width) + 34;
@@ -839,6 +861,13 @@ class PrototypeScene extends Phaser.Scene {
 
     this.itemReceiveTimer = this.time.delayedCall(3000, () => {
       this.itemReceiveContainer.setVisible(false);
+      this.itemReceiveTimer = null;
+      if (this.pendingItemPopupQueue.length && !this.isDialogueOpen) {
+        this.itemReceiveQueueTimer = this.time.delayedCall(0, () => {
+          this.itemReceiveQueueTimer = null;
+          this.flushQueuedItemReceivePopups();
+        });
+      }
     });
   }
 
@@ -1439,6 +1468,7 @@ class PrototypeScene extends Phaser.Scene {
     this.stopTypewriter();
     this.physics.world.resume();
     this.scheduleNpcBehavior(900);
+    this.flushQueuedItemReceivePopups();
   }
 
   startDialogueSequence(sequence = 'intro') {
@@ -1811,7 +1841,7 @@ class PrototypeScene extends Phaser.Scene {
 class HutInteriorScene extends Phaser.Scene {
   constructor() {
     super('HutInteriorScene');
-    this.topDownFacing = 'down';
+    this.topDownFacing = 'up';
   }
 
   init(data) {
@@ -1874,6 +1904,7 @@ class HutInteriorScene extends Phaser.Scene {
 
     this.player = this.physics.add.sprite(doorwayX, doorwayY - 34, `${this.heroKey}-idle`, 0);
     this.player.setScale(3.0);
+    this.player.anims.play(`${this.heroKey}-topdown-idle-up`, true);
     this.player.setDepth(10);
     this.player.setCollideWorldBounds(true);
     this.player.body.setSize(20, 24);
