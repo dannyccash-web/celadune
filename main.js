@@ -44,8 +44,8 @@ function createHeroAnimations(scene, heroKey) {
   const animations = [
     { key: `${heroKey}-walk-left`, sheet: `${heroKey}-walk`, row: 1, start: 0, end: 8, rate: 10, repeat: -1 },
     { key: `${heroKey}-walk-right`, sheet: `${heroKey}-walk`, row: 3, start: 0, end: 8, rate: 10, repeat: -1 },
-    { key: `${heroKey}-idle-left`, sheet: `${heroKey}-idle`, row: 1, start: 0, end: 1, rate: 3, repeat: -1 },
-    { key: `${heroKey}-idle-right`, sheet: `${heroKey}-idle`, row: 3, start: 0, end: 1, rate: 3, repeat: -1 },
+    { key: `${heroKey}-idle-left`, sheet: `${heroKey}-idle`, row: 1, start: 0, end: 3, rate: 4, repeat: -1 },
+    { key: `${heroKey}-idle-right`, sheet: `${heroKey}-idle`, row: 3, start: 0, end: 3, rate: 4, repeat: -1 },
     { key: `${heroKey}-jump-left`, sheet: `${heroKey}-jump`, row: 1, start: 0, end: 3, rate: 12, repeat: 0 },
     { key: `${heroKey}-jump-right`, sheet: `${heroKey}-jump`, row: 3, start: 0, end: 3, rate: 12, repeat: 0 },
   ];
@@ -376,7 +376,7 @@ class PrototypeScene extends Phaser.Scene {
     this.load.spritesheet('forestLady-idle', FOREST_LADY.idle, { frameWidth: FRAME_W, frameHeight: FRAME_H });
     this.load.spritesheet('forestLady-walk', FOREST_LADY.walk, { frameWidth: FRAME_W, frameHeight: FRAME_H });
     this.load.spritesheet('forestLady-emote', FOREST_LADY.emote, { frameWidth: FRAME_W, frameHeight: FRAME_H });
-    this.load.spritesheet('forestLady-portrait', 'assets/npcs/forest_lady/portrait.png', { frameWidth: FRAME_W, frameHeight: 48 });
+    this.load.spritesheet('forestLady-portrait', 'assets/npcs/forest_lady/portrait.png', { frameWidth: 80, frameHeight: 48 });
 
     Object.values(HEROES).forEach((hero) => {
       this.load.spritesheet(`${hero.key}-walk`, hero.walk, { frameWidth: FRAME_W, frameHeight: FRAME_H });
@@ -557,17 +557,19 @@ class PrototypeScene extends Phaser.Scene {
   createProps() {
     this.propDepth = 7;
 
-    this.wagon = this.add.image(360, 744, 'brokenWagon')
+    const propBaselineY = GROUND_Y + (GROUND_TILE / 2) + 34 - 75;
+
+    this.wagon = this.add.image(360, propBaselineY, 'brokenWagon')
       .setOrigin(0.5, 1)
       .setScale(0.44)
       .setDepth(this.propDepth);
 
-    this.hut = this.add.image(2240, 744, 'forestHut')
+    this.hut = this.add.image(2240, propBaselineY, 'forestHut')
       .setOrigin(0.5, 1)
       .setScale(0.80)
       .setDepth(this.propDepth);
 
-    this.onionPatch = this.add.image(2790, 744, 'onionPatch')
+    this.onionPatch = this.add.image(2790, propBaselineY, 'onionPatch')
       .setOrigin(0.5, 1)
       .setScale(0.34)
       .setDepth(this.propDepth);
@@ -872,9 +874,19 @@ class PrototypeScene extends Phaser.Scene {
     this.portraitSceneBg.setTileScale(this.bgScale || 1, this.bgScale || 1);
     this.dialogueOverlay.add(this.portraitSceneBg);
 
-    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom, 'forestLady-idle', 26)
+    const portraitMaskShape = this.add.graphics().setVisible(false).fillRect(
+      this.dialoguePortraitRect.left,
+      this.dialoguePortraitRect.top,
+      this.dialoguePortraitRect.width,
+      this.dialoguePortraitRect.height,
+    );
+    this.dialoguePortraitMask = portraitMaskShape.createGeometryMask();
+    this.portraitSceneBg.setMask(this.dialoguePortraitMask);
+
+    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom, 'forestLady-portrait', 0)
       .setOrigin(0.5, 1)
-      .setScale(5.1);
+      .setScale(4.2);
+    this.npcPortrait.setMask(this.dialoguePortraitMask);
     this.dialogueOverlay.add(this.npcPortrait);
 
     this.dialogueSpeakerText = this.add.text(textX, contentTop + 10, FOREST_LADY.name, {
@@ -1117,7 +1129,7 @@ class PrototypeScene extends Phaser.Scene {
     this.typewriterIndex = 0;
     this.isTyping = true;
     if (line.speakerType === 'npc') {
-      this.npcPortrait.setTexture('forestLady-idle').setFrame(26);
+      this.npcPortrait.setTexture('forestLady-portrait').setFrame(0);
     }
     this.talkPortrait(line.speakerType === 'npc');
 
@@ -1162,13 +1174,13 @@ class PrototypeScene extends Phaser.Scene {
   talkPortrait(active) {
     this.stopTalkingPortrait();
     if (!active) {
-      this.npcPortrait.setTexture('forestLady-idle').setFrame(26);
+      this.npcPortrait.setTexture('forestLady-portrait').setFrame(0);
       return;
     }
     if (!this.writingSound.isPlaying) this.writingSound.play();
     const talkFrames = [
-      { texture: 'forestLady-idle', frame: 26 },
-      { texture: 'forestLady-idle', frame: 27 },
+      { texture: 'forestLady-portrait', frame: 0 },
+      { texture: 'forestLady-portrait', frame: 1 },
     ];
     let talkIndex = 0;
     this.portraitTalkEvent = this.time.addEvent({
@@ -1185,7 +1197,7 @@ class PrototypeScene extends Phaser.Scene {
   stopTalkingPortrait() {
     this.portraitTalkEvent?.remove(false);
     this.portraitTalkEvent = null;
-    this.npcPortrait.setTexture('forestLady-idle').setFrame(26);
+    this.npcPortrait.setTexture('forestLady-portrait').setFrame(0);
     if (this.writingSound?.isPlaying) this.writingSound.stop();
   }
 
