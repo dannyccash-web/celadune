@@ -6,6 +6,9 @@ const GROUND_Y = 740;
 const FRAME_W = 64;
 const FRAME_H = 64;
 const BLACK_TILE_GROUND_Y = GROUND_Y + 39;
+const WAGON_BASELINE_Y = BLACK_TILE_GROUND_Y - 14;
+const HUT_BASELINE_Y = BLACK_TILE_GROUND_Y - 12;
+const ONION_PATCH_BASELINE_Y = BLACK_TILE_GROUND_Y - 18;
 
 const HEROES = {
   caelan: {
@@ -558,17 +561,17 @@ class PrototypeScene extends Phaser.Scene {
   createProps() {
     this.propDepth = 7;
 
-    this.wagon = this.add.image(360, BLACK_TILE_GROUND_Y, 'brokenWagon')
+    this.wagon = this.add.image(360, WAGON_BASELINE_Y, 'brokenWagon')
       .setOrigin(0.5, 1)
       .setScale(0.44)
       .setDepth(this.propDepth);
 
-    this.hut = this.add.image(2240, BLACK_TILE_GROUND_Y, 'forestHut')
+    this.hut = this.add.image(2240, HUT_BASELINE_Y, 'forestHut')
       .setOrigin(0.5, 1)
       .setScale(0.80)
       .setDepth(this.propDepth);
 
-    this.onionPatch = this.add.image(2790, BLACK_TILE_GROUND_Y, 'onionPatch')
+    this.onionPatch = this.add.image(2790, ONION_PATCH_BASELINE_Y, 'onionPatch')
       .setOrigin(0.5, 1)
       .setScale(0.34)
       .setDepth(this.propDepth);
@@ -885,7 +888,7 @@ class PrototypeScene extends Phaser.Scene {
     this.portraitMask = this.portraitMaskGraphics.createGeometryMask();
     this.portraitSceneBg.setMask(this.portraitMask);
 
-    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 20, 'forestLady-idle', 26)
+    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 34, 'forestLady-idle', 26)
       .setOrigin(0.5, 1)
       .setScale(5.1)
       .setMask(this.portraitMask)
