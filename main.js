@@ -367,8 +367,8 @@ class HeroSelectScene extends Phaser.Scene {
 }
 
 class PrototypeScene extends Phaser.Scene {
-  constructor() {
-    super('PrototypeScene');
+  constructor(sceneKey = 'PrototypeScene') {
+    super(sceneKey);
     this.facing = 'right';
     this.selectedMenuIndex = 0;
     this.menuPages = ['Inventory', 'Equipment', 'Controls'];
@@ -391,15 +391,23 @@ class PrototypeScene extends Phaser.Scene {
 
   init(data) {
     this.heroKey = data?.heroKey || 'caelan';
+    this.startX = data?.startX ?? 300;
+    this.startY = data?.startY ?? 620;
+    this.inventoryItems = Array.isArray(data?.inventoryItems) ? data.inventoryItems.map((item) => ({ ...item })) : [];
+    this.equipmentItems = Array.isArray(data?.equipmentItems) ? data.equipmentItems.map((item) => ({ ...item })) : [];
   }
 
   preload() {
     this.load.image('forest', 'assets/bg/forest.png');
+    this.load.image('cityBg', 'assets/bg/city_background.jpeg');
     this.load.image('blackTile', 'assets/tiles/black_tile.png');
     this.load.image('ground0', 'assets/tiles/ground_tile.png');
     this.load.image('ground1', 'assets/tiles/ground_tile_1.png');
     this.load.image('ground2', 'assets/tiles/ground_tile_2.png');
     this.load.image('ground3', 'assets/tiles/ground_tile_3.png');
+    this.load.image('cityGround1', 'assets/tiles/cobblestone_tile_1.png');
+    this.load.image('cityGround2', 'assets/tiles/cobblestone_tile_2.png');
+    this.load.image('cityGround3', 'assets/tiles/cobblestone_tile_3.png');
     this.load.image('parchment', 'assets/ui/parchment.png');
     this.load.image('forestHut', 'assets/props/forest_hut.png');
     this.load.image('forestHutInterior', 'assets/bg/forest_hut_interior.jpeg');
@@ -436,6 +444,8 @@ class PrototypeScene extends Phaser.Scene {
     this.createAudio();
     this.createMenu();
     this.createDialogueUI();
+
+    this.player.setPosition(this.startX, this.startY);
 
     this.cursors = this.input.keyboard.createCursorKeys();
     this.menuKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
@@ -525,7 +535,7 @@ class PrototypeScene extends Phaser.Scene {
     this.playerBaseScaleX = 3.1;
     this.playerBaseScaleY = 3.1;
     this.player.setScale(this.playerBaseScaleX, this.playerBaseScaleY);
-    this.player.setCollideWorldBounds(true);
+    this.player.setCollideWorldBounds(false);
     this.player.setDepth(9);
     this.player.body.setSize(20, 34);
     this.player.body.setOffset(22, 28);
@@ -1340,6 +1350,30 @@ class PrototypeScene extends Phaser.Scene {
     this.scene.resume();
   }
 
+  transitionToScene(targetSceneKey, startX, startY) {
+    if (this.isSceneTransitioning) return;
+    this.isSceneTransitioning = true;
+    this.player.setVelocity(0, 0);
+    if (this.npc) this.npc.setVelocity(0, 0);
+    this.cameras.main.fadeOut(180, 0, 0, 0);
+    this.time.delayedCall(190, () => {
+      this.scene.start(targetSceneKey, {
+        heroKey: this.heroKey,
+        startX,
+        startY,
+        inventoryItems: this.inventoryItems,
+        equipmentItems: this.equipmentItems,
+      });
+    });
+  }
+
+  handleSceneBoundaries(velocityX) {
+    if (this.isMenuOpen || this.isDialogueOpen || this.isTransitioningToInterior || this.isSceneTransitioning) return;
+    if (velocityX > 0 && this.player.x >= WORLD_WIDTH - 12) {
+      this.transitionToScene('CityScene', 24, this.player.y);
+    }
+  }
+
   openMenu() {
     if (this.isMenuOpen || this.isDialogueOpen) return;
     this.isMenuOpen = true;
@@ -1833,10 +1867,209 @@ class PrototypeScene extends Phaser.Scene {
 
     this.player.setDepth(9);
     this.npc.setDepth(9);
+    this.handleSceneBoundaries(velocityX);
     this.bg.tilePositionX = this.cameras.main.scrollX * 0.28;
   }
 }
 
+
+
+class CityScene extends PrototypeScene {
+  constructor() {
+    super('CityScene');
+    this.facing = 'right';
+    this.selectedMenuIndex = 0;
+    this.menuPages = ['Inventory', 'Equipment', 'Controls'];
+    this.menuMode = 'categories';
+    this.menuSectionIndex = 0;
+    this.menuItemIndex = 0;
+    this.menuActionIndex = 0;
+    this.inventoryItems = [];
+    this.equipmentItems = [];
+    this.pendingItemPopupQueue = [];
+  }
+
+  init(data) {
+    super.init(data);
+    this.startX = data?.startX ?? 120;
+    this.startY = data?.startY ?? 620;
+  }
+
+  create() {
+    this.physics.world.gravity.y = 1800;
+
+    this.createParallaxBackground();
+    this.createGround();
+    this.createAnimations();
+    this.createPlayer();
+    this.createAtmosphere();
+    this.createCamera();
+    this.createUI();
+    this.createItemReceiveUI();
+    this.createAudio();
+    this.createMenu();
+
+    this.player.setPosition(this.startX, this.startY);
+
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.menuKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
+    this.enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
+    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.escapeKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+    this.backspaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.BACKSPACE);
+  }
+
+  createParallaxBackground() {
+    const cityTexture = this.textures.get('cityBg').getSourceImage();
+    const scale = GAME_HEIGHT / cityTexture.height;
+    this.bgScale = scale;
+
+    this.bg = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'cityBg')
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(-20);
+
+    this.bg.setTileScale(scale, scale);
+  }
+
+  createGround() {
+    this.ground = this.physics.add.staticGroup();
+    this.groundBack = this.add.group();
+    this.groundFront = this.add.group();
+
+    const tilesAcross = Math.ceil(WORLD_WIDTH / GROUND_TILE);
+    const decorativeKeys = ['cityGround1', 'cityGround2', 'cityGround3'];
+    const rng = this.createSeededRandom(0xC17AD0);
+    let previousKey = null;
+
+    const blackVisualOffsetY = 34;
+    const collisionStripY = GROUND_Y + 24;
+    const collisionStripHeight = 22;
+
+    for (let i = 0; i < tilesAcross; i += 1) {
+      let tileKey = decorativeKeys[Math.floor(rng() * decorativeKeys.length)];
+      if (decorativeKeys.length > 1 && tileKey === previousKey) {
+        tileKey = decorativeKeys[(decorativeKeys.indexOf(tileKey) + 1 + Math.floor(rng() * (decorativeKeys.length - 1))) % decorativeKeys.length];
+      }
+      previousKey = tileKey;
+
+      const x = i * GROUND_TILE + GROUND_TILE / 2;
+      const visualY = GROUND_Y + GROUND_TILE / 2;
+
+      const blackBase = this.add.image(x, visualY + blackVisualOffsetY, 'blackTile')
+        .setDisplaySize(GROUND_TILE, 150)
+        .setDepth(2);
+      this.groundBack.add(blackBase);
+
+      const collider = this.add.rectangle(x, collisionStripY, GROUND_TILE, collisionStripHeight, 0x000000, 0);
+      this.physics.add.existing(collider, true);
+      this.ground.add(collider);
+
+      const frontTile = this.add.image(x, visualY, tileKey)
+        .setDisplaySize(GROUND_TILE, GROUND_TILE)
+        .setDepth(12);
+      this.groundFront.add(frontTile);
+    }
+
+    this.groundShadow = this.add.rectangle(WORLD_WIDTH / 2, GROUND_Y + 10, WORLD_WIDTH, 18, 0x13210f, 0.12)
+      .setDepth(3);
+  }
+
+  createNPC() {}
+  createProps() {}
+  createDialogueUI() {}
+  updateNPCBehavior() {}
+  openDialogue() {}
+  beginOnionPatchInteraction() {}
+  updateScriptedNpcMovement() { return false; }
+
+  openMenu() {
+    if (this.isMenuOpen) return;
+    this.isMenuOpen = true;
+    this.menuMode = 'categories';
+    this.menuSectionIndex = 0;
+    this.menuItemIndex = 0;
+    this.menuActionIndex = 0;
+    this.menuOverlay.setVisible(true);
+    this.refreshMenuPage();
+    this.physics.world.pause();
+    this.player.anims.pause();
+  }
+
+  closeMenu() {
+    if (!this.isMenuOpen) return;
+    this.isMenuOpen = false;
+    this.menuMode = 'categories';
+    this.menuOverlay.setVisible(false);
+    this.physics.world.resume();
+    this.player.anims.resume();
+  }
+
+  handleSceneBoundaries(velocityX) {
+    if (this.isMenuOpen || this.isSceneTransitioning) return;
+    if (velocityX < 0 && this.player.x <= 12) {
+      this.transitionToScene('PrototypeScene', WORLD_WIDTH - 24, this.player.y);
+    }
+  }
+
+  update() {
+    if (this.itemReceiveContainer?.visible) {
+      this.itemReceiveContainer.setPosition(this.player.x, this.player.y - 116);
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.menuKey)) {
+      if (this.isMenuOpen) {
+        this.closeMenu();
+      } else {
+        this.openMenu();
+      }
+    }
+
+    if (this.isMenuOpen) {
+      this.handleMenuNavigation();
+      return;
+    }
+
+    const upJustPressed = Phaser.Input.Keyboard.JustDown(this.cursors.up);
+    const moveSpeed = 260;
+    const body = this.player.body;
+    const onGround = body.blocked.down || body.touching.down;
+    let velocityX = 0;
+
+    if (this.cursors.left.isDown) {
+      velocityX = -moveSpeed;
+      this.facing = 'left';
+    } else if (this.cursors.right.isDown) {
+      velocityX = moveSpeed;
+      this.facing = 'right';
+    }
+
+    this.player.setVelocityX(velocityX);
+
+    if (upJustPressed && onGround) {
+      this.player.setVelocityY(-760);
+    }
+
+    const animPrefix = this.facing === 'left' ? 'left' : 'right';
+    if (!onGround) {
+      this.player.setScale(this.playerBaseScaleX, this.playerBaseScaleY);
+      this.player.anims.play(`${this.heroKey}-jump-${animPrefix}`, true);
+      if (this.player.body.velocity.y > -20) {
+        this.player.anims.pause(this.player.anims.currentFrame);
+      }
+    } else if (Math.abs(velocityX) > 5) {
+      this.player.setScale(this.playerBaseScaleX, this.playerBaseScaleY);
+      this.player.anims.play(`${this.heroKey}-walk-${animPrefix}`, true);
+    } else {
+      this.player.setScale(this.playerBaseScaleX, this.playerBaseScaleY);
+      this.player.anims.play(`${this.heroKey}-idle-${animPrefix}`, true);
+    }
+
+    this.player.setDepth(9);
+    this.handleSceneBoundaries(velocityX);
+    this.bg.tilePositionX = this.cameras.main.scrollX * 0.28;
+  }
+}
 
 class HutInteriorScene extends Phaser.Scene {
   constructor() {
@@ -2013,7 +2246,7 @@ const config = {
       debug: false,
     },
   },
-  scene: [StartScene, HeroSelectScene, PrototypeScene, HutInteriorScene],
+  scene: [StartScene, HeroSelectScene, PrototypeScene, CityScene, HutInteriorScene],
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
