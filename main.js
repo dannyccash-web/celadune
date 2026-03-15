@@ -6,9 +6,9 @@ const GROUND_Y = 740;
 const FRAME_W = 64;
 const FRAME_H = 64;
 const BLACK_TILE_GROUND_Y = GROUND_Y + 39;
-const WAGON_BASELINE_Y = BLACK_TILE_GROUND_Y - 14;
-const HUT_BASELINE_Y = BLACK_TILE_GROUND_Y - 12;
-const ONION_PATCH_BASELINE_Y = BLACK_TILE_GROUND_Y - 18;
+const WAGON_BASELINE_Y = BLACK_TILE_GROUND_Y;
+const HUT_BASELINE_Y = BLACK_TILE_GROUND_Y;
+const ONION_PATCH_BASELINE_Y = BLACK_TILE_GROUND_Y;
 
 const HEROES = {
   caelan: {
@@ -68,13 +68,13 @@ function createHeroAnimations(scene, heroKey) {
 
 function createHeroTopDownAnimations(scene, heroKey) {
   const animations = [
-    { key: `${heroKey}-topdown-walk-down`, sheet: `${heroKey}-walk`, row: 0, start: 0, end: 8, rate: 10, repeat: -1 },
+    { key: `${heroKey}-topdown-walk-down`, sheet: `${heroKey}-walk`, row: 2, start: 0, end: 8, rate: 10, repeat: -1 },
     { key: `${heroKey}-topdown-walk-left`, sheet: `${heroKey}-walk`, row: 1, start: 0, end: 8, rate: 10, repeat: -1 },
-    { key: `${heroKey}-topdown-walk-up`, sheet: `${heroKey}-walk`, row: 2, start: 0, end: 8, rate: 10, repeat: -1 },
+    { key: `${heroKey}-topdown-walk-up`, sheet: `${heroKey}-walk`, row: 0, start: 0, end: 8, rate: 10, repeat: -1 },
     { key: `${heroKey}-topdown-walk-right`, sheet: `${heroKey}-walk`, row: 3, start: 0, end: 8, rate: 10, repeat: -1 },
-    { key: `${heroKey}-topdown-idle-down`, sheet: `${heroKey}-idle`, row: 0, start: 0, end: 0, rate: 1, repeat: -1 },
+    { key: `${heroKey}-topdown-idle-down`, sheet: `${heroKey}-idle`, row: 2, start: 0, end: 0, rate: 1, repeat: -1 },
     { key: `${heroKey}-topdown-idle-left`, sheet: `${heroKey}-idle`, row: 1, start: 0, end: 0, rate: 1, repeat: -1 },
-    { key: `${heroKey}-topdown-idle-up`, sheet: `${heroKey}-idle`, row: 2, start: 0, end: 0, rate: 1, repeat: -1 },
+    { key: `${heroKey}-topdown-idle-up`, sheet: `${heroKey}-idle`, row: 0, start: 0, end: 0, rate: 1, repeat: -1 },
     { key: `${heroKey}-topdown-idle-right`, sheet: `${heroKey}-idle`, row: 3, start: 0, end: 0, rate: 1, repeat: -1 },
   ];
 
@@ -929,7 +929,7 @@ class PrototypeScene extends Phaser.Scene {
     this.portraitMask = this.portraitMaskGraphics.createGeometryMask();
     this.portraitSceneBg.setMask(this.portraitMask);
 
-    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 34, 'forestLady-idle', 26)
+    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 48, 'forestLady-idle', 26)
       .setOrigin(0.5, 1)
       .setScale(5.1)
       .setMask(this.portraitMask)
