@@ -68,13 +68,13 @@ function createHeroAnimations(scene, heroKey) {
 
 function createHeroTopDownAnimations(scene, heroKey) {
   const animations = [
-    { key: `${heroKey}-topdown-walk-down`, sheet: `${heroKey}-walk`, row: 2, start: 0, end: 8, rate: 10, repeat: -1 },
+    { key: `${heroKey}-topdown-walk-down`, sheet: `${heroKey}-walk`, row: 0, start: 0, end: 8, rate: 10, repeat: -1 },
     { key: `${heroKey}-topdown-walk-left`, sheet: `${heroKey}-walk`, row: 1, start: 0, end: 8, rate: 10, repeat: -1 },
-    { key: `${heroKey}-topdown-walk-up`, sheet: `${heroKey}-walk`, row: 0, start: 0, end: 8, rate: 10, repeat: -1 },
+    { key: `${heroKey}-topdown-walk-up`, sheet: `${heroKey}-walk`, row: 2, start: 0, end: 8, rate: 10, repeat: -1 },
     { key: `${heroKey}-topdown-walk-right`, sheet: `${heroKey}-walk`, row: 3, start: 0, end: 8, rate: 10, repeat: -1 },
-    { key: `${heroKey}-topdown-idle-down`, sheet: `${heroKey}-idle`, row: 2, start: 0, end: 0, rate: 1, repeat: -1 },
+    { key: `${heroKey}-topdown-idle-down`, sheet: `${heroKey}-idle`, row: 0, start: 0, end: 0, rate: 1, repeat: -1 },
     { key: `${heroKey}-topdown-idle-left`, sheet: `${heroKey}-idle`, row: 1, start: 0, end: 0, rate: 1, repeat: -1 },
-    { key: `${heroKey}-topdown-idle-up`, sheet: `${heroKey}-idle`, row: 0, start: 0, end: 0, rate: 1, repeat: -1 },
+    { key: `${heroKey}-topdown-idle-up`, sheet: `${heroKey}-idle`, row: 2, start: 0, end: 0, rate: 1, repeat: -1 },
     { key: `${heroKey}-topdown-idle-right`, sheet: `${heroKey}-idle`, row: 3, start: 0, end: 0, rate: 1, repeat: -1 },
   ];
 
@@ -590,17 +590,17 @@ class PrototypeScene extends Phaser.Scene {
   createProps() {
     this.propDepth = 7;
 
-    this.wagon = this.add.image(360, BLACK_TILE_GROUND_Y, 'brokenWagon')
+    this.wagon = this.add.image(360, WAGON_BASELINE_Y, 'brokenWagon')
       .setOrigin(0.5, 1)
       .setScale(0.44)
       .setDepth(this.propDepth);
 
-    this.hut = this.add.image(2240, BLACK_TILE_GROUND_Y, 'forestHut')
+    this.hut = this.add.image(2240, HUT_BASELINE_Y, 'forestHut')
       .setOrigin(0.5, 1)
       .setScale(0.80)
       .setDepth(this.propDepth);
 
-    this.hutDoorZone = this.add.zone(this.hut.x + 8, BLACK_TILE_GROUND_Y - 80, 150, 132).setOrigin(0.5, 0.5);
+    this.hutDoorZone = this.add.zone(this.hut.x + 8, HUT_BASELINE_Y - 80, 150, 132).setOrigin(0.5, 0.5);
     this.physics.add.existing(this.hutDoorZone, true);
 
     this.hutTooltip = this.add.container(0, 0).setDepth(30).setVisible(false);
@@ -612,7 +612,7 @@ class PrototypeScene extends Phaser.Scene {
     }).setOrigin(0.5);
     this.hutTooltip.add([hutTooltipBg, hutTooltipText]);
 
-    this.onionPatch = this.add.image(2790, BLACK_TILE_GROUND_Y, 'onionPatch')
+    this.onionPatch = this.add.image(2790, ONION_PATCH_BASELINE_Y, 'onionPatch')
       .setOrigin(0.5, 1)
       .setScale(0.34)
       .setDepth(this.propDepth);
@@ -929,7 +929,7 @@ class PrototypeScene extends Phaser.Scene {
     this.portraitMask = this.portraitMaskGraphics.createGeometryMask();
     this.portraitSceneBg.setMask(this.portraitMask);
 
-    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 68, 'forestLady-idle', 26)
+    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 82, 'forestLady-idle', 26)
       .setOrigin(0.5, 1)
       .setScale(5.1)
       .setMask(this.portraitMask)
@@ -1459,8 +1459,9 @@ class PrototypeScene extends Phaser.Scene {
       return;
     }
 
+    const upJustPressed = Phaser.Input.Keyboard.JustDown(this.cursors.up);
     const interactPressed = Phaser.Input.Keyboard.JustDown(this.enterKey) || Phaser.Input.Keyboard.JustDown(this.spaceKey);
-    const hutPressed = Phaser.Input.Keyboard.JustDown(this.enterKey) || Phaser.Input.Keyboard.JustDown(this.spaceKey);
+    const hutPressed = upJustPressed || Phaser.Input.Keyboard.JustDown(this.enterKey) || Phaser.Input.Keyboard.JustDown(this.spaceKey);
     const nearNpc = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.npc.x, this.npc.y) < 150;
     if (nearHutDoor && hutPressed) {
       this.enterHut();
@@ -1490,7 +1491,7 @@ class PrototypeScene extends Phaser.Scene {
 
     this.player.setVelocityX(velocityX);
 
-    if (Phaser.Input.Keyboard.JustDown(this.cursors.up) && onGround) {
+    if (upJustPressed && onGround) {
       this.player.setVelocityY(-760);
     }
 
