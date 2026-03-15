@@ -66,6 +66,30 @@ function createHeroAnimations(scene, heroKey) {
   });
 }
 
+function createHeroTopDownAnimations(scene, heroKey) {
+  const animations = [
+    { key: `${heroKey}-topdown-walk-down`, sheet: `${heroKey}-walk`, row: 0, start: 0, end: 8, rate: 10, repeat: -1 },
+    { key: `${heroKey}-topdown-walk-left`, sheet: `${heroKey}-walk`, row: 1, start: 0, end: 8, rate: 10, repeat: -1 },
+    { key: `${heroKey}-topdown-walk-up`, sheet: `${heroKey}-walk`, row: 2, start: 0, end: 8, rate: 10, repeat: -1 },
+    { key: `${heroKey}-topdown-walk-right`, sheet: `${heroKey}-walk`, row: 3, start: 0, end: 8, rate: 10, repeat: -1 },
+    { key: `${heroKey}-topdown-idle-down`, sheet: `${heroKey}-idle`, row: 0, start: 0, end: 0, rate: 1, repeat: -1 },
+    { key: `${heroKey}-topdown-idle-left`, sheet: `${heroKey}-idle`, row: 1, start: 0, end: 0, rate: 1, repeat: -1 },
+    { key: `${heroKey}-topdown-idle-up`, sheet: `${heroKey}-idle`, row: 2, start: 0, end: 0, rate: 1, repeat: -1 },
+    { key: `${heroKey}-topdown-idle-right`, sheet: `${heroKey}-idle`, row: 3, start: 0, end: 0, rate: 1, repeat: -1 },
+  ];
+
+  animations.forEach((anim) => {
+    if (!scene.anims.exists(anim.key)) {
+      scene.anims.create({
+        key: anim.key,
+        frames: lpcFrameList(anim.sheet, anim.row, anim.start, anim.end),
+        frameRate: anim.rate,
+        repeat: anim.repeat,
+      });
+    }
+  });
+}
+
 function createForestLadyAnimations(scene) {
   const animations = [
     { key: 'forestLady-idle-left', sheet: 'forestLady-idle', row: 1, start: 0, end: 1, rate: 3, repeat: -1 },
@@ -358,6 +382,7 @@ class PrototypeScene extends Phaser.Scene {
     this.questState = 'notOffered';
     this.scriptedNpcTargetX = null;
     this.scriptedNpcCallback = null;
+    this.isTransitioningToInterior = false;
   }
 
   init(data) {
@@ -373,6 +398,7 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('ground3', 'assets/tiles/ground_tile_3.png');
     this.load.image('parchment', 'assets/ui/parchment.png');
     this.load.image('forestHut', 'assets/props/forest_hut.png');
+    this.load.image('forestHutInterior', 'assets/bg/forest_hut_interior.jpeg');
     this.load.image('brokenWagon', 'assets/props/broken_wagon.png');
     this.load.image('onionPatch', 'assets/props/onion_patch.png');
     this.load.audio('forestTheme', 'assets/audio/celadune_forest.mp3');
@@ -481,7 +507,10 @@ class PrototypeScene extends Phaser.Scene {
   }
 
   createAnimations() {
-    Object.keys(HEROES).forEach((heroKey) => createHeroAnimations(this, heroKey));
+    Object.keys(HEROES).forEach((heroKey) => {
+      createHeroAnimations(this, heroKey);
+      createHeroTopDownAnimations(this, heroKey);
+    });
     createForestLadyAnimations(this);
   }
 
@@ -570,6 +599,18 @@ class PrototypeScene extends Phaser.Scene {
       .setOrigin(0.5, 1)
       .setScale(0.80)
       .setDepth(this.propDepth);
+
+    this.hutDoorZone = this.add.zone(this.hut.x + 10, BLACK_TILE_GROUND_Y - 76, 170, 150).setOrigin(0.5, 0.5);
+    this.physics.add.existing(this.hutDoorZone, true);
+
+    this.hutTooltip = this.add.container(0, 0).setDepth(30).setVisible(false);
+    const hutTooltipBg = this.add.rectangle(0, 0, 150, 30, 0x1c1209, 0.82).setStrokeStyle(2, 0xdab56a, 0.95);
+    const hutTooltipText = this.add.text(0, 0, "Mirelle's Hut", {
+      fontFamily: 'Roboto Mono',
+      fontSize: '16px',
+      color: '#f7edd6',
+    }).setOrigin(0.5);
+    this.hutTooltip.add([hutTooltipBg, hutTooltipText]);
 
     this.onionPatch = this.add.image(2790, ONION_PATCH_BASELINE_Y, 'onionPatch')
       .setOrigin(0.5, 1)
@@ -979,6 +1020,36 @@ class PrototypeScene extends Phaser.Scene {
     return true;
   }
 
+  enterHut() {
+    if (this.isDialogueOpen || this.isMenuOpen || this.isTransitioningToInterior) return;
+    this.isTransitioningToInterior = true;
+    this.player.setVelocity(0, 0);
+    this.npc.setVelocityX(0);
+    this.hutTooltip?.setVisible(false);
+    this.onionPatchTooltip?.setVisible(false);
+    this.npcTooltip?.setVisible(false);
+    this.scene.launch('HutInteriorScene', {
+      heroKey: this.heroKey,
+      returnSceneKey: this.scene.key,
+      returnPosition: {
+        x: this.hutDoorZone.x,
+        y: this.player.y,
+      },
+    });
+    this.scene.pause();
+  }
+
+  returnFromHut(returnPosition) {
+    this.isTransitioningToInterior = false;
+    if (returnPosition) {
+      this.player.setPosition(returnPosition.x, returnPosition.y);
+    }
+    this.player.setVelocity(0, 0);
+    this.facing = 'right';
+    this.player.anims.play(`${this.heroKey}-idle-right`, true);
+    this.scene.resume();
+  }
+
   openMenu() {
     if (this.isMenuOpen || this.isDialogueOpen) return;
     this.isMenuOpen = true;
@@ -1335,6 +1406,12 @@ class PrototypeScene extends Phaser.Scene {
       this.onionPatchTooltip.setPosition(this.onionPatch.x, this.onionPatch.y - 122);
     }
 
+    const nearHutDoor = this.hutDoorZone ? this.physics.overlap(this.player, this.hutDoorZone) : false;
+    this.hutTooltip?.setVisible(nearHutDoor && !this.isDialogueOpen && !this.isMenuOpen && this.scriptedNpcTargetX === null);
+    if (nearHutDoor) {
+      this.hutTooltip.setPosition(this.hutDoorZone.x, this.hut.y - 228);
+    }
+
     if (this.updateScriptedNpcMovement()) {
       this.bg.tilePositionX = this.cameras.main.scrollX * 0.28;
       return;
@@ -1383,7 +1460,12 @@ class PrototypeScene extends Phaser.Scene {
     }
 
     const interactPressed = Phaser.Input.Keyboard.JustDown(this.enterKey) || Phaser.Input.Keyboard.JustDown(this.spaceKey);
+    const hutPressed = Phaser.Input.Keyboard.JustDown(this.cursors.up) || interactPressed;
     const nearNpc = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.npc.x, this.npc.y) < 150;
+    if (nearHutDoor && hutPressed) {
+      this.enterHut();
+      return;
+    }
     if (nearOnionPatch && interactPressed) {
       this.beginOnionPatchInteraction();
       return;
@@ -1433,6 +1515,167 @@ class PrototypeScene extends Phaser.Scene {
   }
 }
 
+
+class HutInteriorScene extends Phaser.Scene {
+  constructor() {
+    super('HutInteriorScene');
+    this.topDownFacing = 'down';
+  }
+
+  init(data) {
+    this.heroKey = data?.heroKey || 'caelan';
+    this.returnSceneKey = data?.returnSceneKey || 'PrototypeScene';
+    this.returnPosition = data?.returnPosition || { x: 2240, y: 620 };
+  }
+
+  preload() {
+    this.load.image('forestHutInterior', 'assets/bg/forest_hut_interior.jpeg');
+
+    Object.values(HEROES).forEach((hero) => {
+      if (!this.textures.exists(`${hero.key}-walk`)) {
+        this.load.spritesheet(`${hero.key}-walk`, hero.walk, { frameWidth: FRAME_W, frameHeight: FRAME_H });
+      }
+      if (!this.textures.exists(`${hero.key}-idle`)) {
+        this.load.spritesheet(`${hero.key}-idle`, hero.idle, { frameWidth: FRAME_W, frameHeight: FRAME_H });
+      }
+    });
+  }
+
+  create() {
+    Object.keys(HEROES).forEach((heroKey) => createHeroTopDownAnimations(this, heroKey));
+
+    this.cameras.main.setBackgroundColor('#050607');
+
+    const bgTexture = this.textures.get('forestHutInterior').getSourceImage();
+    const bgScale = GAME_HEIGHT / bgTexture.height;
+    this.interior = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'forestHutInterior')
+      .setScale(bgScale)
+      .setDepth(0);
+
+    this.interiorBounds = {
+      left: this.interior.x - (bgTexture.width * bgScale) / 2,
+      right: this.interior.x + (bgTexture.width * bgScale) / 2,
+      top: this.interior.y - (bgTexture.height * bgScale) / 2,
+      bottom: this.interior.y + (bgTexture.height * bgScale) / 2,
+      scale: bgScale,
+    };
+
+    this.physics.world.setBounds(
+      this.interiorBounds.left + 86,
+      this.interiorBounds.top + 218,
+      (this.interiorBounds.right - this.interiorBounds.left) - 172,
+      (this.interiorBounds.bottom - this.interiorBounds.top) - 250
+    );
+
+    this.blockers = this.physics.add.staticGroup();
+    this.addBlocker(216, 676, 292, 332);
+    this.addBlocker(759, 596, 292, 252);
+    this.addBlocker(900, 544, 110, 92);
+    this.addBlocker(430, 464, 196, 92);
+
+    const doorwayX = this.scaleCoordX(540);
+    const doorwayY = this.scaleCoordY(1028);
+    const doorwayWidth = 150 * bgScale;
+    const doorwayHeight = 56 * bgScale;
+    this.exitZone = this.add.zone(doorwayX, doorwayY, doorwayWidth, doorwayHeight);
+    this.physics.add.existing(this.exitZone, true);
+
+    this.player = this.physics.add.sprite(doorwayX, doorwayY - 34, `${this.heroKey}-idle`, 0);
+    this.player.setScale(3.0);
+    this.player.setDepth(10);
+    this.player.setCollideWorldBounds(true);
+    this.player.body.setSize(20, 24);
+    this.player.body.setOffset(22, 38);
+    this.player.body.setMaxVelocity(230, 230);
+    this.player.body.setDrag(1600, 1600);
+
+    this.physics.add.collider(this.player, this.blockers);
+
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
+    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.escapeKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+
+    this.exitHint = this.add.container(0, 0).setDepth(20).setVisible(false);
+    const hintBg = this.add.rectangle(0, 0, 174, 32, 0x1c1209, 0.82).setStrokeStyle(2, 0xdab56a, 0.95);
+    const hintText = this.add.text(0, 0, 'Exit', {
+      fontFamily: 'Roboto Mono',
+      fontSize: '16px',
+      color: '#f7edd6',
+    }).setOrigin(0.5);
+    this.exitHint.add([hintBg, hintText]);
+  }
+
+  scaleCoordX(sourceX) {
+    return this.interiorBounds.left + sourceX * this.interiorBounds.scale;
+  }
+
+  scaleCoordY(sourceY) {
+    return this.interiorBounds.top + sourceY * this.interiorBounds.scale;
+  }
+
+  addBlocker(sourceX, sourceY, sourceW, sourceH) {
+    const blocker = this.add.zone(
+      this.scaleCoordX(sourceX),
+      this.scaleCoordY(sourceY),
+      sourceW * this.interiorBounds.scale,
+      sourceH * this.interiorBounds.scale
+    );
+    this.physics.add.existing(blocker, true);
+    this.blockers.add(blocker);
+    return blocker;
+  }
+
+  exitToForest() {
+    const returnScene = this.scene.get(this.returnSceneKey);
+    this.scene.stop();
+    returnScene.returnFromHut(this.returnPosition);
+  }
+
+  update() {
+    const moveX = (this.cursors.left.isDown ? -1 : 0) + (this.cursors.right.isDown ? 1 : 0);
+    const moveY = (this.cursors.up.isDown ? -1 : 0) + (this.cursors.down.isDown ? 1 : 0);
+    const movement = new Phaser.Math.Vector2(moveX, moveY);
+    const speed = 180;
+
+    if (movement.lengthSq() > 0) {
+      movement.normalize().scale(speed);
+    }
+
+    this.player.setVelocity(movement.x, movement.y);
+
+    if (Math.abs(movement.x) > Math.abs(movement.y)) {
+      this.topDownFacing = movement.x < 0 ? 'left' : 'right';
+    } else if (Math.abs(movement.y) > 0) {
+      this.topDownFacing = movement.y < 0 ? 'up' : 'down';
+    }
+
+    if (movement.lengthSq() > 0) {
+      this.player.anims.play(`${this.heroKey}-topdown-walk-${this.topDownFacing}`, true);
+    } else {
+      this.player.anims.play(`${this.heroKey}-topdown-idle-${this.topDownFacing}`, true);
+    }
+
+    this.player.setDepth(this.player.y + 20);
+
+    const atDoorway = this.physics.overlap(this.player, this.exitZone);
+    this.exitHint.setVisible(atDoorway);
+    if (atDoorway) {
+      this.exitHint.setPosition(this.exitZone.x, this.exitZone.y - 58);
+      if (this.player.body.velocity.y > 0 || this.player.y >= this.exitZone.y - 8) {
+        this.exitToForest();
+        return;
+      }
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.escapeKey) || Phaser.Input.Keyboard.JustDown(this.enterKey) || Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+      if (atDoorway) {
+        this.exitToForest();
+      }
+    }
+  }
+}
+
 const config = {
   type: Phaser.AUTO,
   width: GAME_WIDTH,
@@ -1447,7 +1690,7 @@ const config = {
       debug: false,
     },
   },
-  scene: [StartScene, HeroSelectScene, PrototypeScene],
+  scene: [StartScene, HeroSelectScene, PrototypeScene, HutInteriorScene],
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
