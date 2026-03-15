@@ -6,9 +6,10 @@ const GROUND_Y = 740;
 const FRAME_W = 64;
 const FRAME_H = 64;
 const BLACK_TILE_GROUND_Y = GROUND_Y + 39;
-const WAGON_BASELINE_Y = BLACK_TILE_GROUND_Y;
-const HUT_BASELINE_Y = BLACK_TILE_GROUND_Y;
-const ONION_PATCH_BASELINE_Y = BLACK_TILE_GROUND_Y;
+const PROP_BASELINE_OFFSET_Y = -14;
+const WAGON_BASELINE_Y = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
+const HUT_BASELINE_Y = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
+const ONION_PATCH_BASELINE_Y = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
 
 const HEROES = {
   caelan: {
@@ -68,13 +69,13 @@ function createHeroAnimations(scene, heroKey) {
 
 function createHeroTopDownAnimations(scene, heroKey) {
   const animations = [
-    { key: `${heroKey}-topdown-walk-down`, sheet: `${heroKey}-walk`, row: 0, start: 0, end: 8, rate: 10, repeat: -1 },
+    { key: `${heroKey}-topdown-walk-down`, sheet: `${heroKey}-walk`, row: 2, start: 0, end: 8, rate: 10, repeat: -1 },
     { key: `${heroKey}-topdown-walk-left`, sheet: `${heroKey}-walk`, row: 1, start: 0, end: 8, rate: 10, repeat: -1 },
-    { key: `${heroKey}-topdown-walk-up`, sheet: `${heroKey}-walk`, row: 2, start: 0, end: 8, rate: 10, repeat: -1 },
+    { key: `${heroKey}-topdown-walk-up`, sheet: `${heroKey}-walk`, row: 0, start: 0, end: 8, rate: 10, repeat: -1 },
     { key: `${heroKey}-topdown-walk-right`, sheet: `${heroKey}-walk`, row: 3, start: 0, end: 8, rate: 10, repeat: -1 },
-    { key: `${heroKey}-topdown-idle-down`, sheet: `${heroKey}-idle`, row: 0, start: 0, end: 0, rate: 1, repeat: -1 },
+    { key: `${heroKey}-topdown-idle-down`, sheet: `${heroKey}-idle`, row: 2, start: 0, end: 0, rate: 1, repeat: -1 },
     { key: `${heroKey}-topdown-idle-left`, sheet: `${heroKey}-idle`, row: 1, start: 0, end: 0, rate: 1, repeat: -1 },
-    { key: `${heroKey}-topdown-idle-up`, sheet: `${heroKey}-idle`, row: 2, start: 0, end: 0, rate: 1, repeat: -1 },
+    { key: `${heroKey}-topdown-idle-up`, sheet: `${heroKey}-idle`, row: 0, start: 0, end: 0, rate: 1, repeat: -1 },
     { key: `${heroKey}-topdown-idle-right`, sheet: `${heroKey}-idle`, row: 3, start: 0, end: 0, rate: 1, repeat: -1 },
   ];
 
@@ -600,7 +601,7 @@ class PrototypeScene extends Phaser.Scene {
       .setScale(0.80)
       .setDepth(this.propDepth);
 
-    this.hutDoorZone = this.add.zone(this.hut.x + 8, HUT_BASELINE_Y - 80, 150, 132).setOrigin(0.5, 0.5);
+    this.hutDoorZone = this.add.zone(this.hut.x + 34, HUT_BASELINE_Y - 80, 150, 132).setOrigin(0.5, 0.5);
     this.physics.add.existing(this.hutDoorZone, true);
 
     this.hutTooltip = this.add.container(0, 0).setDepth(30).setVisible(false);
@@ -1392,7 +1393,7 @@ class PrototypeScene extends Phaser.Scene {
     const canInteract = distance < 150;
     this.npcTooltip.setVisible(canInteract);
     if (canInteract) {
-      this.npcTooltip.setPosition(this.npc.x, this.npc.y - 96);
+      this.npcTooltip.setPosition(this.player.x, this.player.y - 96);
     }
   }
 
@@ -1403,13 +1404,13 @@ class PrototypeScene extends Phaser.Scene {
     const nearOnionPatch = onionDistance < 180;
     this.onionPatchTooltip?.setVisible(nearOnionPatch && !this.isDialogueOpen && !this.isMenuOpen && this.scriptedNpcTargetX === null);
     if (nearOnionPatch) {
-      this.onionPatchTooltip.setPosition(this.onionPatch.x, this.onionPatch.y - 122);
+      this.onionPatchTooltip.setPosition(this.player.x, this.player.y - 96);
     }
 
     const nearHutDoor = this.hutDoorZone ? this.physics.overlap(this.player, this.hutDoorZone) : false;
     this.hutTooltip?.setVisible(nearHutDoor && !this.isDialogueOpen && !this.isMenuOpen && this.scriptedNpcTargetX === null);
     if (nearHutDoor) {
-      this.hutTooltip.setPosition(this.hutDoorZone.x, this.hut.y - 228);
+      this.hutTooltip.setPosition(this.player.x, this.player.y - 96);
     }
 
     if (this.updateScriptedNpcMovement()) {
@@ -1574,7 +1575,7 @@ class HutInteriorScene extends Phaser.Scene {
     this.addBlocker(900, 544, 110, 92);
     this.addBlocker(430, 464, 196, 92);
 
-    const doorwayX = this.scaleCoordX(540);
+    const doorwayX = this.scaleCoordX(575);
     const doorwayY = this.scaleCoordY(1028);
     const doorwayWidth = 150 * bgScale;
     const doorwayHeight = 56 * bgScale;
@@ -1662,7 +1663,7 @@ class HutInteriorScene extends Phaser.Scene {
     const atDoorway = this.physics.overlap(this.player, this.exitZone);
     this.exitHint.setVisible(atDoorway);
     if (atDoorway) {
-      this.exitHint.setPosition(this.exitZone.x, this.exitZone.y - 58);
+      this.exitHint.setPosition(this.player.x, this.player.y - 84);
       if (this.player.body.velocity.y > 0 || this.player.y >= this.exitZone.y - 8) {
         this.exitToForest();
         return;
