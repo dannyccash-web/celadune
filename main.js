@@ -2036,7 +2036,7 @@ class CityScene extends PrototypeScene {
     const wallHeight = GROUND_TILE + 20;
     const wallY = GROUND_Y - GROUND_TILE + 18 - 20;
     const wallGapCenterX = CITY_WORLD_WIDTH / 2;
-    const wallGapWidth = 960;
+    const wallGapWidth = 300;
     const gapLeft = wallGapCenterX - (wallGapWidth / 2);
     const gapRight = wallGapCenterX + (wallGapWidth / 2);
 
@@ -2066,11 +2066,11 @@ class CityScene extends PrototypeScene {
     const baseY = BLACK_TILE_GROUND_Y - 10;
     const centerX = CITY_WORLD_WIDTH / 2;
     const placements = [
-      { key: 'cityBlacksmithShop', x: centerX - 1240, h: 320 },
-      { key: 'cityTavern', x: centerX - 610, h: 370 },
-      { key: 'cityArchway', x: centerX, h: 450 },
-      { key: 'cityHouse1', x: centerX + 610, h: 325 },
-      { key: 'cityMagicShop', x: centerX + 1230, h: 380 },
+      { key: 'cityBlacksmithShop', x: centerX - 1900, h: 620 },
+      { key: 'cityTavern', x: centerX - 950, h: 720 },
+      { key: 'cityArchway', x: centerX, h: 660 },
+      { key: 'cityHouse1', x: centerX + 950, h: 620 },
+      { key: 'cityMagicShop', x: centerX + 1950, h: 720 },
     ];
 
     placements.forEach(({ key, x, h }) => {
