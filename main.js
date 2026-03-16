@@ -2,6 +2,7 @@ const GAME_WIDTH = 1600;
 const GAME_HEIGHT = 900;
 const GROUND_TILE = 160;
 const WORLD_WIDTH = 5120;
+const CITY_WORLD_WIDTH = Math.round(WORLD_WIDTH * 1.5);
 const GROUND_Y = 740;
 const FRAME_W = 64;
 const FRAME_H = 64;
@@ -2009,7 +2010,7 @@ class CityScene extends PrototypeScene {
     this.bgScale = scale;
     this.bgDisplayWidth = cityTexture.width * scale;
     this.bgMaxOffset = Math.max(0, this.bgDisplayWidth - GAME_WIDTH);
-    this.cameraScrollRange = Math.max(1, WORLD_WIDTH - GAME_WIDTH);
+    this.cameraScrollRange = Math.max(1, CITY_WORLD_WIDTH - GAME_WIDTH);
 
     this.bg = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'cityBg')
       .setOrigin(0, 0)
@@ -2026,9 +2027,10 @@ class CityScene extends PrototypeScene {
     const wallKeys = ['cityWall1', 'cityWall2', 'cityWall3'];
     const rng = this.createSeededRandom(0xC17A11);
     let previousKey = null;
-    const wallY = GROUND_Y - GROUND_TILE + 18;
+    const wallHeight = GROUND_TILE + 20;
+    const wallY = GROUND_Y - GROUND_TILE + 18 - 20;
 
-    for (let i = 0; i < Math.ceil(WORLD_WIDTH / GROUND_TILE); i += 1) {
+    for (let i = 0; i < Math.ceil(CITY_WORLD_WIDTH / GROUND_TILE); i += 1) {
       let wallKey = wallKeys[Math.floor(rng() * wallKeys.length)];
       if (wallKeys.length > 1 && wallKey === previousKey) {
         wallKey = wallKeys[(wallKeys.indexOf(wallKey) + 1 + Math.floor(rng() * (wallKeys.length - 1))) % wallKeys.length];
@@ -2038,7 +2040,7 @@ class CityScene extends PrototypeScene {
       const wallX = i * GROUND_TILE + GROUND_TILE / 2;
       const wallTile = this.add.image(wallX, wallY, wallKey)
         .setOrigin(0.5, 0)
-        .setDisplaySize(GROUND_TILE, GROUND_TILE)
+        .setDisplaySize(GROUND_TILE, wallHeight)
         .setDepth(6);
       this.cityWallGroup.add(wallTile);
     }
@@ -2053,7 +2055,7 @@ class CityScene extends PrototypeScene {
     this.groundBack = this.add.group();
     this.groundFront = this.add.group();
 
-    const tilesAcross = Math.ceil(WORLD_WIDTH / GROUND_TILE);
+    const tilesAcross = Math.ceil(CITY_WORLD_WIDTH / GROUND_TILE);
     const decorativeKeys = ['cityGround1', 'cityGround2', 'cityGround3'];
     const rng = this.createSeededRandom(0xC17AD0);
     let previousKey = null;
@@ -2087,7 +2089,7 @@ class CityScene extends PrototypeScene {
       this.groundFront.add(frontTile);
     }
 
-    this.groundShadow = this.add.rectangle(WORLD_WIDTH / 2, GROUND_Y + 10, WORLD_WIDTH, 18, 0x13210f, 0.12)
+    this.groundShadow = this.add.rectangle(CITY_WORLD_WIDTH / 2, GROUND_Y + 10, CITY_WORLD_WIDTH, 18, 0x13210f, 0.12)
       .setDepth(3);
   }
 
@@ -2127,6 +2129,13 @@ class CityScene extends PrototypeScene {
     if (velocityX < 0 && this.player.body.blocked.left) {
       this.transitionToScene('PrototypeScene', WORLD_WIDTH - 72, this.player.y);
     }
+  }
+
+  createCamera() {
+    this.physics.world.setBounds(0, 0, CITY_WORLD_WIDTH, GAME_HEIGHT);
+    this.cameras.main.setBounds(0, 0, CITY_WORLD_WIDTH, GAME_HEIGHT);
+    this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
+    this.cameras.main.setDeadzone(220, 120);
   }
 
   update() {
