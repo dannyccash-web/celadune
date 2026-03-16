@@ -10,8 +10,6 @@ const PROP_BASELINE_OFFSET_Y = -24;
 const WAGON_BASELINE_Y = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
 const HUT_BASELINE_Y = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
 const ONION_PATCH_BASELINE_Y = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
-const SCENE_ENTRY_X = 96;
-const SCENE_ENTRY_LOCK_MS = 550;
 
 const HEROES = {
   caelan: {
@@ -397,12 +395,12 @@ class PrototypeScene extends Phaser.Scene {
     this.startY = data?.startY ?? 620;
     this.inventoryItems = Array.isArray(data?.inventoryItems) ? data.inventoryItems.map((item) => ({ ...item })) : [];
     this.equipmentItems = Array.isArray(data?.equipmentItems) ? data.equipmentItems.map((item) => ({ ...item })) : [];
-    this.sceneEntryLockedUntil = 0;
   }
 
   preload() {
-    this.load.image('forest', 'assets/bg/forest_background.jpg');
-    this.load.image('cityBg', 'assets/bg/city_background.jpg');
+    this.load.image('forest', 'assets/bg/forest.png');
+    this.load.image('lightRaysRef', 'assets/bg/light_rays.jpg');
+    this.load.image('cityBg', 'assets/bg/city_background.jpeg');
     this.load.image('blackTile', 'assets/tiles/black_tile.png');
     this.load.image('ground0', 'assets/tiles/ground_tile.png');
     this.load.image('ground1', 'assets/tiles/ground_tile_1.png');
@@ -451,8 +449,6 @@ class PrototypeScene extends Phaser.Scene {
     this.createDialogueUI();
 
     this.player.setPosition(this.startX, this.startY);
-    this.player.setVelocity(0, 0);
-    this.sceneEntryLockedUntil = this.time.now + SCENE_ENTRY_LOCK_MS;
 
     this.cursors = this.input.keyboard.createCursorKeys();
     this.menuKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
@@ -468,17 +464,15 @@ class PrototypeScene extends Phaser.Scene {
 
   createParallaxBackground() {
     const forestTexture = this.textures.get('forest').getSourceImage();
-    const scale = GAME_HEIGHT / forestTexture.height;
-    const bgWidth = forestTexture.width * scale;
-    this.bgScale = scale;
+    this.bgScale = 1;
 
-    this.textures.get('forest').setFilter(Phaser.Textures.FilterMode.NEAREST);
-
-    this.bg = this.add.image(0, 0, 'forest')
+    this.bg = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'forest')
       .setOrigin(0, 0)
-      .setScrollFactor(0.28, 0)
-      .setDepth(-20)
-      .setDisplaySize(bgWidth, GAME_HEIGHT);
+      .setScrollFactor(0)
+      .setDepth(-20);
+
+    this.bg.setTileScale(1, 1);
+    this.bg.tilePositionY = Math.max(0, Math.round((forestTexture.height - GAME_HEIGHT) * 0.5));
   }
 
   createGround() {
@@ -548,7 +542,7 @@ class PrototypeScene extends Phaser.Scene {
     this.playerBaseScaleX = 3.1;
     this.playerBaseScaleY = 3.1;
     this.player.setScale(this.playerBaseScaleX, this.playerBaseScaleY);
-    this.player.setCollideWorldBounds(true);
+    this.player.setCollideWorldBounds(false);
     this.player.setDepth(9);
     this.player.body.setSize(20, 34);
     this.player.body.setOffset(22, 28);
@@ -662,46 +656,50 @@ class PrototypeScene extends Phaser.Scene {
 
     this.beams = this.add.container(0, 0).setScrollFactor(0).setDepth(40);
     const beamConfigs = [
-      { x: 210, y: -80, widthScale: 1.10, heightScale: 1.14, alpha: 0.32, drift: 44 },
-      { x: 470, y: -80, widthScale: 0.96, heightScale: 1.16, alpha: 0.27, drift: 36 },
-      { x: 720, y: -80, widthScale: 1.04, heightScale: 1.15, alpha: 0.30, drift: 40 },
-      { x: 980, y: -80, widthScale: 0.98, heightScale: 1.17, alpha: 0.28, drift: 34 },
+      { x: 170, y: -30, scaleX: 0.84, scaleY: 1.10, alpha: 0.24, angle: -32 },
+      { x: 520, y: -30, scaleX: 0.58, scaleY: 1.10, alpha: 0.19, angle: -32 },
+      { x: 830, y: -30, scaleX: 0.74, scaleY: 1.10, alpha: 0.21, angle: -32 },
+      { x: 1180, y: -30, scaleX: 0.92, scaleY: 1.10, alpha: 0.23, angle: -32 },
     ];
 
     beamConfigs.forEach((config, index) => {
       const beam = this.add.image(config.x, config.y, 'light-beam')
         .setOrigin(0.5, 0)
-        .setScale(config.widthScale, config.heightScale)
+        .setScale(config.scaleX, config.scaleY)
         .setAlpha(config.alpha)
-        .setAngle(-24)
+        .setAngle(config.angle)
         .setBlendMode(Phaser.BlendModes.SCREEN);
 
       beam.baseX = config.x;
-      beam.baseAlpha = config.alpha;
       this.beams.add(beam);
 
       this.tweens.add({
         targets: beam,
-        x: config.x + Phaser.Math.Between(-config.drift, config.drift),
-        duration: 5200 + index * 800,
+        alpha: { from: config.alpha * 0.82, to: config.alpha * 1.12 },
+        x: config.x + (index % 2 === 0 ? 22 : -18),
+        duration: 5200 + index * 850,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut',
-        repeatDelay: 180 + index * 80,
       });
 
-      this.tweens.add({
-        targets: beam,
-        alpha: { from: config.alpha * 0.78, to: config.alpha * 1.18 },
-        duration: 4000 + index * 520,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
+      this.time.addEvent({
+        delay: 2600 + index * 250,
+        loop: true,
+        callback: () => {
+          if (!beam.active) return;
+          const targetX = beam.baseX + Phaser.Math.Between(-42, 42);
+          this.tweens.add({
+            targets: beam,
+            x: targetX,
+            duration: Phaser.Math.Between(3800, 6200),
+            ease: 'Sine.easeInOut',
+          });
+        },
       });
     });
 
-
-    this.screenTint = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x173019, 0.12)
+    this.screenTint = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x173019, 0.10)
       .setOrigin(0, 0)
       .setScrollFactor(0)
       .setDepth(41)
@@ -715,38 +713,40 @@ class PrototypeScene extends Phaser.Scene {
       .setBlendMode(Phaser.BlendModes.MULTIPLY)
       .setAlpha(1);
   }
+
   createLightBeamTexture() {
     if (this.textures.exists('light-beam')) return;
 
-    const width = 220;
-    const height = 1180;
+    const width = 340;
+    const height = 980;
     const canvas = this.textures.createCanvas('light-beam', width, height);
     const ctx = canvas.getContext();
     ctx.clearRect(0, 0, width, height);
     ctx.save();
-    ctx.filter = 'blur(12px)';
-    ctx.shadowColor = 'rgba(255, 247, 214, 0.38)';
-    ctx.shadowBlur = 14;
+    ctx.filter = 'blur(14px)';
+    ctx.shadowColor = 'rgba(255, 249, 220, 0.42)';
+    ctx.shadowBlur = 24;
 
-    const beamGradient = ctx.createLinearGradient(0, 0, 0, height);
-    beamGradient.addColorStop(0, 'rgba(255, 252, 236, 0.66)');
-    beamGradient.addColorStop(0.14, 'rgba(255, 249, 226, 0.42)');
-    beamGradient.addColorStop(0.58, 'rgba(255, 244, 208, 0.18)');
-    beamGradient.addColorStop(1, 'rgba(255, 240, 190, 0.00)');
+    const grad = ctx.createLinearGradient(0, 0, 0, height);
+    grad.addColorStop(0, 'rgba(255, 252, 233, 0.76)');
+    grad.addColorStop(0.18, 'rgba(255, 249, 222, 0.34)');
+    grad.addColorStop(0.62, 'rgba(255, 244, 206, 0.12)');
+    grad.addColorStop(1, 'rgba(255, 240, 190, 0.00)');
 
-    ctx.fillStyle = beamGradient;
-    ctx.fillRect(width * 0.24, 0, width * 0.52, height);
+    ctx.fillStyle = grad;
+    ctx.fillRect(width * 0.30, 0, width * 0.40, height);
 
-    const coreGradient = ctx.createLinearGradient(0, 0, 0, height);
-    coreGradient.addColorStop(0, 'rgba(255, 255, 246, 0.18)');
-    coreGradient.addColorStop(0.22, 'rgba(255, 252, 232, 0.12)');
-    coreGradient.addColorStop(0.82, 'rgba(255, 245, 210, 0.00)');
+    const inner = ctx.createLinearGradient(0, 0, 0, height);
+    inner.addColorStop(0, 'rgba(255, 255, 245, 0.28)');
+    inner.addColorStop(0.25, 'rgba(255, 252, 232, 0.15)');
+    inner.addColorStop(1, 'rgba(255, 245, 210, 0.00)');
+    ctx.fillStyle = inner;
+    ctx.fillRect(width * 0.42, 0, width * 0.16, height);
 
-    ctx.fillStyle = coreGradient;
-    ctx.fillRect(width * 0.40, 0, width * 0.16, height);
     ctx.restore();
     canvas.refresh();
   }
+
   createVignetteTexture() {
     if (this.textures.exists('vignette')) return;
 
@@ -1392,7 +1392,6 @@ class PrototypeScene extends Phaser.Scene {
   transitionToScene(targetSceneKey, startX, startY) {
     if (this.isSceneTransitioning) return;
     this.isSceneTransitioning = true;
-    const safeStartX = Phaser.Math.Clamp(startX, SCENE_ENTRY_X, WORLD_WIDTH - SCENE_ENTRY_X);
     const safeStartY = Phaser.Math.Clamp(startY, 0, GROUND_Y - 4);
     this.player.setVelocity(0, 0);
     if (this.npc) this.npc.setVelocity(0, 0);
@@ -1401,7 +1400,7 @@ class PrototypeScene extends Phaser.Scene {
     this.time.delayedCall(230, () => {
       this.scene.start(targetSceneKey, {
         heroKey: this.heroKey,
-        startX: safeStartX,
+        startX,
         startY: safeStartY,
         inventoryItems: this.inventoryItems,
         equipmentItems: this.equipmentItems,
@@ -1411,17 +1410,9 @@ class PrototypeScene extends Phaser.Scene {
 
   handleSceneBoundaries(velocityX, onGround) {
     if (this.isMenuOpen || this.isDialogueOpen || this.isTransitioningToInterior || this.isSceneTransitioning) return;
-    const bodyHalfWidth = this.player.body?.halfWidth ?? 16;
-    const minPlayerX = bodyHalfWidth;
-    const maxPlayerX = WORLD_WIDTH - bodyHalfWidth;
-    this.player.x = Phaser.Math.Clamp(this.player.x, minPlayerX, maxPlayerX);
-    if (this.player.body) {
-      this.player.body.position.x = Phaser.Math.Clamp(this.player.body.position.x, 0, WORLD_WIDTH - this.player.body.width);
-    }
-    if (this.time.now < (this.sceneEntryLockedUntil || 0)) return;
     if (!onGround) return;
-    if (velocityX > 0 && this.player.x >= WORLD_WIDTH - 28) {
-      this.transitionToScene('CityScene', SCENE_ENTRY_X, this.player.y);
+    if (velocityX > 0 && this.player.x >= WORLD_WIDTH - 12) {
+      this.transitionToScene('CityScene', 80, this.player.y);
     }
   }
 
@@ -1919,6 +1910,7 @@ class PrototypeScene extends Phaser.Scene {
     this.player.setDepth(9);
     this.npc.setDepth(9);
     this.handleSceneBoundaries(velocityX, onGround);
+    this.bg.tilePositionX = this.cameras.main.scrollX * 0.28;
   }
 }
 
@@ -1945,45 +1937,28 @@ class CityScene extends PrototypeScene {
     this.startY = data?.startY ?? 620;
   }
 
+  getMusicConfig() {
+    return { key: 'cityTheme', volume: 0.42 };
+  }
+
   create() {
     this.physics.world.gravity.y = 1800;
-
-    this.createParallaxBackground();
-    this.createGround();
-    this.createAnimations();
-    this.createPlayer();
-    this.createAtmosphere();
-    this.createCamera();
-    this.createUI();
-    this.createItemReceiveUI();
-    this.createAudio();
-    this.createMenu();
-
-    this.player.setPosition(this.startX, this.startY);
-    this.player.setVelocity(0, 0);
-    this.sceneEntryLockedUntil = this.time.now + SCENE_ENTRY_LOCK_MS;
-
-    this.cursors = this.input.keyboard.createCursorKeys();
-    this.menuKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
-    this.enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
-    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-    this.escapeKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
-    this.backspaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.BACKSPACE);
+    super.create();
+    this.player.setCollideWorldBounds(true);
+    this.player.body.onWorldBounds = true;
   }
 
   createParallaxBackground() {
     const cityTexture = this.textures.get('cityBg').getSourceImage();
-    const scale = GAME_HEIGHT / cityTexture.height;
-    const bgWidth = cityTexture.width * scale;
-    this.bgScale = scale;
+    this.bgScale = 1;
 
-    this.textures.get('cityBg').setFilter(Phaser.Textures.FilterMode.NEAREST);
-
-    this.bg = this.add.image(0, 0, 'cityBg')
+    this.bg = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'cityBg')
       .setOrigin(0, 0)
-      .setScrollFactor(0.28, 0)
-      .setDepth(-20)
-      .setDisplaySize(bgWidth, GAME_HEIGHT);
+      .setScrollFactor(0)
+      .setDepth(-20);
+
+    this.bg.setTileScale(1, 1);
+    this.bg.tilePositionY = Math.max(0, Math.round((cityTexture.height - GAME_HEIGHT) * 0.5));
   }
 
   createGround() {
@@ -2029,10 +2004,6 @@ class CityScene extends PrototypeScene {
       .setDepth(3);
   }
 
-  getMusicConfig() {
-    return { key: 'cityTheme', volume: 0.42 };
-  }
-
   createNPC() {}
   createProps() {}
   createDialogueUI() {}
@@ -2040,6 +2011,7 @@ class CityScene extends PrototypeScene {
   openDialogue() {}
   beginOnionPatchInteraction() {}
   updateScriptedNpcMovement() { return false; }
+
 
   openMenu() {
     if (this.isMenuOpen) return;
@@ -2065,21 +2037,15 @@ class CityScene extends PrototypeScene {
 
   handleSceneBoundaries(velocityX, onGround) {
     if (this.isMenuOpen || this.isSceneTransitioning) return;
-    const bodyHalfWidth = this.player.body?.halfWidth ?? 16;
-    const minPlayerX = bodyHalfWidth;
-    const maxPlayerX = WORLD_WIDTH - bodyHalfWidth;
-    this.player.x = Phaser.Math.Clamp(this.player.x, minPlayerX, maxPlayerX);
-    if (this.player.body) {
-      this.player.body.position.x = Phaser.Math.Clamp(this.player.body.position.x, 0, WORLD_WIDTH - this.player.body.width);
-    }
-    if (velocityX > 0 && this.player.x >= WORLD_WIDTH - 28) {
-      this.player.setVelocityX(0);
+    if (!onGround) return;
+    const rightLimit = WORLD_WIDTH - 22;
+    if (velocityX < 0 && this.player.x <= 12) {
+      this.transitionToScene('PrototypeScene', WORLD_WIDTH - 80, this.player.y);
       return;
     }
-    if (this.time.now < (this.sceneEntryLockedUntil || 0)) return;
-    if (!onGround) return;
-    if (velocityX < 0 && this.player.x <= 28) {
-      this.transitionToScene('PrototypeScene', WORLD_WIDTH - SCENE_ENTRY_X, this.player.y);
+    if (this.player.x >= rightLimit) {
+      this.player.x = rightLimit;
+      this.player.setVelocityX(Math.min(0, this.player.body.velocity.x));
     }
   }
 
@@ -2138,6 +2104,7 @@ class CityScene extends PrototypeScene {
 
     this.player.setDepth(9);
     this.handleSceneBoundaries(velocityX, onGround);
+    this.bg.tilePositionX = this.cameras.main.scrollX * 0.28;
   }
 }
 
