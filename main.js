@@ -10,6 +10,8 @@ const PROP_BASELINE_OFFSET_Y = -24;
 const WAGON_BASELINE_Y = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
 const HUT_BASELINE_Y = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
 const ONION_PATCH_BASELINE_Y = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
+const SCENE_ENTRY_X = 96;
+const SCENE_ENTRY_LOCK_MS = 550;
 
 const HEROES = {
   caelan: {
@@ -395,11 +397,12 @@ class PrototypeScene extends Phaser.Scene {
     this.startY = data?.startY ?? 620;
     this.inventoryItems = Array.isArray(data?.inventoryItems) ? data.inventoryItems.map((item) => ({ ...item })) : [];
     this.equipmentItems = Array.isArray(data?.equipmentItems) ? data.equipmentItems.map((item) => ({ ...item })) : [];
+    this.sceneEntryLockedUntil = 0;
   }
 
   preload() {
-    this.load.image('forest', 'assets/bg/forest.png');
-    this.load.image('cityBg', 'assets/bg/city_background.jpeg');
+    this.load.image('forest', 'assets/bg/forest_background.jpg');
+    this.load.image('cityBg', 'assets/bg/city_background.jpg');
     this.load.image('blackTile', 'assets/tiles/black_tile.png');
     this.load.image('ground0', 'assets/tiles/ground_tile.png');
     this.load.image('ground1', 'assets/tiles/ground_tile_1.png');
@@ -416,7 +419,7 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('menuOnions', 'assets/ui/onions.png');
     this.load.audio('forestTheme', 'assets/audio/celadune_forest.mp3');
     // Optional city track can be dropped in as assets/audio/city_theme.mp3 for the City scene.
-    this.load.audio('cityTheme', 'assets/audio/city_theme.mp3');
+    this.load.audio('cityTheme', 'assets/audio/celadune_city.mp3');
     this.load.audio('writingSfx', 'assets/sfx/writing.mp3');
     this.load.spritesheet('forestLady-idle', FOREST_LADY.idle, { frameWidth: FRAME_W, frameHeight: FRAME_H });
     this.load.spritesheet('forestLady-walk', FOREST_LADY.walk, { frameWidth: FRAME_W, frameHeight: FRAME_H });
@@ -448,6 +451,8 @@ class PrototypeScene extends Phaser.Scene {
     this.createDialogueUI();
 
     this.player.setPosition(this.startX, this.startY);
+    this.player.setVelocity(0, 0);
+    this.sceneEntryLockedUntil = this.time.now + SCENE_ENTRY_LOCK_MS;
 
     this.cursors = this.input.keyboard.createCursorKeys();
     this.menuKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
@@ -655,31 +660,39 @@ class PrototypeScene extends Phaser.Scene {
 
     this.beams = this.add.container(0, 0).setScrollFactor(0).setDepth(40);
     const beamConfigs = [
-      { x: 110, y: -90, scaleX: 0.72, scaleY: 1.45, alpha: 0.10, angle: -10 },
-      { x: 290, y: -70, scaleX: 1.35, scaleY: 1.25, alpha: 0.15, angle: -6 },
-      { x: 520, y: -100, scaleX: 0.58, scaleY: 1.55, alpha: 0.08, angle: 2 },
-      { x: 760, y: -80, scaleX: 1.05, scaleY: 1.30, alpha: 0.12, angle: 5 },
-      { x: 1030, y: -75, scaleX: 1.55, scaleY: 1.18, alpha: 0.10, angle: 8 },
-      { x: 1325, y: -95, scaleX: 0.82, scaleY: 1.48, alpha: 0.09, angle: 12 },
-      { x: 1490, y: -85, scaleX: 1.18, scaleY: 1.22, alpha: 0.11, angle: 6 },
+      { x: 190, y: -120, widthScale: 0.88, heightScale: 1.55, alpha: 0.11 },
+      { x: 470, y: -120, widthScale: 0.74, heightScale: 1.52, alpha: 0.10 },
+      { x: 760, y: -120, widthScale: 0.92, heightScale: 1.58, alpha: 0.12 },
+      { x: 1080, y: -120, widthScale: 0.78, heightScale: 1.50, alpha: 0.09 },
+      { x: 1370, y: -120, widthScale: 0.90, heightScale: 1.56, alpha: 0.11 },
     ];
 
     beamConfigs.forEach((config, index) => {
       const beam = this.add.image(config.x, config.y, 'light-beam')
         .setOrigin(0.5, 0)
-        .setScale(config.scaleX, config.scaleY)
+        .setScale(config.widthScale, config.heightScale)
         .setAlpha(config.alpha)
-        .setAngle(config.angle)
+        .setAngle(-22)
         .setBlendMode(Phaser.BlendModes.SCREEN);
 
+      beam.baseX = config.x;
+      beam.baseAlpha = config.alpha;
       this.beams.add(beam);
 
       this.tweens.add({
         targets: beam,
-        alpha: { from: config.alpha * 0.65, to: config.alpha * 1.28 },
-        x: config.x + (index % 2 === 0 ? 26 : -24),
-        angle: config.angle + (index % 3 === 0 ? 2.5 : -2),
-        duration: 3600 + index * 650,
+        x: config.x + Phaser.Math.Between(-32, 32),
+        duration: 4600 + index * 650,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+        repeatDelay: 150 + index * 60,
+      });
+
+      this.tweens.add({
+        targets: beam,
+        alpha: { from: config.alpha * 0.72, to: config.alpha * 1.22 },
+        duration: 3600 + index * 520,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut',
@@ -700,52 +713,38 @@ class PrototypeScene extends Phaser.Scene {
       .setBlendMode(Phaser.BlendModes.MULTIPLY)
       .setAlpha(1);
   }
-
   createLightBeamTexture() {
     if (this.textures.exists('light-beam')) return;
 
-    const width = 520;
-    const height = 1100;
+    const width = 360;
+    const height = 1180;
     const canvas = this.textures.createCanvas('light-beam', width, height);
     const ctx = canvas.getContext();
     ctx.clearRect(0, 0, width, height);
     ctx.save();
-    ctx.filter = 'blur(22px)';
-    ctx.shadowColor = 'rgba(255, 247, 214, 0.45)';
-    ctx.shadowBlur = 28;
+    ctx.filter = 'blur(16px)';
+    ctx.shadowColor = 'rgba(255, 247, 214, 0.38)';
+    ctx.shadowBlur = 18;
 
-    const outer = ctx.createLinearGradient(width / 2, 0, width / 2, height);
-    outer.addColorStop(0, 'rgba(255, 251, 228, 0.78)');
-    outer.addColorStop(0.14, 'rgba(255, 248, 218, 0.34)');
-    outer.addColorStop(0.56, 'rgba(255, 243, 204, 0.10)');
-    outer.addColorStop(1, 'rgba(255, 240, 190, 0.00)');
+    const beamGradient = ctx.createLinearGradient(0, 0, 0, height);
+    beamGradient.addColorStop(0, 'rgba(255, 252, 236, 0.70)');
+    beamGradient.addColorStop(0.18, 'rgba(255, 249, 226, 0.34)');
+    beamGradient.addColorStop(0.55, 'rgba(255, 244, 208, 0.12)');
+    beamGradient.addColorStop(1, 'rgba(255, 240, 190, 0.00)');
 
-    ctx.fillStyle = outer;
-    ctx.beginPath();
-    ctx.moveTo(width * 0.42, 0);
-    ctx.lineTo(width * 0.58, 0);
-    ctx.lineTo(width * 0.95, height);
-    ctx.lineTo(width * 0.05, height);
-    ctx.closePath();
-    ctx.fill();
+    ctx.fillStyle = beamGradient;
+    ctx.fillRect(width * 0.34, 0, width * 0.32, height);
 
-    const inner = ctx.createLinearGradient(width / 2, 0, width / 2, height);
-    inner.addColorStop(0, 'rgba(255, 255, 245, 0.34)');
-    inner.addColorStop(0.2, 'rgba(255, 252, 232, 0.18)');
-    inner.addColorStop(0.8, 'rgba(255, 245, 210, 0.00)');
+    const coreGradient = ctx.createLinearGradient(0, 0, 0, height);
+    coreGradient.addColorStop(0, 'rgba(255, 255, 246, 0.22)');
+    coreGradient.addColorStop(0.2, 'rgba(255, 252, 232, 0.12)');
+    coreGradient.addColorStop(0.8, 'rgba(255, 245, 210, 0.00)');
 
-    ctx.fillStyle = inner;
-    ctx.beginPath();
-    ctx.moveTo(width * 0.48, 0);
-    ctx.lineTo(width * 0.52, 0);
-    ctx.lineTo(width * 0.68, height);
-    ctx.lineTo(width * 0.32, height);
-    ctx.closePath();
-    ctx.fill();
+    ctx.fillStyle = coreGradient;
+    ctx.fillRect(width * 0.44, 0, width * 0.12, height);
     ctx.restore();
     canvas.refresh();
   }
-
   createVignetteTexture() {
     if (this.textures.exists('vignette')) return;
 
@@ -1391,6 +1390,7 @@ class PrototypeScene extends Phaser.Scene {
   transitionToScene(targetSceneKey, startX, startY) {
     if (this.isSceneTransitioning) return;
     this.isSceneTransitioning = true;
+    const safeStartX = Phaser.Math.Clamp(startX, SCENE_ENTRY_X, WORLD_WIDTH - SCENE_ENTRY_X);
     const safeStartY = Phaser.Math.Clamp(startY, 0, GROUND_Y - 4);
     this.player.setVelocity(0, 0);
     if (this.npc) this.npc.setVelocity(0, 0);
@@ -1399,7 +1399,7 @@ class PrototypeScene extends Phaser.Scene {
     this.time.delayedCall(230, () => {
       this.scene.start(targetSceneKey, {
         heroKey: this.heroKey,
-        startX,
+        startX: safeStartX,
         startY: safeStartY,
         inventoryItems: this.inventoryItems,
         equipmentItems: this.equipmentItems,
@@ -1409,9 +1409,10 @@ class PrototypeScene extends Phaser.Scene {
 
   handleSceneBoundaries(velocityX, onGround) {
     if (this.isMenuOpen || this.isDialogueOpen || this.isTransitioningToInterior || this.isSceneTransitioning) return;
+    if (this.time.now < (this.sceneEntryLockedUntil || 0)) return;
     if (!onGround) return;
-    if (velocityX > 0 && this.player.x >= WORLD_WIDTH - 12) {
-      this.transitionToScene('CityScene', 24, this.player.y);
+    if (velocityX > 0 && this.player.x >= WORLD_WIDTH - 10) {
+      this.transitionToScene('CityScene', SCENE_ENTRY_X, this.player.y);
     }
   }
 
@@ -1951,6 +1952,8 @@ class CityScene extends PrototypeScene {
     this.createMenu();
 
     this.player.setPosition(this.startX, this.startY);
+    this.player.setVelocity(0, 0);
+    this.sceneEntryLockedUntil = this.time.now + SCENE_ENTRY_LOCK_MS;
 
     this.cursors = this.input.keyboard.createCursorKeys();
     this.menuKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
@@ -2016,6 +2019,10 @@ class CityScene extends PrototypeScene {
       .setDepth(3);
   }
 
+  getMusicConfig() {
+    return { key: 'cityTheme', volume: 0.42 };
+  }
+
   createNPC() {}
   createProps() {}
   createDialogueUI() {}
@@ -2048,9 +2055,10 @@ class CityScene extends PrototypeScene {
 
   handleSceneBoundaries(velocityX, onGround) {
     if (this.isMenuOpen || this.isSceneTransitioning) return;
+    if (this.time.now < (this.sceneEntryLockedUntil || 0)) return;
     if (!onGround) return;
-    if (velocityX < 0 && this.player.x <= 12) {
-      this.transitionToScene('PrototypeScene', WORLD_WIDTH - 24, this.player.y);
+    if (velocityX < 0 && this.player.x <= 10) {
+      this.transitionToScene('PrototypeScene', WORLD_WIDTH - SCENE_ENTRY_X, this.player.y);
     }
   }
 
