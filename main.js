@@ -422,6 +422,11 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('cityWall1', 'assets/props/city_wall_1.png');
     this.load.image('cityWall2', 'assets/props/city_wall_2.png');
     this.load.image('cityWall3', 'assets/props/city_wall_3.png');
+    this.load.image('cityArchway', 'assets/props/city_archway.png');
+    this.load.image('cityHouse1', 'assets/props/city_house_1.png');
+    this.load.image('cityMagicShop', 'assets/props/city_magic_shop.png');
+    this.load.image('cityTavern', 'assets/props/city_tavern.png');
+    this.load.image('cityBlacksmithShop', 'assets/props/city_blacksmith_shop.png');
     this.load.image('forestHut', 'assets/props/forest_hut.png');
     this.load.image('forestHutInterior', 'assets/bg/forest_hut_interior.jpeg');
     this.load.image('brokenWagon', 'assets/props/broken_wagon.png');
@@ -1985,6 +1990,7 @@ class CityScene extends PrototypeScene {
     this.createParallaxBackground();
     this.createGround();
     this.createCityWall();
+    this.createCityBuildings();
     this.createAnimations();
     this.createPlayer();
     if (this.shouldUseSceneAtmosphere()) this.createAtmosphere();
@@ -2029,21 +2035,53 @@ class CityScene extends PrototypeScene {
     let previousKey = null;
     const wallHeight = GROUND_TILE + 20;
     const wallY = GROUND_Y - GROUND_TILE + 18 - 20;
+    const wallGapCenterX = CITY_WORLD_WIDTH / 2;
+    const wallGapWidth = 960;
+    const gapLeft = wallGapCenterX - (wallGapWidth / 2);
+    const gapRight = wallGapCenterX + (wallGapWidth / 2);
 
     for (let i = 0; i < Math.ceil(CITY_WORLD_WIDTH / GROUND_TILE); i += 1) {
+      const wallX = i * GROUND_TILE + GROUND_TILE / 2;
+      if (wallX > gapLeft && wallX < gapRight) {
+        continue;
+      }
+
       let wallKey = wallKeys[Math.floor(rng() * wallKeys.length)];
       if (wallKeys.length > 1 && wallKey === previousKey) {
         wallKey = wallKeys[(wallKeys.indexOf(wallKey) + 1 + Math.floor(rng() * (wallKeys.length - 1))) % wallKeys.length];
       }
       previousKey = wallKey;
 
-      const wallX = i * GROUND_TILE + GROUND_TILE / 2;
       const wallTile = this.add.image(wallX, wallY, wallKey)
         .setOrigin(0.5, 0)
         .setDisplaySize(GROUND_TILE, wallHeight)
         .setDepth(6);
       this.cityWallGroup.add(wallTile);
     }
+  }
+
+  createCityBuildings() {
+    this.cityBuildings = this.add.group();
+
+    const baseY = BLACK_TILE_GROUND_Y - 10;
+    const centerX = CITY_WORLD_WIDTH / 2;
+    const placements = [
+      { key: 'cityBlacksmithShop', x: centerX - 1240, h: 320 },
+      { key: 'cityTavern', x: centerX - 610, h: 370 },
+      { key: 'cityArchway', x: centerX, h: 450 },
+      { key: 'cityHouse1', x: centerX + 610, h: 325 },
+      { key: 'cityMagicShop', x: centerX + 1230, h: 380 },
+    ];
+
+    placements.forEach(({ key, x, h }) => {
+      const texture = this.textures.get(key).getSourceImage();
+      const displayWidth = texture.width * (h / texture.height);
+      const building = this.add.image(x, baseY, key)
+        .setOrigin(0.5, 1)
+        .setDisplaySize(displayWidth, h)
+        .setDepth(8);
+      this.cityBuildings.add(building);
+    });
   }
 
   getMusicConfig() {
