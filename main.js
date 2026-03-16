@@ -418,14 +418,16 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('cityGround2', 'assets/tiles/cobblestone_tile_2.png');
     this.load.image('cityGround3', 'assets/tiles/cobblestone_tile_3.png');
     this.load.image('parchment', 'assets/ui/parchment.png');
+    this.load.image('cityWall1', 'assets/props/city_wall_1.png');
+    this.load.image('cityWall2', 'assets/props/city_wall_2.png');
+    this.load.image('cityWall3', 'assets/props/city_wall_3.png');
     this.load.image('forestHut', 'assets/props/forest_hut.png');
     this.load.image('forestHutInterior', 'assets/bg/forest_hut_interior.jpeg');
     this.load.image('brokenWagon', 'assets/props/broken_wagon.png');
     this.load.image('onionPatch', 'assets/props/onion_patch.png');
     this.load.image('menuOnions', 'assets/ui/onions.png');
     this.load.audio('forestTheme', 'assets/audio/celadune_forest.mp3');
-    // Optional city track can be dropped in as assets/audio/city_theme.mp3 for the City scene.
-    this.load.audio('cityTheme', 'assets/audio/city_theme.mp3');
+    this.load.audio('cityTheme', 'assets/audio/celadune_city.mp3');
     this.load.audio('writingSfx', 'assets/sfx/writing.mp3');
     this.load.spritesheet('forestLady-idle', FOREST_LADY.idle, { frameWidth: FRAME_W, frameHeight: FRAME_H });
     this.load.spritesheet('forestLady-walk', FOREST_LADY.walk, { frameWidth: FRAME_W, frameHeight: FRAME_H });
@@ -1981,6 +1983,7 @@ class CityScene extends PrototypeScene {
     this.applyTextureFiltering();
     this.createParallaxBackground();
     this.createGround();
+    this.createCityWall();
     this.createAnimations();
     this.createPlayer();
     if (this.shouldUseSceneAtmosphere()) this.createAtmosphere();
@@ -2004,6 +2007,9 @@ class CityScene extends PrototypeScene {
     const cityTexture = this.textures.get('cityBg').getSourceImage();
     const scale = GAME_HEIGHT / cityTexture.height;
     this.bgScale = scale;
+    this.bgDisplayWidth = cityTexture.width * scale;
+    this.bgMaxOffset = Math.max(0, this.bgDisplayWidth - GAME_WIDTH);
+    this.cameraScrollRange = Math.max(1, WORLD_WIDTH - GAME_WIDTH);
 
     this.bg = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'cityBg')
       .setOrigin(0, 0)
@@ -2011,6 +2017,35 @@ class CityScene extends PrototypeScene {
       .setDepth(-20);
 
     this.bg.setTileScale(scale, scale);
+    this.bg.tilePositionX = 0;
+  }
+
+  createCityWall() {
+    this.cityWallGroup = this.add.group();
+
+    const wallKeys = ['cityWall1', 'cityWall2', 'cityWall3'];
+    const rng = this.createSeededRandom(0xC17A11);
+    let previousKey = null;
+    const wallY = GROUND_Y - GROUND_TILE + 18;
+
+    for (let i = 0; i < Math.ceil(WORLD_WIDTH / GROUND_TILE); i += 1) {
+      let wallKey = wallKeys[Math.floor(rng() * wallKeys.length)];
+      if (wallKeys.length > 1 && wallKey === previousKey) {
+        wallKey = wallKeys[(wallKeys.indexOf(wallKey) + 1 + Math.floor(rng() * (wallKeys.length - 1))) % wallKeys.length];
+      }
+      previousKey = wallKey;
+
+      const wallX = i * GROUND_TILE + GROUND_TILE / 2;
+      const wallTile = this.add.image(wallX, wallY, wallKey)
+        .setOrigin(0.5, 0)
+        .setDisplaySize(GROUND_TILE, GROUND_TILE)
+        .setDepth(6);
+      this.cityWallGroup.add(wallTile);
+    }
+  }
+
+  getMusicConfig() {
+    return { key: 'cityTheme', volume: 0.42 };
   }
 
   createGround() {
@@ -2149,7 +2184,10 @@ class CityScene extends PrototypeScene {
 
     this.player.setDepth(9);
     this.handleSceneBoundaries(velocityX, onGround);
-    this.bg.tilePositionX = this.cameras.main.scrollX * 0.28;
+
+    const scrollRatio = Phaser.Math.Clamp(this.cameras.main.scrollX / this.cameraScrollRange, 0, 1);
+    const backgroundOffset = this.bgMaxOffset * scrollRatio;
+    this.bg.tilePositionX = backgroundOffset / this.bgScale;
   }
 }
 
