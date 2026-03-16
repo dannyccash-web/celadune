@@ -387,6 +387,7 @@ class PrototypeScene extends Phaser.Scene {
     this.scriptedNpcTargetX = null;
     this.scriptedNpcCallback = null;
     this.isTransitioningToInterior = false;
+    this.isSceneTransitioning = false;
   }
 
   init(data) {
@@ -395,14 +396,16 @@ class PrototypeScene extends Phaser.Scene {
     this.startY = data?.startY ?? 620;
     this.inventoryItems = Array.isArray(data?.inventoryItems) ? data.inventoryItems.map((item) => ({ ...item })) : [];
     this.equipmentItems = Array.isArray(data?.equipmentItems) ? data.equipmentItems.map((item) => ({ ...item })) : [];
-    // Always reset transition locks so re-entering the scene never gets stuck
     this.isSceneTransitioning = false;
     this.isTransitioningToInterior = false;
+    if (this.input?.keyboard) {
+      this.input.keyboard.enabled = true;
+      this.input.keyboard.resetKeys();
+    }
   }
 
   preload() {
     this.load.image('forest', 'assets/bg/forest.png');
-    this.load.image('lightRaysRef', 'assets/bg/light_rays.jpg');
     this.load.image('cityBg', 'assets/bg/city_background.jpeg');
     this.load.image('blackTile', 'assets/tiles/black_tile.png');
     this.load.image('ground0', 'assets/tiles/ground_tile.png');
@@ -420,7 +423,7 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('menuOnions', 'assets/ui/onions.png');
     this.load.audio('forestTheme', 'assets/audio/celadune_forest.mp3');
     // Optional city track can be dropped in as assets/audio/city_theme.mp3 for the City scene.
-    this.load.audio('cityTheme', 'assets/audio/celadune_city.mp3');
+    this.load.audio('cityTheme', 'assets/audio/city_theme.mp3');
     this.load.audio('writingSfx', 'assets/sfx/writing.mp3');
     this.load.spritesheet('forestLady-idle', FOREST_LADY.idle, { frameWidth: FRAME_W, frameHeight: FRAME_H });
     this.load.spritesheet('forestLady-walk', FOREST_LADY.walk, { frameWidth: FRAME_W, frameHeight: FRAME_H });
@@ -465,20 +468,37 @@ class PrototypeScene extends Phaser.Scene {
     return { key: 'forestTheme', volume: 0.42 };
   }
 
+  configureBackgroundTexture(textureKey) {
+    const texture = this.textures.get(textureKey);
+    if (texture?.setFilter) {
+      texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
+    }
+    return texture?.getSourceImage?.() ?? null;
+  }
+
+  disableKeyboardDuringTransition() {
+    if (!this.input?.keyboard) return;
+    this.input.keyboard.enabled = false;
+    this.input.keyboard.resetKeys();
+  }
+
+  enableKeyboardInput() {
+    if (!this.input?.keyboard) return;
+    this.input.keyboard.enabled = true;
+    this.input.keyboard.resetKeys();
+  }
+
   createParallaxBackground() {
-    const forestTexture = this.textures.get('forest').getSourceImage();
-    // Scale so the image fills the full game height
-    const bgScaleY = GAME_HEIGHT / forestTexture.height;
-    const scaledW = forestTexture.width * bgScaleY;
+    const forestTexture = this.configureBackgroundTexture('forest');
+    const scale = GAME_HEIGHT / forestTexture.height;
+    this.bgScale = scale;
 
     this.bg = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'forest')
       .setOrigin(0, 0)
       .setScrollFactor(0)
       .setDepth(-20);
 
-    this.bg.setTileScale(bgScaleY, bgScaleY);
-    // Store scaled tile width for scroll calculations
-    this._bgTileWidth = scaledW;
+    this.bg.setTileScale(scale, scale);
   }
 
   createGround() {
@@ -662,10 +682,13 @@ class PrototypeScene extends Phaser.Scene {
 
     this.beams = this.add.container(0, 0).setScrollFactor(0).setDepth(40);
     const beamConfigs = [
-      { x: 170, y: -30, scaleX: 0.84, scaleY: 1.10, alpha: 0.24, angle: -32 },
-      { x: 520, y: -30, scaleX: 0.58, scaleY: 1.10, alpha: 0.19, angle: -32 },
-      { x: 830, y: -30, scaleX: 0.74, scaleY: 1.10, alpha: 0.21, angle: -32 },
-      { x: 1180, y: -30, scaleX: 0.92, scaleY: 1.10, alpha: 0.23, angle: -32 },
+      { x: 110, y: -90, scaleX: 0.72, scaleY: 1.45, alpha: 0.10, angle: -10 },
+      { x: 290, y: -70, scaleX: 1.35, scaleY: 1.25, alpha: 0.15, angle: -6 },
+      { x: 520, y: -100, scaleX: 0.58, scaleY: 1.55, alpha: 0.08, angle: 2 },
+      { x: 760, y: -80, scaleX: 1.05, scaleY: 1.30, alpha: 0.12, angle: 5 },
+      { x: 1030, y: -75, scaleX: 1.55, scaleY: 1.18, alpha: 0.10, angle: 8 },
+      { x: 1325, y: -95, scaleX: 0.82, scaleY: 1.48, alpha: 0.09, angle: 12 },
+      { x: 1490, y: -85, scaleX: 1.18, scaleY: 1.22, alpha: 0.11, angle: 6 },
     ];
 
     beamConfigs.forEach((config, index) => {
@@ -676,36 +699,21 @@ class PrototypeScene extends Phaser.Scene {
         .setAngle(config.angle)
         .setBlendMode(Phaser.BlendModes.SCREEN);
 
-      beam.baseX = config.x;
       this.beams.add(beam);
 
       this.tweens.add({
         targets: beam,
-        alpha: { from: config.alpha * 0.82, to: config.alpha * 1.12 },
-        x: config.x + (index % 2 === 0 ? 22 : -18),
-        duration: 5200 + index * 850,
+        alpha: { from: config.alpha * 0.65, to: config.alpha * 1.28 },
+        x: config.x + (index % 2 === 0 ? 26 : -24),
+        angle: config.angle + (index % 3 === 0 ? 2.5 : -2),
+        duration: 3600 + index * 650,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut',
       });
-
-      this.time.addEvent({
-        delay: 2600 + index * 250,
-        loop: true,
-        callback: () => {
-          if (!beam.active) return;
-          const targetX = beam.baseX + Phaser.Math.Between(-42, 42);
-          this.tweens.add({
-            targets: beam,
-            x: targetX,
-            duration: Phaser.Math.Between(3800, 6200),
-            ease: 'Sine.easeInOut',
-          });
-        },
-      });
     });
 
-    this.screenTint = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x173019, 0.10)
+    this.screenTint = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x173019, 0.12)
       .setOrigin(0, 0)
       .setScrollFactor(0)
       .setDepth(41)
@@ -723,32 +731,44 @@ class PrototypeScene extends Phaser.Scene {
   createLightBeamTexture() {
     if (this.textures.exists('light-beam')) return;
 
-    const width = 340;
-    const height = 980;
+    const width = 520;
+    const height = 1100;
     const canvas = this.textures.createCanvas('light-beam', width, height);
     const ctx = canvas.getContext();
     ctx.clearRect(0, 0, width, height);
     ctx.save();
-    ctx.filter = 'blur(14px)';
-    ctx.shadowColor = 'rgba(255, 249, 220, 0.42)';
-    ctx.shadowBlur = 24;
+    ctx.filter = 'blur(22px)';
+    ctx.shadowColor = 'rgba(255, 247, 214, 0.45)';
+    ctx.shadowBlur = 28;
 
-    const grad = ctx.createLinearGradient(0, 0, 0, height);
-    grad.addColorStop(0, 'rgba(255, 252, 233, 0.76)');
-    grad.addColorStop(0.18, 'rgba(255, 249, 222, 0.34)');
-    grad.addColorStop(0.62, 'rgba(255, 244, 206, 0.12)');
-    grad.addColorStop(1, 'rgba(255, 240, 190, 0.00)');
+    const outer = ctx.createLinearGradient(width / 2, 0, width / 2, height);
+    outer.addColorStop(0, 'rgba(255, 251, 228, 0.78)');
+    outer.addColorStop(0.14, 'rgba(255, 248, 218, 0.34)');
+    outer.addColorStop(0.56, 'rgba(255, 243, 204, 0.10)');
+    outer.addColorStop(1, 'rgba(255, 240, 190, 0.00)');
 
-    ctx.fillStyle = grad;
-    ctx.fillRect(width * 0.30, 0, width * 0.40, height);
+    ctx.fillStyle = outer;
+    ctx.beginPath();
+    ctx.moveTo(width * 0.42, 0);
+    ctx.lineTo(width * 0.58, 0);
+    ctx.lineTo(width * 0.95, height);
+    ctx.lineTo(width * 0.05, height);
+    ctx.closePath();
+    ctx.fill();
 
-    const inner = ctx.createLinearGradient(0, 0, 0, height);
-    inner.addColorStop(0, 'rgba(255, 255, 245, 0.28)');
-    inner.addColorStop(0.25, 'rgba(255, 252, 232, 0.15)');
-    inner.addColorStop(1, 'rgba(255, 245, 210, 0.00)');
+    const inner = ctx.createLinearGradient(width / 2, 0, width / 2, height);
+    inner.addColorStop(0, 'rgba(255, 255, 245, 0.34)');
+    inner.addColorStop(0.2, 'rgba(255, 252, 232, 0.18)');
+    inner.addColorStop(0.8, 'rgba(255, 245, 210, 0.00)');
+
     ctx.fillStyle = inner;
-    ctx.fillRect(width * 0.42, 0, width * 0.16, height);
-
+    ctx.beginPath();
+    ctx.moveTo(width * 0.48, 0);
+    ctx.lineTo(width * 0.52, 0);
+    ctx.lineTo(width * 0.68, height);
+    ctx.lineTo(width * 0.32, height);
+    ctx.closePath();
+    ctx.fill();
     ctx.restore();
     canvas.refresh();
   }
@@ -840,17 +860,6 @@ class PrototypeScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, WORLD_WIDTH, GAME_HEIGHT);
     this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
     this.cameras.main.setDeadzone(220, 120);
-  }
-
-  // Scrolls the parallax background so it travels exactly from its left
-  // edge to its right edge as the camera moves across the full world width.
-  _scrollBg() {
-    if (!this.bg) return;
-    const tileW = this._bgTileWidth || GAME_WIDTH;
-    const maxScroll = WORLD_WIDTH - GAME_WIDTH;
-    const maxBgScroll = tileW - GAME_WIDTH;
-    const ratio = maxScroll > 0 ? this.cameras.main.scrollX / maxScroll : 0;
-    this.bg.tilePositionX = ratio * maxBgScroll;
   }
 
   createUI() {
@@ -1397,6 +1406,8 @@ class PrototypeScene extends Phaser.Scene {
 
   returnFromHut(returnPosition) {
     this.isTransitioningToInterior = false;
+    this.enableKeyboardInput();
+    this.isSceneTransitioning = false;
     if (returnPosition) {
       this.player.setPosition(returnPosition.x, returnPosition.y);
     }
@@ -1411,12 +1422,12 @@ class PrototypeScene extends Phaser.Scene {
     this.isSceneTransitioning = true;
     const safeStartY = Phaser.Math.Clamp(startY, 0, GROUND_Y - 4);
     this.player.setVelocity(0, 0);
+    this.player.body?.stop?.();
     if (this.npc) this.npc.setVelocity(0, 0);
-    // Disable input so held keys don't re-trigger the boundary check
-    this.input.keyboard.enabled = false;
+    this.disableKeyboardDuringTransition();
     this.fadeOutMusic(220);
     this.cameras.main.fadeOut(220, 0, 0, 0);
-    this.time.delayedCall(250, () => {
+    this.time.delayedCall(230, () => {
       this.scene.start(targetSceneKey, {
         heroKey: this.heroKey,
         startX,
@@ -1431,7 +1442,7 @@ class PrototypeScene extends Phaser.Scene {
     if (this.isMenuOpen || this.isDialogueOpen || this.isTransitioningToInterior || this.isSceneTransitioning) return;
     if (!onGround) return;
     if (velocityX > 0 && this.player.x >= WORLD_WIDTH - 12) {
-      this.transitionToScene('CityScene', 80, this.player.y);
+      this.transitionToScene('CityScene', 24, this.player.y);
     }
   }
 
@@ -1833,7 +1844,7 @@ class PrototypeScene extends Phaser.Scene {
     }
 
     if (this.updateScriptedNpcMovement()) {
-      this._scrollBg();
+      this.bg.tilePositionX = this.cameras.main.scrollX * 0.28;
       return;
     }
 
@@ -1929,7 +1940,7 @@ class PrototypeScene extends Phaser.Scene {
     this.player.setDepth(9);
     this.npc.setDepth(9);
     this.handleSceneBoundaries(velocityX, onGround);
-    this._scrollBg();
+    this.bg.tilePositionX = this.cameras.main.scrollX * 0.28;
   }
 }
 
@@ -1954,34 +1965,43 @@ class CityScene extends PrototypeScene {
     super.init(data);
     this.startX = data?.startX ?? 120;
     this.startY = data?.startY ?? 620;
-    // Flags are already reset by super.init(), re-apply startX override
-  }
-
-  getMusicConfig() {
-    return { key: 'cityTheme', volume: 0.42 };
   }
 
   create() {
     this.physics.world.gravity.y = 1800;
-    super.create();
-    this.player.setCollideWorldBounds(true);
-    this.player.body.onWorldBounds = true;
+
+    this.createParallaxBackground();
+    this.createGround();
+    this.createAnimations();
+    this.createPlayer();
+    this.createAtmosphere();
+    this.createCamera();
+    this.createUI();
+    this.createItemReceiveUI();
+    this.createAudio();
+    this.createMenu();
+
+    this.player.setPosition(this.startX, this.startY);
+
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.menuKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
+    this.enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
+    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.escapeKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+    this.backspaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.BACKSPACE);
   }
 
   createParallaxBackground() {
-    const cityTexture = this.textures.get('cityBg').getSourceImage();
-    // Scale so the image fills the full game height
-    const bgScaleY = GAME_HEIGHT / cityTexture.height;
-    const scaledW = cityTexture.width * bgScaleY;
+    const cityTexture = this.configureBackgroundTexture('cityBg');
+    const scale = GAME_HEIGHT / cityTexture.height;
+    this.bgScale = scale;
 
     this.bg = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'cityBg')
       .setOrigin(0, 0)
       .setScrollFactor(0)
       .setDepth(-20);
 
-    this.bg.setTileScale(bgScaleY, bgScaleY);
-    // Store scaled tile width for scroll calculations
-    this._bgTileWidth = scaledW;
+    this.bg.setTileScale(scale, scale);
   }
 
   createGround() {
@@ -2035,7 +2055,6 @@ class CityScene extends PrototypeScene {
   beginOnionPatchInteraction() {}
   updateScriptedNpcMovement() { return false; }
 
-
   openMenu() {
     if (this.isMenuOpen) return;
     this.isMenuOpen = true;
@@ -2061,14 +2080,8 @@ class CityScene extends PrototypeScene {
   handleSceneBoundaries(velocityX, onGround) {
     if (this.isMenuOpen || this.isSceneTransitioning) return;
     if (!onGround) return;
-    const rightLimit = WORLD_WIDTH - 22;
     if (velocityX < 0 && this.player.x <= 12) {
-      this.transitionToScene('PrototypeScene', WORLD_WIDTH - 80, this.player.y);
-      return;
-    }
-    if (this.player.x >= rightLimit) {
-      this.player.x = rightLimit;
-      this.player.setVelocityX(Math.min(0, this.player.body.velocity.x));
+      this.transitionToScene('PrototypeScene', WORLD_WIDTH - 24, this.player.y);
     }
   }
 
@@ -2127,7 +2140,7 @@ class CityScene extends PrototypeScene {
 
     this.player.setDepth(9);
     this.handleSceneBoundaries(velocityX, onGround);
-    this._scrollBg();
+    this.bg.tilePositionX = this.cameras.main.scrollX * 0.28;
   }
 }
 
@@ -2297,8 +2310,7 @@ const config = {
   width: GAME_WIDTH,
   height: GAME_HEIGHT,
   parent: 'game-wrap',
-  pixelArt: false,
-  antialias: true,
+  pixelArt: true,
   backgroundColor: '#08111a',
   physics: {
     default: 'arcade',
