@@ -387,7 +387,6 @@ class PrototypeScene extends Phaser.Scene {
     this.scriptedNpcTargetX = null;
     this.scriptedNpcCallback = null;
     this.isTransitioningToInterior = false;
-    this.isSceneTransitioning = false;
   }
 
   init(data) {
@@ -402,10 +401,13 @@ class PrototypeScene extends Phaser.Scene {
       this.input.keyboard.enabled = true;
       this.input.keyboard.resetKeys();
     }
+    if (this.physics?.world?.isPaused) {
+      this.physics.world.resume();
+    }
   }
 
   preload() {
-    this.load.image('forest', 'assets/bg/forest.png');
+    this.load.image('forest', 'assets/bg/forest_background.jpeg');
     this.load.image('cityBg', 'assets/bg/city_background.jpeg');
     this.load.image('blackTile', 'assets/tiles/black_tile.png');
     this.load.image('ground0', 'assets/tiles/ground_tile.png');
@@ -440,13 +442,14 @@ class PrototypeScene extends Phaser.Scene {
   create() {
     this.physics.world.gravity.y = 1800;
 
+    this.applyTextureFiltering();
     this.createParallaxBackground();
     this.createGround();
     this.createAnimations();
     this.createPlayer();
     this.createNPC();
     this.createProps();
-    this.createAtmosphere();
+    if (this.shouldUseSceneAtmosphere()) this.createAtmosphere();
     this.createCamera();
     this.createUI();
     this.createItemReceiveUI();
@@ -468,28 +471,8 @@ class PrototypeScene extends Phaser.Scene {
     return { key: 'forestTheme', volume: 0.42 };
   }
 
-  configureBackgroundTexture(textureKey) {
-    const texture = this.textures.get(textureKey);
-    if (texture?.setFilter) {
-      texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
-    }
-    return texture?.getSourceImage?.() ?? null;
-  }
-
-  disableKeyboardDuringTransition() {
-    if (!this.input?.keyboard) return;
-    this.input.keyboard.enabled = false;
-    this.input.keyboard.resetKeys();
-  }
-
-  enableKeyboardInput() {
-    if (!this.input?.keyboard) return;
-    this.input.keyboard.enabled = true;
-    this.input.keyboard.resetKeys();
-  }
-
   createParallaxBackground() {
-    const forestTexture = this.configureBackgroundTexture('forest');
+    const forestTexture = this.textures.get('forest').getSourceImage();
     const scale = GAME_HEIGHT / forestTexture.height;
     this.bgScale = scale;
 
@@ -555,6 +538,29 @@ class PrototypeScene extends Phaser.Scene {
     };
   }
 
+  setTextureFilter(keys, filterMode) {
+    keys.forEach((key) => {
+      if (this.textures.exists(key)) {
+        this.textures.get(key).setFilter(filterMode);
+      }
+    });
+  }
+
+  applyTextureFiltering() {
+    this.setTextureFilter(['forest', 'cityBg', 'forestHutInterior'], Phaser.Textures.FilterMode.LINEAR);
+    this.setTextureFilter([
+      'blackTile', 'ground0', 'ground1', 'ground2', 'ground3',
+      'cityGround1', 'cityGround2', 'cityGround3', 'parchment', 'forestHut',
+      'brokenWagon', 'onionPatch', 'menuOnions', 'forestLady-idle', 'forestLady-walk',
+      'forestLady-emote', 'forestLady-portrait',
+      ...Object.keys(HEROES).flatMap((heroKey) => [`${heroKey}-walk`, `${heroKey}-idle`, `${heroKey}-jump`]),
+    ], Phaser.Textures.FilterMode.NEAREST);
+  }
+
+  shouldUseSceneAtmosphere() {
+    return false;
+  }
+
   createAnimations() {
     Object.keys(HEROES).forEach((heroKey) => {
       createHeroAnimations(this, heroKey);
@@ -568,7 +574,7 @@ class PrototypeScene extends Phaser.Scene {
     this.playerBaseScaleX = 3.1;
     this.playerBaseScaleY = 3.1;
     this.player.setScale(this.playerBaseScaleX, this.playerBaseScaleY);
-    this.player.setCollideWorldBounds(false);
+    this.player.setCollideWorldBounds(true);
     this.player.setDepth(9);
     this.player.body.setSize(20, 34);
     this.player.body.setOffset(22, 28);
@@ -1406,8 +1412,6 @@ class PrototypeScene extends Phaser.Scene {
 
   returnFromHut(returnPosition) {
     this.isTransitioningToInterior = false;
-    this.enableKeyboardInput();
-    this.isSceneTransitioning = false;
     if (returnPosition) {
       this.player.setPosition(returnPosition.x, returnPosition.y);
     }
@@ -1420,29 +1424,33 @@ class PrototypeScene extends Phaser.Scene {
   transitionToScene(targetSceneKey, startX, startY) {
     if (this.isSceneTransitioning) return;
     this.isSceneTransitioning = true;
+    const safeStartX = Phaser.Math.Clamp(startX, 48, WORLD_WIDTH - 48);
     const safeStartY = Phaser.Math.Clamp(startY, 0, GROUND_Y - 4);
     this.player.setVelocity(0, 0);
-    this.player.body?.stop?.();
     if (this.npc) this.npc.setVelocity(0, 0);
-    this.disableKeyboardDuringTransition();
+    this.physics.world.pause();
+    if (this.input?.keyboard) {
+      this.input.keyboard.resetKeys();
+      this.input.keyboard.enabled = false;
+    }
     this.fadeOutMusic(220);
-    this.cameras.main.fadeOut(220, 0, 0, 0);
-    this.time.delayedCall(230, () => {
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       this.scene.start(targetSceneKey, {
         heroKey: this.heroKey,
-        startX,
+        startX: safeStartX,
         startY: safeStartY,
         inventoryItems: this.inventoryItems,
         equipmentItems: this.equipmentItems,
       });
     });
+    this.cameras.main.fadeOut(220, 0, 0, 0);
   }
 
   handleSceneBoundaries(velocityX, onGround) {
     if (this.isMenuOpen || this.isDialogueOpen || this.isTransitioningToInterior || this.isSceneTransitioning) return;
     if (!onGround) return;
-    if (velocityX > 0 && this.player.x >= WORLD_WIDTH - 12) {
-      this.transitionToScene('CityScene', 24, this.player.y);
+    if (velocityX > 0 && this.player.body.blocked.right) {
+      this.transitionToScene('CityScene', 72, this.player.y);
     }
   }
 
@@ -1970,11 +1978,12 @@ class CityScene extends PrototypeScene {
   create() {
     this.physics.world.gravity.y = 1800;
 
+    this.applyTextureFiltering();
     this.createParallaxBackground();
     this.createGround();
     this.createAnimations();
     this.createPlayer();
-    this.createAtmosphere();
+    if (this.shouldUseSceneAtmosphere()) this.createAtmosphere();
     this.createCamera();
     this.createUI();
     this.createItemReceiveUI();
@@ -1992,7 +2001,7 @@ class CityScene extends PrototypeScene {
   }
 
   createParallaxBackground() {
-    const cityTexture = this.configureBackgroundTexture('cityBg');
+    const cityTexture = this.textures.get('cityBg').getSourceImage();
     const scale = GAME_HEIGHT / cityTexture.height;
     this.bgScale = scale;
 
@@ -2080,8 +2089,8 @@ class CityScene extends PrototypeScene {
   handleSceneBoundaries(velocityX, onGround) {
     if (this.isMenuOpen || this.isSceneTransitioning) return;
     if (!onGround) return;
-    if (velocityX < 0 && this.player.x <= 12) {
-      this.transitionToScene('PrototypeScene', WORLD_WIDTH - 24, this.player.y);
+    if (velocityX < 0 && this.player.body.blocked.left) {
+      this.transitionToScene('PrototypeScene', WORLD_WIDTH - 72, this.player.y);
     }
   }
 
@@ -2310,7 +2319,10 @@ const config = {
   width: GAME_WIDTH,
   height: GAME_HEIGHT,
   parent: 'game-wrap',
-  pixelArt: true,
+  pixelArt: false,
+  antialias: true,
+  antialiasGL: true,
+  roundPixels: false,
   backgroundColor: '#08111a',
   physics: {
     default: 'arcade',
