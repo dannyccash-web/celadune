@@ -395,6 +395,9 @@ class PrototypeScene extends Phaser.Scene {
     this.startY = data?.startY ?? 620;
     this.inventoryItems = Array.isArray(data?.inventoryItems) ? data.inventoryItems.map((item) => ({ ...item })) : [];
     this.equipmentItems = Array.isArray(data?.equipmentItems) ? data.equipmentItems.map((item) => ({ ...item })) : [];
+    // Always reset transition locks so re-entering the scene never gets stuck
+    this.isSceneTransitioning = false;
+    this.isTransitioningToInterior = false;
   }
 
   preload() {
@@ -464,15 +467,18 @@ class PrototypeScene extends Phaser.Scene {
 
   createParallaxBackground() {
     const forestTexture = this.textures.get('forest').getSourceImage();
-    this.bgScale = 1;
+    // Scale so the image fills the full game height
+    const bgScaleY = GAME_HEIGHT / forestTexture.height;
+    const scaledW = forestTexture.width * bgScaleY;
 
     this.bg = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'forest')
       .setOrigin(0, 0)
       .setScrollFactor(0)
       .setDepth(-20);
 
-    this.bg.setTileScale(1, 1);
-    this.bg.tilePositionY = Math.max(0, Math.round((forestTexture.height - GAME_HEIGHT) * 0.5));
+    this.bg.setTileScale(bgScaleY, bgScaleY);
+    // Store scaled tile width for scroll calculations
+    this._bgTileWidth = scaledW;
   }
 
   createGround() {
@@ -834,6 +840,17 @@ class PrototypeScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, WORLD_WIDTH, GAME_HEIGHT);
     this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
     this.cameras.main.setDeadzone(220, 120);
+  }
+
+  // Scrolls the parallax background so it travels exactly from its left
+  // edge to its right edge as the camera moves across the full world width.
+  _scrollBg() {
+    if (!this.bg) return;
+    const tileW = this._bgTileWidth || GAME_WIDTH;
+    const maxScroll = WORLD_WIDTH - GAME_WIDTH;
+    const maxBgScroll = tileW - GAME_WIDTH;
+    const ratio = maxScroll > 0 ? this.cameras.main.scrollX / maxScroll : 0;
+    this.bg.tilePositionX = ratio * maxBgScroll;
   }
 
   createUI() {
@@ -1395,9 +1412,11 @@ class PrototypeScene extends Phaser.Scene {
     const safeStartY = Phaser.Math.Clamp(startY, 0, GROUND_Y - 4);
     this.player.setVelocity(0, 0);
     if (this.npc) this.npc.setVelocity(0, 0);
+    // Disable input so held keys don't re-trigger the boundary check
+    this.input.keyboard.enabled = false;
     this.fadeOutMusic(220);
     this.cameras.main.fadeOut(220, 0, 0, 0);
-    this.time.delayedCall(230, () => {
+    this.time.delayedCall(250, () => {
       this.scene.start(targetSceneKey, {
         heroKey: this.heroKey,
         startX,
@@ -1814,7 +1833,7 @@ class PrototypeScene extends Phaser.Scene {
     }
 
     if (this.updateScriptedNpcMovement()) {
-      this.bg.tilePositionX = this.cameras.main.scrollX * 0.28;
+      this._scrollBg();
       return;
     }
 
@@ -1910,7 +1929,7 @@ class PrototypeScene extends Phaser.Scene {
     this.player.setDepth(9);
     this.npc.setDepth(9);
     this.handleSceneBoundaries(velocityX, onGround);
-    this.bg.tilePositionX = this.cameras.main.scrollX * 0.28;
+    this._scrollBg();
   }
 }
 
@@ -1935,6 +1954,7 @@ class CityScene extends PrototypeScene {
     super.init(data);
     this.startX = data?.startX ?? 120;
     this.startY = data?.startY ?? 620;
+    // Flags are already reset by super.init(), re-apply startX override
   }
 
   getMusicConfig() {
@@ -1950,15 +1970,18 @@ class CityScene extends PrototypeScene {
 
   createParallaxBackground() {
     const cityTexture = this.textures.get('cityBg').getSourceImage();
-    this.bgScale = 1;
+    // Scale so the image fills the full game height
+    const bgScaleY = GAME_HEIGHT / cityTexture.height;
+    const scaledW = cityTexture.width * bgScaleY;
 
     this.bg = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'cityBg')
       .setOrigin(0, 0)
       .setScrollFactor(0)
       .setDepth(-20);
 
-    this.bg.setTileScale(1, 1);
-    this.bg.tilePositionY = Math.max(0, Math.round((cityTexture.height - GAME_HEIGHT) * 0.5));
+    this.bg.setTileScale(bgScaleY, bgScaleY);
+    // Store scaled tile width for scroll calculations
+    this._bgTileWidth = scaledW;
   }
 
   createGround() {
@@ -2104,7 +2127,7 @@ class CityScene extends PrototypeScene {
 
     this.player.setDepth(9);
     this.handleSceneBoundaries(velocityX, onGround);
-    this.bg.tilePositionX = this.cameras.main.scrollX * 0.28;
+    this._scrollBg();
   }
 }
 
@@ -2274,7 +2297,8 @@ const config = {
   width: GAME_WIDTH,
   height: GAME_HEIGHT,
   parent: 'game-wrap',
-  pixelArt: true,
+  pixelArt: false,
+  antialias: true,
   backgroundColor: '#08111a',
   physics: {
     default: 'arcade',
