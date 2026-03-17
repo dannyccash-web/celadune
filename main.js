@@ -50,6 +50,8 @@ const WAYFARERS_SALVE_ITEM = {
   actions: ['Use'],
 };
 
+const PADRIG_ONION_PAYMENT = 5;
+
 function lpcFrameList(sheet, row, start, end) {
   const out = [];
   const rowStart = row * 13;
@@ -128,6 +130,7 @@ function createForestLadyAnimations(scene) {
 function createNpcWalkIdleAnimations(scene, prefix) {
   const animations = [
     { key: `${prefix}-idle-left`, sheet: `${prefix}-idle`, row: 1, start: 0, end: 1, rate: 3, repeat: -1 },
+    { key: `${prefix}-idle-front`, sheet: `${prefix}-idle`, row: 2, start: 0, end: 1, rate: 3, repeat: -1 },
     { key: `${prefix}-idle-right`, sheet: `${prefix}-idle`, row: 3, start: 0, end: 1, rate: 3, repeat: -1 },
     { key: `${prefix}-walk-left`, sheet: `${prefix}-walk`, row: 1, start: 0, end: 8, rate: 8, repeat: -1 },
     { key: `${prefix}-walk-right`, sheet: `${prefix}-walk`, row: 3, start: 0, end: 8, rate: 8, repeat: -1 },
@@ -418,6 +421,20 @@ class PrototypeScene extends Phaser.Scene {
     this.npcFacing = 'right';
     this.dialogueChoiceIndex = 0;
     this.questState = 'notOffered';
+    this.gold = 0;
+    this.onionQuestFlags = {
+      acceptedOnce: false,
+      replacementGiven: false,
+      onionsDeliveredToPadrig: false,
+      padrigPaid: false,
+      mirellePaidInFull: false,
+      mirelleShortchanged: false,
+      followupUnlocked: false,
+    };
+    this.cityNpcStates = {
+      city2GiftGiven: false,
+      chefOnionsDelivered: false,
+    };
     this.scriptedNpcTargetX = null;
     this.scriptedNpcCallback = null;
     this.isTransitioningToInterior = false;
@@ -429,6 +446,23 @@ class PrototypeScene extends Phaser.Scene {
     this.startY = data?.startY ?? 620;
     this.inventoryItems = Array.isArray(data?.inventoryItems) ? data.inventoryItems.map((item) => ({ ...item })) : [];
     this.equipmentItems = Array.isArray(data?.equipmentItems) ? data.equipmentItems.map((item) => ({ ...item })) : [];
+    this.gold = Number.isFinite(data?.gold) ? data.gold : (this.gold || 0);
+    this.questState = data?.questState || this.questState || 'notOffered';
+    this.onionQuestFlags = {
+      acceptedOnce: false,
+      replacementGiven: false,
+      onionsDeliveredToPadrig: false,
+      padrigPaid: false,
+      mirellePaidInFull: false,
+      mirelleShortchanged: false,
+      followupUnlocked: false,
+      ...(data?.onionQuestFlags || {}),
+    };
+    this.cityNpcStates = {
+      city2GiftGiven: false,
+      chefOnionsDelivered: false,
+      ...(data?.cityNpcStates || {}),
+    };
     this.isSceneTransitioning = false;
     this.isTransitioningToInterior = false;
     if (this.input?.keyboard) {
@@ -1035,7 +1069,14 @@ class PrototypeScene extends Phaser.Scene {
       stroke: '#f5e2b6',
       strokeThickness: 3,
     }).setOrigin(0.5, 0.5);
+    this.menuGoldText = this.add.text(panelX + panelW - 56, panelY + 56, '', {
+      fontFamily: 'Roboto Mono',
+      fontSize: '24px',
+      fontStyle: 'bold',
+      color: '#5a3b18',
+    }).setOrigin(1, 0.5);
     this.menuOverlay.add(this.menuTitle);
+    this.menuOverlay.add(this.menuGoldText);
 
     this.menuHint = this.add.text(panelX + panelW - 40, panelY + 38, 'M / Esc / Backspace to close', {
       fontFamily: 'Roboto Mono',
@@ -1146,6 +1187,9 @@ class PrototypeScene extends Phaser.Scene {
 
     if (item.name === 'Onions' && actionLabel === 'Eat') {
       items.splice(this.menuItemIndex, 1);
+      if (this.questState === 'accepted' && !this.onionQuestFlags.onionsDeliveredToPadrig) {
+        this.onionQuestFlags.ateQuestOnions = true;
+      }
       this.menuItemIndex = Math.max(0, Math.min(this.menuItemIndex, items.length - 1));
       this.menuMode = 'section';
       this.refreshMenuPage();
@@ -1170,6 +1214,8 @@ class PrototypeScene extends Phaser.Scene {
 
     const currentPage = this.menuPages[this.menuSectionIndex];
     this.menuTitle.setText(currentPage);
+    this.menuGoldText?.setVisible(currentPage === 'Inventory');
+    if (this.menuGoldText) this.menuGoldText.setText(`Gold: ${this.gold}`);
 
     this.gridContainer.removeAll(true);
     this.actionMenuList.removeAll(true);
@@ -1403,6 +1449,18 @@ class PrototypeScene extends Phaser.Scene {
     return true;
   }
 
+  addGold(amount) {
+    this.gold = Math.max(0, (this.gold || 0) + amount);
+    if (this.isMenuOpen) this.refreshMenuPage();
+  }
+
+  removeGold(amount) {
+    const actualRemoved = Math.max(0, Math.min(this.gold || 0, amount));
+    this.gold = Math.max(0, (this.gold || 0) - actualRemoved);
+    if (this.isMenuOpen) this.refreshMenuPage();
+    return actualRemoved;
+  }
+
   hasEquipmentItem(name) {
     return this.equipmentItems.some((item) => item.name === name);
   }
@@ -1502,6 +1560,10 @@ class PrototypeScene extends Phaser.Scene {
         startY: safeStartY,
         inventoryItems: this.inventoryItems,
         equipmentItems: this.equipmentItems,
+        gold: this.gold,
+        questState: this.questState,
+        onionQuestFlags: this.onionQuestFlags,
+        cityNpcStates: this.cityNpcStates,
       });
     });
     this.cameras.main.fadeOut(220, 0, 0, 0);
@@ -1650,13 +1712,57 @@ class PrototypeScene extends Phaser.Scene {
     this.dialogueChoiceIndex = 0;
 
     if (sequence === 'onionQuest') {
-      if (this.questState === 'accepted') {
-        this.dialogueState = 'questAcceptedReminder';
+      if (this.onionQuestFlags.onionsDeliveredToPadrig && this.onionQuestFlags.padrigPaid && !this.onionQuestFlags.mirellePaidInFull && !this.onionQuestFlags.mirelleShortchanged) {
+        this.dialogueState = 'mirellePaymentReturn';
         this.showDialogueLine({
           speaker: FOREST_LADY.name,
           speakerType: 'npc',
-          text: 'Those onions should still be good. If you are headed into the city, the tavern owner will be glad to see them.',
-          choices: ['I will deliver them.', 'Not today.'],
+          text: 'Oh, there you are, dear heart. Did Padrig send the payment along? I told him there was no hurry, but he does fret when he is grateful.',
+          choices: ['Padrig paid the full 5 gold.', 'He only gave me 1 gold.'],
+        });
+        return;
+      }
+
+      if (this.onionQuestFlags.mirellePaidInFull && this.onionQuestFlags.followupUnlocked) {
+        this.dialogueState = 'mirelleFollowup';
+        this.showDialogueLine({
+          speaker: FOREST_LADY.name,
+          speakerType: 'npc',
+          text: 'You have already done more for me than most would, and I have not forgotten it. When you have the time, I would love for you to carry another bundle to Elira Fen at the east cottages. She has a soft spot for my onions and a softer one for good company.',
+          choices: ['I will keep Elira Fen in mind.'],
+        });
+        return;
+      }
+
+      if (this.questState === 'accepted') {
+        if (this.hasInventoryItem('Onions')) {
+          this.dialogueState = 'questAcceptedReminder';
+          this.showDialogueLine({
+            speaker: FOREST_LADY.name,
+            speakerType: 'npc',
+            text: 'Bless you for helping me, dear. Those onions are wrapped up and ready. If you are headed into the city, Padrig at the tavern will be ever so pleased to see them.',
+            choices: ['I will deliver them.', 'Not today.'],
+          });
+          return;
+        }
+
+        if (!this.onionQuestFlags.replacementGiven) {
+          this.dialogueState = 'questReplacementOffer';
+          this.showDialogueLine({
+            speaker: FOREST_LADY.name,
+            speakerType: 'npc',
+            text: 'Oh... you do not have the onions anymore? Well, that is a shame, but no soul keeps steady on an empty stomach. If you truly still mean to help, I can scrape together one more bunch for you.',
+            choices: ['Could I trouble you for another bunch?', 'I should leave it for now.'],
+          });
+          return;
+        }
+
+        this.dialogueState = 'questNoMoreOnions';
+        this.showDialogueLine({
+          speaker: FOREST_LADY.name,
+          speakerType: 'npc',
+          text: 'I am sorry, dear, but that was the last spare bunch I had set aside. I will need a little time before I can send more into the city.',
+          choices: ['I understand.'],
         });
         return;
       }
@@ -1666,7 +1772,7 @@ class PrototypeScene extends Phaser.Scene {
         this.showDialogueLine({
           speaker: FOREST_LADY.name,
           speakerType: 'npc',
-          text: 'I am still sorting onions for the tavern. If you have changed your mind, I would appreciate the help.',
+          text: 'I am still sorting onions for the tavern, love. If you have changed your mind, I would be happy for the help and the company.',
           choices: ['I can take the onions.', 'I still cannot help.'],
         });
         return;
@@ -1676,7 +1782,7 @@ class PrototypeScene extends Phaser.Scene {
       this.showDialogueLine({
         speaker: FOREST_LADY.name,
         speakerType: 'npc',
-        text: 'These are my onions. I grow them here and sell them to the tavern owner in the city. I am behind on my work today. Would you take a bundle to the tavern for me?',
+        text: 'These are my onions, dear heart. I grow them right here and send them on to Padrig at the tavern in the city. My hands are slower than they used to be, and I would be grateful for a bit of help. Would you carry a bundle in for me?',
         choices: ['I will take them to the tavern owner.', 'I cannot help right now.'],
       });
       return;
@@ -1831,12 +1937,14 @@ class PrototypeScene extends Phaser.Scene {
     } else if (this.dialogueState === 'onionOffer' || this.dialogueState === 'questReoffer') {
       if (selectedText === 'I will take them to the tavern owner.' || selectedText === 'I can take the onions.') {
         this.questState = 'accepted';
+        this.onionQuestFlags.acceptedOnce = true;
+        this.onionQuestFlags.ateQuestOnions = false;
         this.addInventoryItem({ name: 'Onions', texture: 'menuOnions', actions: ['Eat'] });
         this.dialogueState = 'questAccepted';
         this.showDialogueLine({
           speaker: FOREST_LADY.name,
           speakerType: 'npc',
-          text: 'Thank you. Take this bundle to the tavern owner in the city for me. I will be grateful for the help.',
+          text: 'Thank you kindly. Here, take this bundle while it is fresh. Padrig will know they are mine the moment he smells them, and I will be grateful for the help besides.',
           choices: ['I will deliver the onions.'],
         });
       } else {
@@ -1845,15 +1953,67 @@ class PrototypeScene extends Phaser.Scene {
         this.showDialogueLine({
           speaker: FOREST_LADY.name,
           speakerType: 'npc',
-          text: 'Very well. If you change your mind, speak to me near the patch and I will set some aside for you.',
+          text: 'Very well, dear. If your road brings you back this way and your hands are free, come speak to me again.',
           choices: ['Understood.'],
         });
       }
-    } else if (
-      this.dialogueState === 'questAccepted' ||
-      this.dialogueState === 'questDeclined' ||
-      this.dialogueState === 'questAcceptedReminder'
-    ) {
+    } else if (this.dialogueState === 'questReplacementOffer') {
+      if (selectedText === 'Could I trouble you for another bunch?') {
+        this.onionQuestFlags.replacementGiven = true;
+        this.onionQuestFlags.ateQuestOnions = false;
+        this.addInventoryItem({ name: 'Onions', texture: 'menuOnions', actions: ['Eat'] });
+        this.dialogueState = 'questReplacementAccepted';
+        this.showDialogueLine({
+          speaker: FOREST_LADY.name,
+          speakerType: 'npc',
+          text: 'Here you are, then. I cannot pretend I am not a little disappointed they were lost, but I am still glad you came back. Please take better care with this bunch.',
+          choices: ['I will. Thank you, Mirelle.'],
+        });
+      } else {
+        this.dialogueState = 'questReplacementDeclined';
+        this.showDialogueLine({
+          speaker: FOREST_LADY.name,
+          speakerType: 'npc',
+          text: 'That is all right, dear. We all make a muddle of things now and then.',
+          choices: ['Thank you for understanding.'],
+        });
+      }
+    } else if (this.dialogueState === 'mirellePaymentReturn') {
+      if (selectedText === 'Padrig paid the full 5 gold.') {
+        this.removeGold(PADRIG_ONION_PAYMENT);
+        this.onionQuestFlags.mirellePaidInFull = true;
+        this.onionQuestFlags.followupUnlocked = true;
+        this.questState = 'followupAvailable';
+        this.dialogueState = 'mirellePaidFull';
+        this.showDialogueLine({
+          speaker: FOREST_LADY.name,
+          speakerType: 'npc',
+          text: 'Every last coin? Oh, that sweet man. Thank you, dear heart. You have been a blessing to me today. When you next have a free moment, would you take another batch to Elira Fen for me? She lives by the east cottages and always brightens when I send word ahead with onions.',
+          choices: ['Of course. I will remember Elira Fen.'],
+        });
+      } else {
+        this.removeGold(Math.min(1, this.gold || 0));
+        this.onionQuestFlags.mirelleShortchanged = true;
+        this.questState = 'shortchangedComplete';
+        this.dialogueState = 'mirellePaidShort';
+        this.showDialogueLine({
+          speaker: FOREST_LADY.name,
+          speakerType: 'npc',
+          text: 'Only 1 gold? Oh... well, I suppose Padrig must be having troubles of his own. That is a disappointment, but thank you for bringing it back to me all the same.',
+          choices: ['I am sorry, Mirelle.'],
+        });
+      }
+    } else if ([
+      'questAccepted',
+      'questDeclined',
+      'questAcceptedReminder',
+      'questReplacementAccepted',
+      'questReplacementDeclined',
+      'questNoMoreOnions',
+      'mirellePaidFull',
+      'mirellePaidShort',
+      'mirelleFollowup'
+    ].includes(this.dialogueState)) {
       this.closeDialogue();
     }
   }
@@ -2036,8 +2196,8 @@ class CityScene extends PrototypeScene {
     this.startX = data?.startX ?? 120;
     this.startY = data?.startY ?? 620;
     this.cityNpcStates = {
-      city2GiftGiven: this.hasInventoryItem(WAYFARERS_SALVE_ITEM.name),
-      chefOnionsDelivered: false,
+      city2GiftGiven: this.hasInventoryItem(WAYFARERS_SALVE_ITEM.name) || this.cityNpcStates.city2GiftGiven,
+      chefOnionsDelivered: this.cityNpcStates.chefOnionsDelivered || this.onionQuestFlags.onionsDeliveredToPadrig,
     };
     this.activeCityNpc = null;
   }
@@ -2159,7 +2319,7 @@ class CityScene extends PrototypeScene {
         minX: 420,
         maxX: CITY_WORLD_WIDTH - 420,
         speed: 52,
-        pauseDuration: 2400,
+        pauseDuration: 5000,
         tooltip: CITY_NPCS.city3.name,
       },
       {
@@ -2169,7 +2329,7 @@ class CityScene extends PrototypeScene {
         minX: 620,
         maxX: (CITY_WORLD_WIDTH / 2) - 380,
         speed: 48,
-        pauseDuration: 2200,
+        pauseDuration: 5000,
         tooltip: CITY_NPCS.city1.name,
       },
       {
@@ -2179,7 +2339,7 @@ class CityScene extends PrototypeScene {
         minX: (CITY_WORLD_WIDTH / 2) + 380,
         maxX: CITY_WORLD_WIDTH - 620,
         speed: 48,
-        pauseDuration: 2200,
+        pauseDuration: 5000,
         tooltip: CITY_NPCS.city2.name,
       },
       {
@@ -2189,7 +2349,7 @@ class CityScene extends PrototypeScene {
         minX: this.cityBuildingMap.cityTavern.x - 180,
         maxX: this.cityBuildingMap.cityTavern.x + 180,
         speed: 42,
-        pauseDuration: 1700,
+        pauseDuration: 5000,
         tooltip: `${CITY_NPCS.tavernChef.name} (Chef)`,
       },
     ];
@@ -2206,14 +2366,16 @@ class CityScene extends PrototypeScene {
       npc.npcId = config.id;
       npc.npcKey = config.npcKey;
       npc.facing = Phaser.Math.Between(0, 1) === 0 ? 'left' : 'right';
+      npc.patrolDirection = npc.facing === 'left' ? -1 : 1;
       npc.minX = config.minX;
       npc.maxX = config.maxX;
       npc.speed = config.speed;
       npc.pauseDuration = config.pauseDuration;
-      npc.pauseUntil = this.time.now + Phaser.Math.Between(300, 1200);
+      npc.pauseUntil = this.time.now + config.pauseDuration;
+      npc.isPatrolPaused = true;
       npc.tooltipLabel = config.tooltip;
       npc.setVelocityX(0);
-      npc.anims.play(`${config.npcKey}-idle-${npc.facing}`, true);
+      npc.anims.play(`${config.npcKey}-idle-front`, true);
       this.cityNpcGroup.add(npc);
       return npc;
     });
@@ -2481,7 +2643,7 @@ class CityScene extends PrototypeScene {
 
     if (npcId === 'tavernChef') {
       const choices = ['Maybe in a little while.'];
-      if (this.hasInventoryItem('Onions')) {
+      if (this.hasInventoryItem('Onions') && !this.onionQuestFlags.onionsDeliveredToPadrig) {
         choices.unshift("I have Mirelle's onions for you.");
       }
       this.dialogueState = 'chefGreeting';
@@ -2676,11 +2838,15 @@ class CityScene extends PrototypeScene {
       if (selectedText === "I have Mirelle's onions for you.") {
         this.removeInventoryItem('Onions');
         this.cityNpcStates.chefOnionsDelivered = true;
+        this.onionQuestFlags.onionsDeliveredToPadrig = true;
+        this.onionQuestFlags.padrigPaid = true;
+        this.questState = 'deliveredToPadrig';
+        this.addGold(PADRIG_ONION_PAYMENT);
         this.dialogueState = 'chefThanks';
         this.showDialogueLine({
           speaker: CITY_NPCS.tavernChef.name,
-          text: "Mirelle's onions? Bless the pan and the cutting board. These are my favorite in all the valley. You have done me a grand kindness.",
-          choices: ['Happy to help.'],
+          text: "Mirelle's onions? Bless the pan and the cutting board. These are my favorite in all the valley. You have done me a grand kindness. Here, take 5 gold back to Mirelle for me, and tell her I would pay twice as much if she let me.",
+          choices: ['I will take it to her.'],
         });
       } else {
         this.dialogueState = 'chefInvite';
@@ -2742,29 +2908,30 @@ class CityScene extends PrototypeScene {
 
       if (this.isDialogueOpen || this.isMenuOpen) return;
 
-      if (this.time.now < npc.pauseUntil) {
+      if (npc.isPatrolPaused && this.time.now < npc.pauseUntil) {
         npc.setVelocityX(0);
-        npc.anims.play(`${npc.npcKey}-idle-${npc.facing}`, true);
+        npc.anims.play(`${npc.npcKey}-idle-front`, true);
         return;
       }
 
-      if (npc.x <= npc.minX + 4) {
-        npc.facing = 'right';
-        npc.pauseUntil = this.time.now + npc.pauseDuration;
-        npc.setVelocityX(0);
-        npc.anims.play(`${npc.npcKey}-idle-right`, true);
-        return;
+      if (npc.isPatrolPaused) {
+        npc.isPatrolPaused = false;
       }
-      if (npc.x >= npc.maxX - 4) {
-        npc.facing = 'left';
-        npc.pauseUntil = this.time.now + npc.pauseDuration;
+
+      const nextX = npc.x + (npc.patrolDirection * npc.speed * (this.game.loop.delta / 1000));
+      if ((npc.patrolDirection < 0 && nextX <= npc.minX) || (npc.patrolDirection > 0 && nextX >= npc.maxX)) {
+        npc.x = Phaser.Math.Clamp(npc.x, npc.minX, npc.maxX);
         npc.setVelocityX(0);
-        npc.anims.play(`${npc.npcKey}-idle-left`, true);
+        npc.patrolDirection *= -1;
+        npc.facing = npc.patrolDirection < 0 ? 'left' : 'right';
+        npc.isPatrolPaused = true;
+        npc.pauseUntil = this.time.now + npc.pauseDuration;
+        npc.anims.play(`${npc.npcKey}-idle-front`, true);
         return;
       }
 
-      const direction = npc.facing === 'left' ? -1 : 1;
-      npc.setVelocityX(direction * npc.speed);
+      npc.facing = npc.patrolDirection < 0 ? 'left' : 'right';
+      npc.setVelocityX(npc.patrolDirection * npc.speed);
       npc.anims.play(`${npc.npcKey}-walk-${npc.facing}`, true);
       npc.setDepth(9);
     });
