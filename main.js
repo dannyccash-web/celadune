@@ -2,7 +2,7 @@ const GAME_WIDTH = 1600;
 const GAME_HEIGHT = 900;
 const GROUND_TILE = 160;
 const WORLD_WIDTH = 5120;
-const CITY_WORLD_WIDTH = Math.round(WORLD_WIDTH * 1.5);
+const CITY_WORLD_WIDTH = Math.round(WORLD_WIDTH * 1.76);
 const GROUND_Y = 740;
 const FRAME_W = 64;
 const FRAME_H = 64;
@@ -35,6 +35,19 @@ const FOREST_LADY = {
   idle: 'assets/npcs/forest_lady/idle.png',
   walk: 'assets/npcs/forest_lady/walk.png',
   emote: 'assets/npcs/forest_lady/emote.png',
+};
+
+const CITY_NPCS = {
+  city1: { id: 'city1', key: 'npcCity1', name: 'Bram Alder', idle: 'assets/npcs/npc_city_1/idle.png', walk: 'assets/npcs/npc_city_1/walk.png' },
+  city2: { id: 'city2', key: 'npcCity2', name: 'Ysra Thorn', idle: 'assets/npcs/npc_city_2/idle.png', walk: 'assets/npcs/npc_city_2/walk.png' },
+  city3: { id: 'city3', key: 'npcCity3', name: 'Teren Vale', idle: 'assets/npcs/npc_city_3/idle.png', walk: 'assets/npcs/npc_city_3/walk.png' },
+  tavernChef: { id: 'tavernChef', key: 'npcTavernChef', name: 'Padrig', idle: 'assets/npcs/npc_tavern_chef/idle.png', walk: 'assets/npcs/npc_tavern_chef/walk.png' },
+};
+
+const WAYFARERS_SALVE_ITEM = {
+  name: "Wayfarer's Salve",
+  texture: 'wayfarersSalve',
+  actions: ['Use'],
 };
 
 function lpcFrameList(sheet, row, start, end) {
@@ -98,6 +111,26 @@ function createForestLadyAnimations(scene) {
     { key: 'forestLady-idle-right', sheet: 'forestLady-idle', row: 3, start: 0, end: 1, rate: 3, repeat: -1 },
     { key: 'forestLady-walk-left', sheet: 'forestLady-walk', row: 1, start: 0, end: 8, rate: 8, repeat: -1 },
     { key: 'forestLady-walk-right', sheet: 'forestLady-walk', row: 3, start: 0, end: 8, rate: 8, repeat: -1 },
+  ];
+
+  animations.forEach((anim) => {
+    if (!scene.anims.exists(anim.key)) {
+      scene.anims.create({
+        key: anim.key,
+        frames: lpcFrameList(anim.sheet, anim.row, anim.start, anim.end),
+        frameRate: anim.rate,
+        repeat: anim.repeat,
+      });
+    }
+  });
+}
+
+function createNpcWalkIdleAnimations(scene, prefix) {
+  const animations = [
+    { key: `${prefix}-idle-left`, sheet: `${prefix}-idle`, row: 1, start: 0, end: 1, rate: 3, repeat: -1 },
+    { key: `${prefix}-idle-right`, sheet: `${prefix}-idle`, row: 3, start: 0, end: 1, rate: 3, repeat: -1 },
+    { key: `${prefix}-walk-left`, sheet: `${prefix}-walk`, row: 1, start: 0, end: 8, rate: 8, repeat: -1 },
+    { key: `${prefix}-walk-right`, sheet: `${prefix}-walk`, row: 3, start: 0, end: 8, rate: 8, repeat: -1 },
   ];
 
   animations.forEach((anim) => {
@@ -434,6 +467,7 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('brokenWagon', 'assets/props/broken_wagon.png');
     this.load.image('onionPatch', 'assets/props/onion_patch.png');
     this.load.image('menuOnions', 'assets/ui/onions.png');
+    this.load.image('wayfarersSalve', 'assets/ui/wayfarers_salve.png');
     this.load.audio('forestTheme', 'assets/audio/celadune_forest.mp3');
     this.load.audio('cityTheme', 'assets/audio/celadune_city.mp3');
     this.load.audio('writingSfx', 'assets/sfx/writing.mp3');
@@ -441,6 +475,11 @@ class PrototypeScene extends Phaser.Scene {
     this.load.spritesheet('forestLady-walk', FOREST_LADY.walk, { frameWidth: FRAME_W, frameHeight: FRAME_H });
     this.load.spritesheet('forestLady-emote', FOREST_LADY.emote, { frameWidth: FRAME_W, frameHeight: FRAME_H });
     this.load.spritesheet('forestLady-portrait', 'assets/npcs/forest_lady/portrait.png', { frameWidth: FRAME_W, frameHeight: 48 });
+
+    Object.values(CITY_NPCS).forEach((npc) => {
+      this.load.spritesheet(`${npc.key}-idle`, npc.idle, { frameWidth: FRAME_W, frameHeight: FRAME_H });
+      this.load.spritesheet(`${npc.key}-walk`, npc.walk, { frameWidth: FRAME_W, frameHeight: FRAME_H });
+    });
 
     Object.values(HEROES).forEach((hero) => {
       this.load.spritesheet(`${hero.key}-walk`, hero.walk, { frameWidth: FRAME_W, frameHeight: FRAME_H });
@@ -561,8 +600,9 @@ class PrototypeScene extends Phaser.Scene {
     this.setTextureFilter([
       'blackTile', 'ground0', 'ground1', 'ground2', 'ground3',
       'cityGround1', 'cityGround2', 'cityGround3', 'parchment', 'forestHut',
-      'brokenWagon', 'onionPatch', 'menuOnions', 'forestLady-idle', 'forestLady-walk',
+      'brokenWagon', 'onionPatch', 'menuOnions', 'wayfarersSalve', 'forestLady-idle', 'forestLady-walk',
       'forestLady-emote', 'forestLady-portrait',
+      ...Object.keys(CITY_NPCS).flatMap((npcKey) => [`${CITY_NPCS[npcKey].key}-walk`, `${CITY_NPCS[npcKey].key}-idle`]),
       ...Object.keys(HEROES).flatMap((heroKey) => [`${heroKey}-walk`, `${heroKey}-idle`, `${heroKey}-jump`]),
     ], Phaser.Textures.FilterMode.NEAREST);
   }
@@ -577,6 +617,7 @@ class PrototypeScene extends Phaser.Scene {
       createHeroTopDownAnimations(this, heroKey);
     });
     createForestLadyAnimations(this);
+    Object.values(CITY_NPCS).forEach((npc) => createNpcWalkIdleAnimations(this, npc.key));
   }
 
   createPlayer() {
@@ -1352,6 +1393,16 @@ class PrototypeScene extends Phaser.Scene {
     }
   }
 
+  removeInventoryItem(name) {
+    const itemIndex = this.inventoryItems.findIndex((item) => item.name === name);
+    if (itemIndex === -1) return false;
+    this.inventoryItems.splice(itemIndex, 1);
+    if (this.isMenuOpen && this.menuPages[this.selectedMenuIndex] === 'Inventory') {
+      this.refreshMenuPage();
+    }
+    return true;
+  }
+
   hasEquipmentItem(name) {
     return this.equipmentItems.some((item) => item.name === name);
   }
@@ -1964,6 +2015,7 @@ class PrototypeScene extends Phaser.Scene {
 
 
 
+
 class CityScene extends PrototypeScene {
   constructor() {
     super('CityScene');
@@ -1983,6 +2035,11 @@ class CityScene extends PrototypeScene {
     super.init(data);
     this.startX = data?.startX ?? 120;
     this.startY = data?.startY ?? 620;
+    this.cityNpcStates = {
+      city2GiftGiven: this.hasInventoryItem(WAYFARERS_SALVE_ITEM.name),
+      chefOnionsDelivered: false,
+    };
+    this.activeCityNpc = null;
   }
 
   create() {
@@ -1995,12 +2052,14 @@ class CityScene extends PrototypeScene {
     this.createCityBuildings();
     this.createAnimations();
     this.createPlayer();
+    this.createCityNPCs();
     if (this.shouldUseSceneAtmosphere()) this.createAtmosphere();
     this.createCamera();
     this.createUI();
     this.createItemReceiveUI();
     this.createAudio();
     this.createMenu();
+    this.createDialogueUI();
 
     this.player.setPosition(this.startX, this.startY);
 
@@ -2038,7 +2097,7 @@ class CityScene extends PrototypeScene {
     const wallHeight = GROUND_TILE + 20;
     const wallY = GROUND_Y - GROUND_TILE + 18 - 20;
     const wallGapCenterX = CITY_WORLD_WIDTH / 2;
-    const wallGapWidth = 300;
+    const wallGapWidth = 190;
     const gapLeft = wallGapCenterX - (wallGapWidth / 2);
     const gapRight = wallGapCenterX + (wallGapWidth / 2);
 
@@ -2068,16 +2127,17 @@ class CityScene extends PrototypeScene {
     const baseY = BLACK_TILE_GROUND_Y - 10;
     const centerX = CITY_WORLD_WIDTH / 2;
     const placements = [
-      { key: 'cityHouse3', x: centerX - 3300, h: 560 },
-      { key: 'cityBlacksmithShop', x: centerX - 2200, h: 940 },
-      { key: 'cityTavern', x: centerX - 1050, h: 660 },
-      { key: 'cityArchway', x: centerX, h: 660 },
-      { key: 'cityHouse1', x: centerX + 1050, h: 520 },
-      { key: 'cityMagicShop', x: centerX + 2250, h: 980 },
-      { key: 'cityHouse2', x: centerX + 3200, h: 560 },
+      { key: 'cityHouse3', x: centerX - 3500, h: 430, id: 'cityHouse3' },
+      { key: 'cityBlacksmithShop', x: centerX - 2350, h: 660, id: 'cityBlacksmithShop' },
+      { key: 'cityTavern', x: centerX - 1280, h: 560, id: 'cityTavern' },
+      { key: 'cityArchway', x: centerX, h: 660, id: 'cityArchway' },
+      { key: 'cityHouse1', x: centerX + 1080, h: 430, id: 'cityHouse1' },
+      { key: 'cityMagicShop', x: centerX + 2380, h: 880, id: 'cityMagicShop' },
+      { key: 'cityHouse2', x: centerX + 3740, h: 430, id: 'cityHouse2' },
     ];
 
-    placements.forEach(({ key, x, h }) => {
+    this.cityBuildingMap = {};
+    placements.forEach(({ key, x, h, id }) => {
       const texture = this.textures.get(key).getSourceImage();
       const displayWidth = texture.width * (h / texture.height);
       const building = this.add.image(x, baseY, key)
@@ -2085,7 +2145,197 @@ class CityScene extends PrototypeScene {
         .setDisplaySize(displayWidth, h)
         .setDepth(8);
       this.cityBuildings.add(building);
+      this.cityBuildingMap[id] = building;
     });
+  }
+
+  createCityNPCs() {
+    this.cityNpcGroup = this.physics.add.group();
+    this.cityNpcConfigs = [
+      {
+        id: 'city3',
+        npcKey: CITY_NPCS.city3.key,
+        x: CITY_WORLD_WIDTH / 2 - 260,
+        minX: 420,
+        maxX: CITY_WORLD_WIDTH - 420,
+        speed: 52,
+        pauseDuration: 2400,
+        tooltip: CITY_NPCS.city3.name,
+      },
+      {
+        id: 'city1',
+        npcKey: CITY_NPCS.city1.key,
+        x: CITY_WORLD_WIDTH / 2 - 1900,
+        minX: 620,
+        maxX: (CITY_WORLD_WIDTH / 2) - 380,
+        speed: 48,
+        pauseDuration: 2200,
+        tooltip: CITY_NPCS.city1.name,
+      },
+      {
+        id: 'city2',
+        npcKey: CITY_NPCS.city2.key,
+        x: CITY_WORLD_WIDTH / 2 + 1750,
+        minX: (CITY_WORLD_WIDTH / 2) + 380,
+        maxX: CITY_WORLD_WIDTH - 620,
+        speed: 48,
+        pauseDuration: 2200,
+        tooltip: CITY_NPCS.city2.name,
+      },
+      {
+        id: 'tavernChef',
+        npcKey: CITY_NPCS.tavernChef.key,
+        x: this.cityBuildingMap.cityTavern.x + 100,
+        minX: this.cityBuildingMap.cityTavern.x - 180,
+        maxX: this.cityBuildingMap.cityTavern.x + 180,
+        speed: 42,
+        pauseDuration: 1700,
+        tooltip: `${CITY_NPCS.tavernChef.name} (Chef)`,
+      },
+    ];
+
+    this.cityNpcs = this.cityNpcConfigs.map((config) => {
+      const npc = this.physics.add.sprite(config.x, 618, `${config.npcKey}-idle`, 39);
+      npc.setScale(3.0);
+      npc.setCollideWorldBounds(true);
+      npc.setDragX(1400);
+      npc.setMaxVelocity(140, 1200);
+      npc.setSize(24, 22, true);
+      npc.setOffset(20, 41);
+      npc.setDepth(9);
+      npc.npcId = config.id;
+      npc.npcKey = config.npcKey;
+      npc.facing = Phaser.Math.Between(0, 1) === 0 ? 'left' : 'right';
+      npc.minX = config.minX;
+      npc.maxX = config.maxX;
+      npc.speed = config.speed;
+      npc.pauseDuration = config.pauseDuration;
+      npc.pauseUntil = this.time.now + Phaser.Math.Between(300, 1200);
+      npc.tooltipLabel = config.tooltip;
+      npc.setVelocityX(0);
+      npc.anims.play(`${config.npcKey}-idle-${npc.facing}`, true);
+      this.cityNpcGroup.add(npc);
+      return npc;
+    });
+
+    this.physics.add.collider(this.cityNpcGroup, this.ground);
+    this.cityNpcTooltips = new Map();
+
+    this.cityNpcs.forEach((npc) => {
+      const tooltip = this.add.container(0, 0).setDepth(30).setVisible(false);
+      const tooltipBg = this.add.rectangle(0, 0, Math.max(132, npc.tooltipLabel.length * 8), 30, 0x1c1209, 0.82)
+        .setStrokeStyle(2, 0xdab56a, 0.95);
+      const tooltipText = this.add.text(0, 0, npc.tooltipLabel, {
+        fontFamily: 'Roboto Mono',
+        fontSize: '16px',
+        color: '#f7edd6',
+      }).setOrigin(0.5);
+      tooltip.add([tooltipBg, tooltipText]);
+      this.cityNpcTooltips.set(npc.npcId, tooltip);
+    });
+  }
+
+  createDialogueUI() {
+    this.dialogueOverlay = this.add.container(0, 0).setScrollFactor(0).setDepth(230).setVisible(false);
+    const dim = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x05070a, 0.54).setOrigin(0, 0);
+    this.dialogueOverlay.add(dim);
+
+    const panelW = 1100;
+    const panelH = 440;
+    const panelX = Math.round((GAME_WIDTH - panelW) / 2);
+    const panelY = Math.round((GAME_HEIGHT - panelH) / 2);
+
+    const parchment = this.add.tileSprite(panelX + panelW / 2, panelY + panelH / 2, panelW, panelH, 'parchment');
+    const parchmentSource = this.textures.get('parchment').getSourceImage();
+    parchment.setTileScale(160 / parchmentSource.width, 160 / parchmentSource.height);
+    parchment.setAlpha(0.98);
+    this.dialogueOverlay.add(parchment);
+
+    const borderOuter = this.add.rectangle(panelX + panelW / 2, panelY + panelH / 2, panelW, panelH, 0x000000, 0)
+      .setStrokeStyle(6, 0x5b3717, 1);
+    const borderInner = this.add.rectangle(panelX + panelW / 2, panelY + panelH / 2, panelW - 18, panelH - 18, 0x000000, 0)
+      .setStrokeStyle(2, 0xdab56a, 0.95);
+    this.dialogueOverlay.add(borderOuter);
+    this.dialogueOverlay.add(borderInner);
+
+    const contentLeft = panelX + 36;
+    const contentTop = panelY + 30;
+    const contentRight = panelX + panelW - 36;
+    const portraitSize = 188;
+    const portraitInner = portraitSize - 4;
+    const portraitX = contentLeft + portraitSize / 2;
+    const portraitY = contentTop + portraitSize / 2;
+    const textX = panelX + 290;
+    const textRight = contentRight;
+
+    this.dialoguePortraitRect = {
+      left: portraitX - portraitInner / 2,
+      top: portraitY - portraitInner / 2,
+      width: portraitInner,
+      height: portraitInner,
+      bottom: portraitY + portraitInner / 2,
+    };
+
+    this.portraitFrame = this.add.rectangle(portraitX, portraitY, portraitSize, portraitSize, 0x000000, 0)
+      .setStrokeStyle(2, 0xdab56a, 0.95);
+    this.dialogueOverlay.add(this.portraitFrame);
+
+    this.portraitSceneBg = this.add.tileSprite(portraitX, portraitY, portraitInner, portraitInner, 'cityBg').setOrigin(0.5);
+    this.portraitSceneBg.setTileScale(this.bgScale || 1, this.bgScale || 1);
+    this.dialogueOverlay.add(this.portraitSceneBg);
+
+    this.portraitMaskGraphics = this.add.graphics();
+    this.portraitMaskGraphics.setScrollFactor(0).setDepth(229).setVisible(false);
+    this.portraitMaskGraphics.fillStyle(0xffffff, 1);
+    this.portraitMaskGraphics.fillRect(
+      this.dialoguePortraitRect.left,
+      this.dialoguePortraitRect.top,
+      this.dialoguePortraitRect.width,
+      this.dialoguePortraitRect.height
+    );
+    this.portraitMask = this.portraitMaskGraphics.createGeometryMask();
+    this.portraitSceneBg.setMask(this.portraitMask);
+
+    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 86, `${CITY_NPCS.city1.key}-idle`, 26)
+      .setOrigin(0.5, 1)
+      .setScale(5.1)
+      .setMask(this.portraitMask)
+      .setVisible(true);
+    this.dialogueOverlay.add(this.npcPortrait);
+
+    this.dialogueSpeakerText = this.add.text(textX, contentTop + 10, '', {
+      fontFamily: 'Macondo Swash Caps',
+      fontSize: '34px',
+      color: '#4a2411',
+    });
+    this.dialogueOverlay.add(this.dialogueSpeakerText);
+
+    this.dialogueText = this.add.text(textX, contentTop + 66, '', {
+      fontFamily: 'Roboto Mono',
+      fontSize: '20px',
+      color: '#2b1b0f',
+      lineSpacing: 10,
+      wordWrap: { width: textRight - textX },
+      maxLines: 5,
+    });
+    this.dialogueOverlay.add(this.dialogueText);
+
+    this.dialogueOptionWidth = panelW - 72;
+    this.dialogueOptions = this.add.container(contentLeft, panelY + panelH - 142);
+    this.dialogueOverlay.add(this.dialogueOptions);
+
+    this.dialogueHint = this.add.text(panelX + panelW - 34, panelY + 18, 'Enter to choose', {
+      fontFamily: 'Roboto Mono',
+      fontSize: '16px',
+      color: '#4e3720',
+    }).setOrigin(1, 0);
+    this.dialogueOverlay.add(this.dialogueHint);
+  }
+
+  syncDialoguePortraitBackground() {
+    if (!this.portraitSceneBg || !this.dialoguePortraitRect) return;
+    this.portraitSceneBg.tilePositionX = (this.bg?.tilePositionX || 0) + this.dialoguePortraitRect.left;
+    this.portraitSceneBg.tilePositionY = this.dialoguePortraitRect.top;
   }
 
   getMusicConfig() {
@@ -2137,14 +2387,319 @@ class CityScene extends PrototypeScene {
 
   createNPC() {}
   createProps() {}
-  createDialogueUI() {}
-  updateNPCBehavior() {}
-  openDialogue() {}
   beginOnionPatchInteraction() {}
   updateScriptedNpcMovement() { return false; }
 
+  getCityNpcById(id) {
+    return this.cityNpcs.find((npc) => npc.npcId === id);
+  }
+
+  getClosestCityNpc() {
+    let closest = null;
+    let bestDistance = 9999;
+    this.cityNpcs.forEach((npc) => {
+      const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, npc.x, npc.y);
+      if (distance < 150 && distance < bestDistance) {
+        bestDistance = distance;
+        closest = npc;
+      }
+    });
+    return closest;
+  }
+
+  openDialogue(npcId) {
+    if (this.isDialogueOpen || this.isMenuOpen) return;
+    this.activeCityNpc = this.getCityNpcById(npcId);
+    if (!this.activeCityNpc) return;
+
+    this.isDialogueOpen = true;
+    this.dialogueOverlay.setVisible(true);
+    this.physics.world.pause();
+    this.player.setVelocity(0, 0);
+    this.cityNpcs.forEach((npc) => npc.setVelocityX(0));
+    this.player.anims.play(`${this.heroKey}-idle-${this.facing}`, true);
+    this.activeCityNpc.anims.play(`${this.activeCityNpc.npcKey}-idle-${this.activeCityNpc.facing}`, true);
+    this.portraitSceneBg?.setVisible(true);
+    this.npcPortrait?.setVisible(true);
+    this.npcPortrait.setTexture(`${this.activeCityNpc.npcKey}-idle`).setFrame(26);
+    this.syncDialoguePortraitBackground();
+    this.startDialogueSequence(npcId);
+  }
+
+  closeDialogue() {
+    this.isDialogueOpen = false;
+    this.dialogueOverlay.setVisible(false);
+    this.clearDialogueOptions();
+    this.stopTypewriter();
+    this.physics.world.resume();
+    this.activeCityNpc = null;
+    this.flushQueuedItemReceivePopups();
+  }
+
+  startDialogueSequence(npcId) {
+    this.dialogueChoiceIndex = 0;
+
+    if (npcId === 'city1') {
+      this.dialogueState = 'city1Intro';
+      this.showDialogueLine({
+        speaker: CITY_NPCS.city1.name,
+        text: 'A fine morning for it, is it not? Everyone in the city has been summoned to the castle square. The king is meant to speak before long.',
+        choices: ['What is happening at the castle?', 'Thanks. I should keep moving.'],
+      });
+      return;
+    }
+
+    if (npcId === 'city2') {
+      if (this.cityNpcStates.city2GiftGiven || this.hasInventoryItem(WAYFARERS_SALVE_ITEM.name)) {
+        this.dialogueState = 'city2AfterGift';
+        this.showDialogueLine({
+          speaker: CITY_NPCS.city2.name,
+          text: 'You are still set on going east? Then keep your wits sharp and your eyes sharper. The road past the city does not forgive the careless.',
+          choices: ['I will be careful.'],
+        });
+        return;
+      }
+
+      this.dialogueState = 'city2Warning';
+      this.showDialogueLine({
+        speaker: CITY_NPCS.city2.name,
+        text: 'East of the city the roads turn mean. Beasts prowl the scrubland, and worse things watch from ruined places. Turn back while the walls are still behind you.',
+        choices: ['I have to go east anyway.', 'You may be right.'],
+      });
+      return;
+    }
+
+    if (npcId === 'city3') {
+      this.dialogueState = 'city3Worried';
+      this.showDialogueLine({
+        speaker: CITY_NPCS.city3.name,
+        text: 'Have you seen anyone come through here carrying a little brass birdcage? No... of course not. It vanished this morning, and what was inside it matters more than I can say. Will you help me look?',
+        choices: ['I will keep an eye out.', 'Not just now.'],
+      });
+      return;
+    }
+
+    if (npcId === 'tavernChef') {
+      const choices = ['Maybe in a little while.'];
+      if (this.hasInventoryItem('Onions')) {
+        choices.unshift("I have Mirelle's onions for you.");
+      }
+      this.dialogueState = 'chefGreeting';
+      this.showDialogueLine({
+        speaker: CITY_NPCS.tavernChef.name,
+        text: 'You there! Come warm yourself inside. I have stew on the fire, bread in the oven, and enough cheer for half the city.',
+        choices,
+      });
+    }
+  }
+
+  showDialogueLine(line) {
+    this.currentDialogueLine = line;
+    this.dialogueSpeakerText.setText(line.speaker);
+    this.dialogueText.setText('');
+    this.clearDialogueOptions();
+    this.dialogueAwaitingChoice = false;
+    this.typewriterText = line.text;
+    this.typewriterIndex = 0;
+    this.isTyping = true;
+    this.talkPortrait(true);
+
+    this.typewriterEvent?.remove(false);
+    this.typewriterEvent = this.time.addEvent({
+      delay: 24,
+      repeat: Math.max(line.text.length - 1, 0),
+      callback: () => {
+        this.typewriterIndex += 1;
+        this.dialogueText.setText(this.typewriterText.slice(0, this.typewriterIndex));
+        if (this.typewriterIndex >= this.typewriterText.length) {
+          this.finishTyping();
+        }
+      },
+    });
+  }
+
+  finishTyping() {
+    if (!this.isTyping) return;
+    this.isTyping = false;
+    this.dialogueText.setText(this.typewriterText);
+    this.stopTalkingPortrait();
+    this.typewriterEvent?.remove(false);
+    this.typewriterEvent = null;
+
+    if (this.currentDialogueLine?.choices) {
+      this.dialogueAwaitingChoice = true;
+      this.dialogueChoiceIndex = 0;
+      this.renderDialogueOptions(this.currentDialogueLine.choices);
+    }
+  }
+
+  stopTypewriter() {
+    this.typewriterEvent?.remove(false);
+    this.typewriterEvent = null;
+    this.isTyping = false;
+    this.stopTalkingPortrait();
+  }
+
+  talkPortrait(active) {
+    this.stopTalkingPortrait();
+    if (!this.activeCityNpc) return;
+    const idleTexture = `${this.activeCityNpc.npcKey}-idle`;
+    if (!active) {
+      this.npcPortrait.setTexture(idleTexture).setFrame(26);
+      return;
+    }
+    if (!this.writingSound.isPlaying) this.writingSound.play();
+    const talkFrames = [26, 27];
+    let talkIndex = 0;
+    this.portraitTalkEvent = this.time.addEvent({
+      delay: 120,
+      loop: true,
+      callback: () => {
+        this.npcPortrait.setTexture(idleTexture).setFrame(talkFrames[talkIndex % talkFrames.length]);
+        talkIndex += 1;
+      },
+    });
+  }
+
+  stopTalkingPortrait() {
+    this.portraitTalkEvent?.remove(false);
+    this.portraitTalkEvent = null;
+    if (this.activeCityNpc) {
+      this.npcPortrait.setTexture(`${this.activeCityNpc.npcKey}-idle`).setFrame(26);
+    }
+    if (this.writingSound?.isPlaying) this.writingSound.stop();
+  }
+
+  renderDialogueOptions(options) {
+    this.clearDialogueOptions();
+    this.dialogueOptionEntries = options.map((option, index) => {
+      const y = index * 56;
+      const box = this.add.rectangle(0, y, this.dialogueOptionWidth, 42, 0x000000, 0)
+        .setOrigin(0, 0)
+        .setStrokeStyle(2, 0xdab56a, 0.92);
+      const text = this.add.text(14, y + 8, option, {
+        fontFamily: 'Roboto Mono',
+        fontSize: '16px',
+        color: '#3e2514',
+        wordWrap: { width: this.dialogueOptionWidth - 28 },
+      });
+      this.dialogueOptions.add([box, text]);
+      return { box, text };
+    });
+    this.refreshDialogueOptions();
+  }
+
+  refreshDialogueOptions() {
+    if (!this.dialogueOptionEntries) return;
+    this.dialogueOptionEntries.forEach((entry, index) => {
+      const active = index === this.dialogueChoiceIndex;
+      entry.box.setStrokeStyle(active ? 3 : 2, active ? 0x6b4016 : 0xdab56a, 0.98);
+      entry.text.setColor(active ? '#2b1207' : '#6d4f24');
+    });
+  }
+
+  clearDialogueOptions() {
+    this.dialogueOptions?.removeAll(true);
+    this.dialogueOptionEntries = [];
+  }
+
+  chooseDialogueOption() {
+    if (!this.dialogueAwaitingChoice) return;
+    const selectedText = this.currentDialogueLine.choices[this.dialogueChoiceIndex];
+    this.clearDialogueOptions();
+    this.dialogueAwaitingChoice = false;
+
+    if (this.dialogueState === 'city1Intro') {
+      if (selectedText === 'What is happening at the castle?') {
+        this.dialogueState = 'city1Castle';
+        this.showDialogueLine({
+          speaker: CITY_NPCS.city1.name,
+          text: 'No one seems to know for certain, but the bells were rung before dawn and every household heard the call. It must be important.',
+          choices: ['I should head that way.'],
+        });
+      } else {
+        this.closeDialogue();
+      }
+      return;
+    }
+
+    if (this.dialogueState === 'city1Castle') {
+      this.closeDialogue();
+      return;
+    }
+
+    if (this.dialogueState === 'city2Warning') {
+      if (selectedText === 'I have to go east anyway.') {
+        this.cityNpcStates.city2GiftGiven = true;
+        this.addInventoryItem({ ...WAYFARERS_SALVE_ITEM });
+        this.dialogueState = 'city2Gift';
+        this.showDialogueLine({
+          speaker: CITY_NPCS.city2.name,
+          text: 'Stubborn, then. Fine. Take this and keep it close. It is only a simple salve, but it may buy you a little time if the road turns against you.',
+          choices: ['Thank you. I will take it.'],
+        });
+      } else {
+        this.dialogueState = 'city2Stay';
+        this.showDialogueLine({
+          speaker: CITY_NPCS.city2.name,
+          text: 'For once, a traveler with sense. Stay within the city walls until you truly know what waits beyond them.',
+          choices: ['Understood.'],
+        });
+      }
+      return;
+    }
+
+    if (['city2Gift', 'city2Stay', 'city2AfterGift'].includes(this.dialogueState)) {
+      this.closeDialogue();
+      return;
+    }
+
+    if (this.dialogueState === 'city3Worried') {
+      this.dialogueState = 'city3End';
+      const response = selectedText === 'I will keep an eye out.'
+        ? 'Thank you. If you find any trace of it, please come back and tell me at once.'
+        : 'I understand. Still, if anything unusual catches your eye, remember what I asked.';
+      this.showDialogueLine({
+        speaker: CITY_NPCS.city3.name,
+        text: response,
+        choices: ['All right.'],
+      });
+      return;
+    }
+
+    if (this.dialogueState === 'city3End') {
+      this.closeDialogue();
+      return;
+    }
+
+    if (this.dialogueState === 'chefGreeting') {
+      if (selectedText === "I have Mirelle's onions for you.") {
+        this.removeInventoryItem('Onions');
+        this.cityNpcStates.chefOnionsDelivered = true;
+        this.dialogueState = 'chefThanks';
+        this.showDialogueLine({
+          speaker: CITY_NPCS.tavernChef.name,
+          text: "Mirelle's onions? Bless the pan and the cutting board. These are my favorite in all the valley. You have done me a grand kindness.",
+          choices: ['Happy to help.'],
+        });
+      } else {
+        this.dialogueState = 'chefInvite';
+        this.showDialogueLine({
+          speaker: CITY_NPCS.tavernChef.name,
+          text: 'Then come by when your boots are tired. I will have a hot plate ready and a mug to match it.',
+          choices: ['I will remember that.'],
+        });
+      }
+      return;
+    }
+
+    if (['chefThanks', 'chefInvite'].includes(this.dialogueState)) {
+      this.closeDialogue();
+    }
+  }
+
   openMenu() {
-    if (this.isMenuOpen) return;
+    if (this.isMenuOpen || this.isDialogueOpen) return;
     this.isMenuOpen = true;
     this.menuMode = 'categories';
     this.menuSectionIndex = 0;
@@ -2154,6 +2709,7 @@ class CityScene extends PrototypeScene {
     this.refreshMenuPage();
     this.physics.world.pause();
     this.player.anims.pause();
+    this.cityNpcs?.forEach((npc) => npc.anims.pause());
   }
 
   closeMenu() {
@@ -2163,10 +2719,59 @@ class CityScene extends PrototypeScene {
     this.menuOverlay.setVisible(false);
     this.physics.world.resume();
     this.player.anims.resume();
+    this.cityNpcs?.forEach((npc) => npc.anims.resume());
+  }
+
+  updateNPCBehavior() {
+    if (!this.cityNpcs?.length) return;
+    this.activeNearbyNpc = null;
+    let nearestDistance = 9999;
+
+    this.cityNpcs.forEach((npc) => {
+      const tooltip = this.cityNpcTooltips.get(npc.npcId);
+      const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, npc.x, npc.y);
+      const canInteract = distance < 150 && !this.isDialogueOpen && !this.isMenuOpen;
+      tooltip?.setVisible(canInteract);
+      if (canInteract) {
+        tooltip.setPosition(this.player.x, this.player.y - 96);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          this.activeNearbyNpc = npc;
+        }
+      }
+
+      if (this.isDialogueOpen || this.isMenuOpen) return;
+
+      if (this.time.now < npc.pauseUntil) {
+        npc.setVelocityX(0);
+        npc.anims.play(`${npc.npcKey}-idle-${npc.facing}`, true);
+        return;
+      }
+
+      if (npc.x <= npc.minX + 4) {
+        npc.facing = 'right';
+        npc.pauseUntil = this.time.now + npc.pauseDuration;
+        npc.setVelocityX(0);
+        npc.anims.play(`${npc.npcKey}-idle-right`, true);
+        return;
+      }
+      if (npc.x >= npc.maxX - 4) {
+        npc.facing = 'left';
+        npc.pauseUntil = this.time.now + npc.pauseDuration;
+        npc.setVelocityX(0);
+        npc.anims.play(`${npc.npcKey}-idle-left`, true);
+        return;
+      }
+
+      const direction = npc.facing === 'left' ? -1 : 1;
+      npc.setVelocityX(direction * npc.speed);
+      npc.anims.play(`${npc.npcKey}-walk-${npc.facing}`, true);
+      npc.setDepth(9);
+    });
   }
 
   handleSceneBoundaries(velocityX, onGround) {
-    if (this.isMenuOpen || this.isSceneTransitioning) return;
+    if (this.isMenuOpen || this.isDialogueOpen || this.isSceneTransitioning) return;
     if (!onGround) return;
     if (velocityX < 0 && this.player.body.blocked.left) {
       this.transitionToScene('PrototypeScene', WORLD_WIDTH - 72, this.player.y);
@@ -2181,6 +2786,8 @@ class CityScene extends PrototypeScene {
   }
 
   update() {
+    this.updateNPCBehavior();
+
     if (this.itemReceiveContainer?.visible) {
       this.itemReceiveContainer.setPosition(this.player.x, this.player.y - 116);
     }
@@ -2188,9 +2795,35 @@ class CityScene extends PrototypeScene {
     if (Phaser.Input.Keyboard.JustDown(this.menuKey)) {
       if (this.isMenuOpen) {
         this.closeMenu();
-      } else {
+      } else if (!this.isDialogueOpen) {
         this.openMenu();
       }
+    }
+
+    if (this.isDialogueOpen) {
+      if (this.isTyping && (Phaser.Input.Keyboard.JustDown(this.enterKey) || Phaser.Input.Keyboard.JustDown(this.spaceKey))) {
+        this.dialogueText.setText(this.typewriterText);
+        this.finishTyping();
+        return;
+      }
+      if (this.dialogueAwaitingChoice) {
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.up)) {
+          this.dialogueChoiceIndex = Phaser.Math.Wrap(this.dialogueChoiceIndex - 1, 0, this.currentDialogueLine.choices.length);
+          this.refreshDialogueOptions();
+        }
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.down)) {
+          this.dialogueChoiceIndex = Phaser.Math.Wrap(this.dialogueChoiceIndex + 1, 0, this.currentDialogueLine.choices.length);
+          this.refreshDialogueOptions();
+        }
+        if (Phaser.Input.Keyboard.JustDown(this.enterKey) || Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+          this.chooseDialogueOption();
+        }
+      }
+      if (Phaser.Input.Keyboard.JustDown(this.escapeKey) || Phaser.Input.Keyboard.JustDown(this.backspaceKey)) {
+        this.closeDialogue();
+      }
+      this.syncDialoguePortraitBackground();
+      return;
     }
 
     if (this.isMenuOpen) {
@@ -2199,6 +2832,13 @@ class CityScene extends PrototypeScene {
     }
 
     const upJustPressed = Phaser.Input.Keyboard.JustDown(this.cursors.up);
+    const interactPressed = Phaser.Input.Keyboard.JustDown(this.enterKey) || Phaser.Input.Keyboard.JustDown(this.spaceKey);
+    const nearNpc = this.getClosestCityNpc();
+    if (nearNpc && interactPressed) {
+      this.openDialogue(nearNpc.npcId);
+      return;
+    }
+
     const moveSpeed = 260;
     const body = this.player.body;
     const onGround = body.blocked.down || body.touching.down;
