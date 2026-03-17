@@ -424,6 +424,8 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('cityWall3', 'assets/props/city_wall_3.png');
     this.load.image('cityArchway', 'assets/props/city_archway.png');
     this.load.image('cityHouse1', 'assets/props/city_house_1.png');
+    this.load.image('cityHouse2', 'assets/props/city_house_2.png');
+    this.load.image('cityHouse3', 'assets/props/city_house_3.png');
     this.load.image('cityMagicShop', 'assets/props/city_magic_shop.png');
     this.load.image('cityTavern', 'assets/props/city_tavern.png');
     this.load.image('cityBlacksmithShop', 'assets/props/city_blacksmith_shop.png');
@@ -2066,11 +2068,13 @@ class CityScene extends PrototypeScene {
     const baseY = BLACK_TILE_GROUND_Y - 10;
     const centerX = CITY_WORLD_WIDTH / 2;
     const placements = [
-      { key: 'cityBlacksmithShop', x: centerX - 1900, h: 620 },
-      { key: 'cityTavern', x: centerX - 950, h: 720 },
+      { key: 'cityHouse3', x: centerX - 3300, h: 560 },
+      { key: 'cityBlacksmithShop', x: centerX - 2200, h: 940 },
+      { key: 'cityTavern', x: centerX - 1050, h: 660 },
       { key: 'cityArchway', x: centerX, h: 660 },
-      { key: 'cityHouse1', x: centerX + 950, h: 620 },
-      { key: 'cityMagicShop', x: centerX + 1950, h: 720 },
+      { key: 'cityHouse1', x: centerX + 1050, h: 520 },
+      { key: 'cityMagicShop', x: centerX + 2250, h: 980 },
+      { key: 'cityHouse2', x: centerX + 3200, h: 560 },
     ];
 
     placements.forEach(({ key, x, h }) => {
