@@ -1034,7 +1034,7 @@ class PrototypeScene extends Phaser.Scene {
     }).setOrigin(0.5, 0.5);
     this.menuOverlay.add(this.menuTitle);
 
-    this.goldCounterText = this.add.text(panelX + panelW - 320, panelY + 54, 'Gold: 0', {
+    this.goldCounterText = this.add.text(panelX + panelW - 170, panelY + panelH - 64, 'Gold: 0', {
       fontFamily: 'Roboto Mono',
       fontSize: '24px',
       color: '#4a2411',
@@ -1692,6 +1692,17 @@ class PrototypeScene extends Phaser.Scene {
         return;
       }
 
+      if (this.questState === 'nextDeliveryAccepted' && this.hasInventoryItem('Onions')) {
+        this.dialogueState = 'mirelleNextDeliveryReminder';
+        this.showDialogueLine({
+          speaker: FOREST_LADY.name,
+          speakerType: 'npc',
+          text: 'That fresh bundle is for Elira Fen, dear heart. When her door is built and her table is waiting, I know you will carry it kindly.',
+          choices: ['I still have the onions for Elira Fen.'],
+        });
+        return;
+      }
+
       if (this.questState === 'paymentPending' && !this.storyFlags.mirellePaymentResolved) {
         this.dialogueState = 'mirellePaymentChoice';
         this.showDialogueLine({
@@ -1973,13 +1984,14 @@ class PrototypeScene extends Phaser.Scene {
           this.storyFlags.mirellePaidInFull = true;
           this.storyFlags.mirellePaymentAmount = 5;
           this.storyFlags.nextOnionDeliveryUnlocked = true;
-          this.questState = 'paidInFull';
+          if (!this.hasInventoryItem('Onions')) this.addInventoryItem({ name: 'Onions', texture: 'menuOnions', actions: ['Eat'] });
+          this.questState = 'nextDeliveryAccepted';
           this.dialogueState = 'mirellePaidInFull';
           this.showDialogueLine({
             speaker: FOREST_LADY.name,
             speakerType: 'npc',
-            text: 'Five gold? Oh, that is more than fair. Thank you, truly. And thank you for bringing me every coin of it. When I have another bundle ready, would you carry it to Elira Fen for me? She has a fondness for onion tarts and a gentleness that reminds me of spring rain.',
-            choices: ['I would be glad to help when the time comes.'],
+            text: 'Five gold? Oh, that is more than fair. Thank you, truly. And thank you for bringing me every coin of it. Here now, I have another fresh bundle ready. When the time comes, would you carry these onions to Elira Fen for me? She has a fondness for onion tarts and a gentleness that reminds me of spring rain.',
+            choices: ['I would be glad to help.'],
           });
         } else {
           this.dialogueState = 'mirelleNoGold';
@@ -2016,9 +2028,10 @@ class PrototypeScene extends Phaser.Scene {
       'mirellePaidOne',
       'mirelleNoGold',
       'mirelleAfterPayment',
-      'mirelleNextDelivery'
+      'mirelleNextDelivery',
+      'mirelleNextDeliveryReminder'
     ].includes(this.dialogueState)) {
-      if (this.dialogueState === 'mirellePaidInFull' || this.dialogueState === 'mirelleNextDelivery') {
+      if (this.dialogueState === 'mirellePaidOne') {
         this.questState = 'paymentResolved';
       }
       this.closeDialogue();
@@ -2300,11 +2313,11 @@ class CityScene extends PrototypeScene {
     const baseY = BLACK_TILE_GROUND_Y - 10;
     const centerX = CITY_WORLD_WIDTH / 2;
     const placements = [
-      { key: 'cityHouse3', x: centerX - 3500, h: 430, id: 'cityHouse3' },
+      { key: 'cityHouse3', x: centerX - 3500, h: 470, id: 'cityHouse3' },
       { key: 'cityBlacksmithShop', x: centerX - 2350, h: 660, id: 'cityBlacksmithShop' },
-      { key: 'cityTavern', x: centerX - 1280, h: 610, id: 'cityTavern' },
+      { key: 'cityTavern', x: centerX - 1280, h: 660, id: 'cityTavern' },
       { key: 'cityArchway', x: centerX, h: 660, id: 'cityArchway' },
-      { key: 'cityHouse1', x: centerX + 1080, h: 470, id: 'cityHouse1' },
+      { key: 'cityHouse1', x: centerX + 1080, h: 510, id: 'cityHouse1' },
       { key: 'cityMagicShop', x: centerX + 2380, h: 880, id: 'cityMagicShop' },
       { key: 'cityHouse2', x: centerX + 3740, h: 430, id: 'cityHouse2' },
     ];
@@ -2368,13 +2381,14 @@ class CityScene extends PrototypeScene {
     ];
 
     this.cityNpcs = this.cityNpcConfigs.map((config) => {
-      const npc = this.physics.add.sprite(config.x, 618, `${config.npcKey}-idle`, 39);
-      npc.setScale(3.0);
+      const isTavernChef = config.id === 'tavernChef';
+      const npc = this.physics.add.sprite(config.x, isTavernChef ? 622 : 618, `${config.npcKey}-idle`, 26);
+      npc.setScale(isTavernChef ? 2.75 : 3.0);
       npc.setCollideWorldBounds(true);
       npc.setDragX(1400);
       npc.setMaxVelocity(140, 1200);
       npc.setSize(24, 22, true);
-      npc.setOffset(20, 41);
+      npc.setOffset(isTavernChef ? 20 : 20, isTavernChef ? 39 : 41);
       npc.setDepth(9);
       npc.npcId = config.id;
       npc.npcKey = config.npcKey;
@@ -2592,7 +2606,7 @@ class CityScene extends PrototypeScene {
     this.player.setVelocity(0, 0);
     this.cityNpcs.forEach((npc) => npc.setVelocityX(0));
     this.player.anims.play(`${this.heroKey}-idle-${this.facing}`, true);
-    this.activeCityNpc.anims.play(`${this.activeCityNpc.npcKey}-idle-${this.activeCityNpc.facing}`, true);
+    this.activeCityNpc.setTexture(`${this.activeCityNpc.npcKey}-idle`).setFrame(26);
     this.portraitSceneBg?.setVisible(true);
     this.npcPortrait?.setVisible(true);
     this.npcPortrait.setTexture(`${this.activeCityNpc.npcKey}-idle`).setFrame(26);
