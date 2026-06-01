@@ -199,23 +199,23 @@ function createCaelanAnimations(scene) {
 }
 
 function createForestLadyAnimations(scene) {
-  const animations = [
-    { key: 'forestLady-idle-left', sheet: 'forestLady-idle', row: 1, start: 0, end: 1, rate: 3, repeat: -1 },
-    { key: 'forestLady-idle-right', sheet: 'forestLady-idle', row: 3, start: 0, end: 1, rate: 3, repeat: -1 },
-    { key: 'forestLady-walk-left', sheet: 'forestLady-walk', row: 1, start: 0, end: 8, rate: 8, repeat: -1 },
-    { key: 'forestLady-walk-right', sheet: 'forestLady-walk', row: 3, start: 0, end: 8, rate: 8, repeat: -1 },
-  ];
-
-  animations.forEach((anim) => {
-    if (!scene.anims.exists(anim.key)) {
-      scene.anims.create({
-        key: anim.key,
-        frames: lpcFrameList(anim.sheet, anim.row, anim.start, anim.end),
-        frameRate: anim.rate,
-        repeat: anim.repeat,
-      });
-    }
-  });
+  // GandalfHardcore single-row format; use setFlipX(true) for right, false for left
+  if (!scene.anims.exists('forestLady-walk')) {
+    scene.anims.create({
+      key: 'forestLady-walk',
+      frames: warriorFrameList('forestLady-walk', 8),
+      frameRate: 10,
+      repeat: -1,
+    });
+  }
+  if (!scene.anims.exists('forestLady-idle')) {
+    scene.anims.create({
+      key: 'forestLady-idle',
+      frames: warriorFrameList('forestLady-idle', 5),
+      frameRate: 4,
+      repeat: -1,
+    });
+  }
 }
 
 function createNpcWalkIdleAnimations(scene, prefix) {
@@ -593,10 +593,8 @@ class PrototypeScene extends Phaser.Scene {
     this.load.audio('forestTheme', 'assets/audio/celadune_forest.mp3');
     this.load.audio('cityTheme', 'assets/audio/celadune_city.mp3');
     this.load.audio('writingSfx', 'assets/sfx/writing.mp3');
-    this.load.spritesheet('forestLady-idle', FOREST_LADY.idle, { frameWidth: FRAME_W, frameHeight: FRAME_H });
-    this.load.spritesheet('forestLady-walk', FOREST_LADY.walk, { frameWidth: FRAME_W, frameHeight: FRAME_H });
-    this.load.spritesheet('forestLady-emote', FOREST_LADY.emote, { frameWidth: FRAME_W, frameHeight: FRAME_H });
-    this.load.spritesheet('forestLady-portrait', 'assets/npcs/forest_lady/portrait.png', { frameWidth: FRAME_W, frameHeight: 48 });
+    this.load.spritesheet('forestLady-idle', FOREST_LADY.idle, { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet('forestLady-walk', FOREST_LADY.walk, { frameWidth: 64, frameHeight: 64 });
     this.load.spritesheet(`${HUT_WANDERER.key}-walk`, HUT_WANDERER.walk, { frameWidth: HUT_WANDERER.frameW, frameHeight: HUT_WANDERER.frameH });
     this.load.spritesheet(`${HUT_WANDERER.key}-idle`, HUT_WANDERER.idle, { frameWidth: HUT_WANDERER.frameW, frameHeight: HUT_WANDERER.frameH });
 
@@ -744,7 +742,6 @@ class PrototypeScene extends Phaser.Scene {
       'blackTile', 'ground0', 'ground1', 'ground2', 'ground3',
       'cityGround1', 'cityGround2', 'cityGround3', 'parchment', 'forestHut',
       'brokenWagon', 'onionPatch', 'menuOnions', 'wayfarersSalve', 'forestLady-idle', 'forestLady-walk',
-      'forestLady-emote', 'forestLady-portrait',
       `${HUT_WANDERER.key}-walk`, `${HUT_WANDERER.key}-idle`,
       ...Object.keys(CITY_NPCS).flatMap((npcKey) => [`${CITY_NPCS[npcKey].key}-walk`, `${CITY_NPCS[npcKey].key}-idle`]),
       ...Object.values(HEROES).flatMap((hero) => {
@@ -813,17 +810,18 @@ class PrototypeScene extends Phaser.Scene {
   }
 
   createNPC() {
-    this.npc = this.physics.add.sprite(2420, 768, 'forestLady-idle', 26);
+    this.npc = this.physics.add.sprite(2420, 768, 'forestLady-idle', 0);
     this.npc.setScale(3.0);
     this.npc.setDepth(9);
-    this.npc.body.setSize(20, 34);
-    this.npc.body.setOffset(22, 28);
+    this.npc.body.setSize(18, 34);
+    this.npc.body.setOffset(23, 28);
     this.npc.body.setCollideWorldBounds(true);
     this.npc.setImmovable(false);
     this.npcMinX = 2420;
     this.npcMaxX = 2660;
     this.physics.add.collider(this.npc, this.ground);
-    this.npc.anims.play('forestLady-idle-right', true);
+    this.npc.anims.play('forestLady-idle', true);
+    this.npc.setFlipX(true); // sprites face left by default; flip to face right
 
     this.npcTooltip = this.add.container(0, 0).setDepth(30).setVisible(false);
     const tooltipBg = this.add.rectangle(0, 0, 110, 30, 0x1c1209, 0.82).setStrokeStyle(2, 0xdab56a, 0.95);
@@ -839,7 +837,6 @@ class PrototypeScene extends Phaser.Scene {
     this.npc.patrolDirection = 'right';
     this.npc.patrolPauseMs = 5000;
     this.npc.pauseUntil = this.time.now + this.npc.patrolPauseMs;
-    this.npc.setFrame(26);
   }
 
   createHutWanderer() {
@@ -904,7 +901,7 @@ class PrototypeScene extends Phaser.Scene {
     if (!this.npc) return;
     this.npc.pauseUntil = this.time.now + delay;
     this.npc.setVelocityX(0);
-    this.npc.setTexture('forestLady-idle').setFrame(26);
+    this.npc.anims.play('forestLady-idle', true);
     this.npcState = 'pause';
   }
 
@@ -1586,7 +1583,7 @@ class PrototypeScene extends Phaser.Scene {
     this.portraitMask = this.portraitMaskGraphics.createGeometryMask();
     this.portraitSceneBg.setMask(this.portraitMask);
 
-    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 98, 'forestLady-idle', 26)
+    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 98, 'forestLady-idle', 0)
       .setOrigin(0.5, 1)
       .setScale(6.1)
       .setMask(this.portraitMask)
@@ -1680,7 +1677,8 @@ class PrototypeScene extends Phaser.Scene {
     if (Math.abs(delta) <= 10) {
       this.npc.setVelocityX(0);
       this.npcFacing = delta < 0 ? 'left' : 'right';
-      this.npc.anims.play(this.npcFacing === 'left' ? 'forestLady-idle-left' : 'forestLady-idle-right', true);
+      this.npc.anims.play('forestLady-idle', true);
+      this.npc.setFlipX(this.npcFacing === 'right');
       const callback = this.scriptedNpcCallback;
       this.scriptedNpcTargetX = null;
       this.scriptedNpcCallback = null;
@@ -1691,11 +1689,13 @@ class PrototypeScene extends Phaser.Scene {
     if (delta < 0) {
       this.npcFacing = 'left';
       this.npc.setVelocityX(-95);
-      this.npc.anims.play('forestLady-walk-left', true);
+      this.npc.anims.play('forestLady-walk', true);
+      this.npc.setFlipX(false);
     } else {
       this.npcFacing = 'right';
       this.npc.setVelocityX(95);
-      this.npc.anims.play('forestLady-walk-right', true);
+      this.npc.anims.play('forestLady-walk', true);
+      this.npc.setFlipX(true);
     }
     return true;
   }
@@ -1883,7 +1883,8 @@ class PrototypeScene extends Phaser.Scene {
     this.npc.setVelocityX(0);
     if (this.wanderer) { this.wanderer.setVelocityX(0); this.wanderer.anims.pause(); }
     this.player.anims.play(`${this.heroKey}-idle-${this.facing}`, true);
-    this.npc.anims.play(this.npcFacing === 'left' ? 'forestLady-idle-left' : 'forestLady-idle-right', true);
+    this.npc.anims.play('forestLady-idle', true);
+    this.npc.setFlipX(this.npcFacing === 'right');
     this.portraitSceneBg?.setVisible(true);
     this.npcPortrait?.setVisible(true);
     this.syncDialoguePortraitBackground();
@@ -2038,7 +2039,7 @@ class PrototypeScene extends Phaser.Scene {
     this.typewriterIndex = 0;
     this.isTyping = true;
     if (line.speakerType === 'npc') {
-      this.npcPortrait.setTexture('forestLady-idle').setFrame(26);
+      this.npcPortrait.setTexture('forestLady-idle').setFrame(0);
     }
     this.talkPortrait(line.speakerType === 'npc');
 
@@ -2083,13 +2084,13 @@ class PrototypeScene extends Phaser.Scene {
   talkPortrait(active) {
     this.stopTalkingPortrait();
     if (!active) {
-      this.npcPortrait.setTexture('forestLady-idle').setFrame(26);
+      this.npcPortrait.setTexture('forestLady-idle').setFrame(0);
       return;
     }
     if (!this.writingSound.isPlaying) this.writingSound.play();
     const talkFrames = [
-      { texture: 'forestLady-idle', frame: 26 },
-      { texture: 'forestLady-idle', frame: 27 },
+      { texture: 'forestLady-idle', frame: 0 },
+      { texture: 'forestLady-idle', frame: 1 },
     ];
     let talkIndex = 0;
     this.portraitTalkEvent = this.time.addEvent({
@@ -2106,7 +2107,7 @@ class PrototypeScene extends Phaser.Scene {
   stopTalkingPortrait() {
     this.portraitTalkEvent?.remove(false);
     this.portraitTalkEvent = null;
-    this.npcPortrait.setTexture('forestLady-idle').setFrame(26);
+    this.npcPortrait.setTexture('forestLady-idle').setFrame(0);
     if (this.writingSound?.isPlaying) this.writingSound.stop();
   }
 
@@ -2276,12 +2277,17 @@ class PrototypeScene extends Phaser.Scene {
     if (!this.isMenuOpen && !this.isDialogueOpen) {
       if (this.time.now < (this.npc.pauseUntil || 0)) {
         this.npc.setVelocityX(0);
-        this.npc.setTexture('forestLady-idle').setFrame(26);
+        if (this.npc.anims.currentAnim?.key !== 'forestLady-idle') {
+          this.npc.anims.play('forestLady-idle', true);
+        }
         this.npcState = 'pause';
       } else {
         const direction = this.npc.patrolDirection === 'left' ? -1 : 1;
         this.npc.setVelocityX(direction * 55);
-        this.npc.anims.play(`forestLady-walk-${this.npc.patrolDirection}`, true);
+        this.npc.setFlipX(this.npc.patrolDirection === 'right');
+        if (this.npc.anims.currentAnim?.key !== 'forestLady-walk') {
+          this.npc.anims.play('forestLady-walk', true);
+        }
         this.npcState = 'walk';
 
         const reachedEnd = this.npc.patrolDirection === 'right'
@@ -2291,7 +2297,7 @@ class PrototypeScene extends Phaser.Scene {
           this.npc.patrolDirection = this.npc.patrolDirection === 'right' ? 'left' : 'right';
           this.npc.pauseUntil = this.time.now + this.npc.patrolPauseMs;
           this.npc.setVelocityX(0);
-          this.npc.setTexture('forestLady-idle').setFrame(26);
+          this.npc.anims.play('forestLady-idle', true);
           this.npcState = 'pause';
         }
       }
