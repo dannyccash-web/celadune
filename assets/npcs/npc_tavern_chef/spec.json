@@ -1,0 +1,17 @@
+{
+  "gender": "male",
+  "seed": "404",
+  "skin": "/sessions/eager-compassionate-hawking/mnt/Celadune/assets/npc-parts/skin/Male Skin3.png",
+  "pants": "/sessions/eager-compassionate-hawking/mnt/Celadune/assets/npc-parts/clothing_male/Purple Pants.png",
+  "shirt": "/sessions/eager-compassionate-hawking/mnt/Celadune/assets/npc-parts/clothing_male/Purple Shirt v2.png",
+  "boots": "/sessions/eager-compassionate-hawking/mnt/Celadune/assets/npc-parts/clothing_male/Boots.png",
+  "clothing": null,
+  "hair": "/sessions/eager-compassionate-hawking/mnt/Celadune/assets/npc-parts/hair_male/Male Hair28.png",
+  "hat": "/sessions/eager-compassionate-hawking/mnt/Celadune/assets/npc-parts/hats_male/Male Green cap.png",
+  "back_layer": null,
+  "arm_layer": "/sessions/eager-compassionate-hawking/mnt/Celadune/assets/npc-parts/arm_layers_male/Glove blue.png",
+  "hand_item": null,
+  "name": "Padrig",
+  "_walk_frames": 8,
+  "_idle_frames": 5
+}

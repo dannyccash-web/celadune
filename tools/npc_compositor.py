@@ -128,9 +128,9 @@ def extract_row_frames(img, row_region, col_regions, frame_w, frame_h):
 LAYER_ORDER = [
     ('back_layer',   None),   # behind everything
     ('skin',         None),   # base body
-    ('pants',        None),   # lower body clothing
+    ('boots',        None),   # footwear — under pants/skirt so dress covers boot tops
+    ('pants',        None),   # lower body clothing (covers boot tops)
     ('shirt',        None),   # upper body clothing
-    ('boots',        None),   # footwear
     ('clothing',     None),   # legacy single-item clothing (or full outfit pieces)
     ('arm_layer',    None),   # gloves overlaid on arms
     ('hand_item',    None),   # held item

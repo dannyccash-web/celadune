@@ -599,8 +599,8 @@ class PrototypeScene extends Phaser.Scene {
     this.load.spritesheet(`${HUT_WANDERER.key}-idle`, HUT_WANDERER.idle, { frameWidth: HUT_WANDERER.frameW, frameHeight: HUT_WANDERER.frameH });
 
     Object.values(CITY_NPCS).forEach((npc) => {
-      this.load.spritesheet(`${npc.key}-idle`, npc.idle, { frameWidth: FRAME_W, frameHeight: FRAME_H });
-      this.load.spritesheet(`${npc.key}-walk`, npc.walk, { frameWidth: FRAME_W, frameHeight: FRAME_H });
+      this.load.spritesheet(`${npc.key}-idle`, npc.idle, { frameWidth: 64, frameHeight: 64 });
+      this.load.spritesheet(`${npc.key}-walk`, npc.walk, { frameWidth: 64, frameHeight: 64 });
     });
 
     Object.values(HEROES).forEach((hero) => {
@@ -773,7 +773,7 @@ class PrototypeScene extends Phaser.Scene {
       }
     });
     createForestLadyAnimations(this);
-    Object.values(CITY_NPCS).forEach((npc) => createNpcWalkIdleAnimations(this, npc.key));
+    Object.values(CITY_NPCS).forEach((npc) => createGandalfNpcAnimations(this, { key: npc.key, walkFrames: 8, idleFrames: 5 }));
     createGandalfNpcAnimations(this, HUT_WANDERER);
   }
 
@@ -784,7 +784,7 @@ class PrototypeScene extends Phaser.Scene {
     this.playerBaseScaleY = 3.1;
     this.player.setScale(this.playerBaseScaleX, this.playerBaseScaleY);
     this.player.setCollideWorldBounds(true);
-    this.player.setDepth(9);
+    this.player.setDepth(10);
     const heroConfig = HEROES[this.heroKey];
     const bodyOffsetX = heroConfig?.usesFlipX ? 41 : 22;
     this.player.body.setSize(20, 34);
@@ -812,7 +812,7 @@ class PrototypeScene extends Phaser.Scene {
   createNPC() {
     this.npc = this.physics.add.sprite(2420, 768, 'forestLady-idle', 0);
     this.npc.setScale(3.0);
-    this.npc.setDepth(9);
+    this.npc.setDepth(8);
     this.npc.body.setSize(18, 34);
     this.npc.body.setOffset(23, 28);
     this.npc.body.setCollideWorldBounds(true);
@@ -847,7 +847,7 @@ class PrototypeScene extends Phaser.Scene {
 
     this.wanderer = this.physics.add.sprite(startX, 768, `${HUT_WANDERER.key}-idle`, 0);
     this.wanderer.setScale(3.0);
-    this.wanderer.setDepth(9);
+    this.wanderer.setDepth(8);
     this.wanderer.body.setSize(18, 34);
     this.wanderer.body.setOffset(23, 28);
     this.wanderer.setCollideWorldBounds(true);
@@ -2435,9 +2435,9 @@ class PrototypeScene extends Phaser.Scene {
       this.player.anims.play(`${this.heroKey}-idle-${animPrefix}`, true);
     }
 
-    this.player.setDepth(9);
-    this.npc.setDepth(9);
-    if (this.wanderer) this.wanderer.setDepth(9);
+    this.player.setDepth(10);
+    this.npc.setDepth(8);
+    if (this.wanderer) this.wanderer.setDepth(8);
     this.handleSceneBoundaries(velocityX, onGround);
     this.bg.tilePositionX = this.cameras.main.scrollX * 0.28;
   }
@@ -2627,14 +2627,14 @@ class CityScene extends PrototypeScene {
 
     this.cityNpcs = this.cityNpcConfigs.map((config) => {
       const isTavernChef = config.id === 'tavernChef';
-      const npc = this.physics.add.sprite(config.x, isTavernChef ? 770 : 766, `${config.npcKey}-idle`, 26);
+      const npc = this.physics.add.sprite(config.x, isTavernChef ? 770 : 766, `${config.npcKey}-idle`, 0);
       npc.setScale(isTavernChef ? 2.75 : 3.0);
       npc.setCollideWorldBounds(true);
       npc.setDragX(1400);
       npc.setMaxVelocity(140, 1200);
-      npc.setSize(24, 22, true);
-      npc.setOffset(isTavernChef ? 20 : 20, isTavernChef ? 39 : 41);
-      npc.setDepth(9);
+      npc.setSize(18, 34);
+      npc.setOffset(23, 28);
+      npc.setDepth(8);
       npc.npcId = config.id;
       npc.npcKey = config.npcKey;
       npc.facing = 'right';
@@ -2646,7 +2646,8 @@ class CityScene extends PrototypeScene {
       npc.pauseUntil = this.time.now + npc.pauseDuration;
       npc.tooltipLabel = config.tooltip;
       npc.setVelocityX(0);
-      npc.anims.play(`${config.npcKey}-idle-${npc.facing}`, true);
+      npc.setFlipX(true); // sprites face left by default; flip to face right
+      npc.anims.play(`${config.npcKey}-idle`, true);
       this.cityNpcGroup.add(npc);
       return npc;
     });
@@ -2851,10 +2852,11 @@ class CityScene extends PrototypeScene {
     this.player.setVelocity(0, 0);
     this.cityNpcs.forEach((npc) => npc.setVelocityX(0));
     this.player.anims.play(`${this.heroKey}-idle-${this.facing}`, true);
-    this.activeCityNpc.setTexture(`${this.activeCityNpc.npcKey}-idle`).setFrame(26);
+    this.activeCityNpc.anims.play(`${this.activeCityNpc.npcKey}-idle`, true);
+    this.activeCityNpc.setVelocityX(0);
     this.portraitSceneBg?.setVisible(true);
     this.npcPortrait?.setVisible(true);
-    this.npcPortrait.setTexture(`${this.activeCityNpc.npcKey}-idle`).setFrame(26);
+    this.npcPortrait.setTexture(`${this.activeCityNpc.npcKey}-idle`).setFrame(0);
     this.syncDialoguePortraitBackground();
     this.startDialogueSequence(npcId);
   }
@@ -2981,11 +2983,11 @@ class CityScene extends PrototypeScene {
     if (!this.activeCityNpc) return;
     const idleTexture = `${this.activeCityNpc.npcKey}-idle`;
     if (!active) {
-      this.npcPortrait.setTexture(idleTexture).setFrame(26);
+      this.npcPortrait.setTexture(idleTexture).setFrame(0);
       return;
     }
     if (!this.writingSound.isPlaying) this.writingSound.play();
-    const talkFrames = [26, 27];
+    const talkFrames = [0, 1];
     let talkIndex = 0;
     this.portraitTalkEvent = this.time.addEvent({
       delay: 120,
@@ -3001,7 +3003,7 @@ class CityScene extends PrototypeScene {
     this.portraitTalkEvent?.remove(false);
     this.portraitTalkEvent = null;
     if (this.activeCityNpc) {
-      this.npcPortrait.setTexture(`${this.activeCityNpc.npcKey}-idle`).setFrame(26);
+      this.npcPortrait.setTexture(`${this.activeCityNpc.npcKey}-idle`).setFrame(0);
     }
     if (this.writingSound?.isPlaying) this.writingSound.stop();
   }
@@ -3183,27 +3185,28 @@ class CityScene extends PrototypeScene {
 
       if (this.time.now < npc.pauseUntil) {
         npc.setVelocityX(0);
-        npc.setTexture(`${npc.npcKey}-idle`).setFrame(26);
+        if (npc.anims.currentAnim?.key !== `${npc.npcKey}-idle`) {
+          npc.anims.play(`${npc.npcKey}-idle`, true);
+        }
         return;
       }
 
-      if (npc.x <= npc.minX + 4) {
-        npc.facing = 'right';
-      }
-      if (npc.x >= npc.maxX - 4) {
-        npc.facing = 'left';
-      }
+      if (npc.x <= npc.minX + 4) npc.facing = 'right';
+      if (npc.x >= npc.maxX - 4) npc.facing = 'left';
 
       const direction = npc.facing === 'left' ? -1 : 1;
       npc.setVelocityX(direction * npc.speed);
-      npc.anims.play(`${npc.npcKey}-walk-${npc.facing}`, true);
-      npc.setDepth(9);
+      npc.setFlipX(npc.facing === 'right');
+      if (npc.anims.currentAnim?.key !== `${npc.npcKey}-walk`) {
+        npc.anims.play(`${npc.npcKey}-walk`, true);
+      }
+      npc.setDepth(8);
 
       const reachedEnd = (npc.facing === 'left' && npc.x <= npc.minX + 4) || (npc.facing === 'right' && npc.x >= npc.maxX - 4);
       if (reachedEnd) {
         npc.pauseUntil = this.time.now + npc.pauseDuration;
         npc.setVelocityX(0);
-        npc.setTexture(`${npc.npcKey}-idle`).setFrame(26);
+        npc.anims.play(`${npc.npcKey}-idle`, true);
         npc.facing = npc.facing === 'left' ? 'right' : 'left';
       }
     });
@@ -3322,7 +3325,7 @@ class CityScene extends PrototypeScene {
       this.player.anims.play(`${this.heroKey}-idle-${animPrefix}`, true);
     }
 
-    this.player.setDepth(9);
+    this.player.setDepth(10);
     this.handleSceneBoundaries(velocityX, onGround);
 
     const scrollRatio = Phaser.Math.Clamp(this.cameras.main.scrollX / this.cameraScrollRange, 0, 1);
