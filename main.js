@@ -866,7 +866,7 @@ class PrototypeScene extends Phaser.Scene {
     this.wanderer.wanderFacing = 'right';
 
     this.wanderer.anims.play(`${HUT_WANDERER.key}-idle`, true);
-    this.wanderer.setFlipX(false);
+    this.wanderer.setFlipX(true); // sprite faces left by default; flip to face right on spawn
   }
 
   updateHutWanderer() {
@@ -883,7 +883,7 @@ class PrototypeScene extends Phaser.Scene {
 
     const dir = w.wanderDirection === 'right' ? 1 : -1;
     w.setVelocityX(dir * w.wanderSpeed);
-    w.setFlipX(w.wanderDirection === 'left');
+    w.setFlipX(w.wanderDirection === 'right'); // sprite faces left natively; flip when going right
     if (w.anims.currentAnim?.key !== `${HUT_WANDERER.key}-walk`) {
       w.anims.play(`${HUT_WANDERER.key}-walk`, true);
     }

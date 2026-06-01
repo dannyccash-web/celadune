@@ -10,8 +10,12 @@ Usage:
 
 The compositor produces two files:
   walk.png  — 8-frame walk animation strip (single row, 64×64 frames)
-  idle.png  — 6-frame idle/wave animation strip (single row, 64×64 frames)
+  idle.png  — 5-frame idle animation strip (single row, 64×64 frames)
   spec.json — the parts manifest used to generate this NPC (for reproducibility)
+
+IMPORTANT — sprite orientation:
+  GandalfHardcore sprites face LEFT by default (no flip).
+  In Phaser: setFlipX(true) when moving RIGHT, setFlipX(false) when moving LEFT.
 
 Layer compositing order (back to front):
   back_layer → skin → clothing → arm_layer → hand_item → hair → hat
