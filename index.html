@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Celadune</title>
+  <style>
+    @font-face {
+      font-family: 'Macondo Swash Caps';
+      src: url('assets/fonts/MacondoSwashCaps-Regular.ttf') format('truetype');
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Roboto Mono';
+      src: url('assets/fonts/RobotoMono-Regular.ttf') format('truetype');
+      font-display: swap;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #08111a;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      width: 100%;
+      height: 100%;
+    }
+    #game-wrap {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    canvas {
+      box-shadow: 0 0 24px rgba(0,0,0,0.55);
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-wrap"></div>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
+  <script src="main.js?v=2"></script>
+</body>
+</html>
