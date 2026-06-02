@@ -563,7 +563,12 @@ class PrototypeScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('forest', 'assets/bg/forest_background.jpeg');
+    this.load.image('forestSky',      'assets/bg/forest_sky.png');
+    this.load.image('forestMountain', 'assets/bg/forest_mountain.png');
+    this.load.image('forestBack',     'assets/bg/forest_back.png');
+    this.load.image('forestMid',      'assets/bg/forest_mid.png');
+    this.load.image('forestLong',     'assets/bg/forest_long.png');
+    this.load.image('forestShort',    'assets/bg/forest_short.png');
     this.load.image('cityBg', 'assets/bg/city_background.jpeg');
     this.load.image('blackTile', 'assets/tiles/black_tile.png');
     this.load.image('ground0', 'assets/tiles/ground_tile.png');
@@ -588,11 +593,15 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('forestHutInterior', 'assets/bg/forest_hut_interior.jpeg');
     this.load.image('brokenWagon', 'assets/props/broken_wagon.png');
     this.load.image('onionPatch', 'assets/props/onion_patch.png');
+    this.load.image('largeTent', 'assets/props/large_tent.png');
+    this.load.spritesheet('furnace', 'assets/props/furnace_animated.png', { frameWidth: 64, frameHeight: 64 });
     this.load.image('menuOnions', 'assets/ui/onions.png');
     this.load.image('wayfarersSalve', 'assets/ui/wayfarers_salve.png');
     this.load.audio('forestTheme', 'assets/audio/celadune_forest.mp3');
     this.load.audio('cityTheme', 'assets/audio/celadune_city.mp3');
     this.load.audio('writingSfx', 'assets/sfx/writing.mp3');
+    this.load.audio('attackSfx', 'assets/sfx/freesound_community-sword-sound-2-36274.mp3');
+    this.load.audio('jumpSfx',   'assets/sfx/ribhavagrawal-woosh-230554.mp3');
     this.load.spritesheet('forestLady-idle', FOREST_LADY.idle, { frameWidth: 64, frameHeight: 64 });
     this.load.spritesheet('forestLady-walk', FOREST_LADY.walk, { frameWidth: 64, frameHeight: 64 });
     this.load.spritesheet(`${HUT_WANDERER.key}-walk`, HUT_WANDERER.walk, { frameWidth: HUT_WANDERER.frameW, frameHeight: HUT_WANDERER.frameH });
@@ -662,16 +671,45 @@ class PrototypeScene extends Phaser.Scene {
   }
 
   createParallaxBackground() {
-    const forestTexture = this.textures.get('forest').getSourceImage();
-    const scale = GAME_HEIGHT / forestTexture.height;
-    this.bgScale = scale;
+    // Shift non-sky layers up so their bases land just below the ground line.
+    const groundOffset = -(GAME_HEIGHT - (GROUND_Y + 20)); // ≈ -172
 
-    this.bg = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'forest')
-      .setOrigin(0, 0)
-      .setScrollFactor(0)
-      .setDepth(-20);
+    // Make sprites wide enough that every layer covers the screen at every scroll position.
+    // With scrollFactor, the sprite drifts left as the camera scrolls right;
+    // maxDrift = WORLD_WIDTH * maxFactor = 5120 * 0.90 ≈ 4608, so width = WORLD_WIDTH + GAME_WIDTH covers it.
+    const spriteWidth = WORLD_WIDTH + GAME_WIDTH;
 
-    this.bg.setTileScale(scale, scale);
+    // Sky shifts up independently so clouds sit higher in the visible area.
+    const skyOffset = -100;
+
+    // Layers ordered back→front. scrollFactor drives the parallax automatically.
+    // forestLong removed — visually identical to forestShort at this scale.
+    const layerDefs = [
+      { key: 'forestSky',      factor: 0.10, depth: -26, yOff: skyOffset },
+      { key: 'forestMountain', factor: 0.26, depth: -25, yOff: groundOffset },
+      { key: 'forestBack',     factor: 0.42, depth: -24, yOff: groundOffset },
+      { key: 'forestMid',      factor: 0.58, depth: -23, yOff: groundOffset },
+      { key: 'forestShort',    factor: 0.90, depth: -21, yOff: groundOffset },
+    ];
+
+    this.parallaxLayers = layerDefs.map(({ key, factor, depth, yOff }) => {
+      const tex = this.textures.get(key).getSourceImage();
+      const scale = GAME_HEIGHT / tex.height;
+      // forestMountain has no transparent edge padding, so close its rendering seam
+      // by widening the horizontal tile scale slightly (vertical stays exact).
+      const scaleX = key === 'forestMountain' ? scale * 1.016 : scale;
+      const sprite = this.add.tileSprite(0, yOff, spriteWidth, GAME_HEIGHT, key)
+        .setOrigin(0, 0)
+        .setScrollFactor(factor, 0)
+        .setDepth(depth);
+      sprite.setTileScale(scaleX, scale);
+      return sprite;
+    });
+
+    // Keep this.bg pointing to the forestBack layer for portrait compat
+    this.bg = this.parallaxLayers[2];
+    const backTex = this.textures.get('forestBack').getSourceImage();
+    this.bgScale = GAME_HEIGHT / backTex.height;
   }
 
   createGround() {
@@ -737,11 +775,14 @@ class PrototypeScene extends Phaser.Scene {
   }
 
   applyTextureFiltering() {
-    this.setTextureFilter(['forest', 'cityBg', 'forestHutInterior'], Phaser.Textures.FilterMode.LINEAR);
+    this.setTextureFilter(['forestSky', 'forestMountain', 'forestBack', 'forestMid', 'forestLong', 'forestShort', 'cityBg', 'forestHutInterior'], Phaser.Textures.FilterMode.LINEAR);
     this.setTextureFilter([
       'blackTile', 'ground0', 'ground1', 'ground2', 'ground3',
       'cityGround1', 'cityGround2', 'cityGround3', 'parchment', 'forestHut',
-      'brokenWagon', 'onionPatch', 'menuOnions', 'wayfarersSalve', 'forestLady-idle', 'forestLady-walk',
+      'brokenWagon', 'onionPatch', 'largeTent', 'furnace', 'menuOnions', 'wayfarersSalve',
+      'cityHouse1', 'cityHouse2', 'cityHouse3', 'cityBlacksmithShop', 'cityTavern',
+      'cityMagicShop', 'cityArchway', 'cityWall1', 'cityWall2', 'cityWall3',
+      'forestLady-idle', 'forestLady-walk',
       `${HUT_WANDERER.key}-walk`, `${HUT_WANDERER.key}-idle`,
       ...Object.keys(CITY_NPCS).flatMap((npcKey) => [`${CITY_NPCS[npcKey].key}-walk`, `${CITY_NPCS[npcKey].key}-idle`]),
       ...Object.values(HEROES).flatMap((hero) => {
@@ -775,6 +816,14 @@ class PrototypeScene extends Phaser.Scene {
     createForestLadyAnimations(this);
     Object.values(CITY_NPCS).forEach((npc) => createGandalfNpcAnimations(this, { key: npc.key, walkFrames: 8, idleFrames: 5 }));
     createGandalfNpcAnimations(this, HUT_WANDERER);
+    if (!this.anims.exists('furnace-anim')) {
+      this.anims.create({
+        key: 'furnace-anim',
+        frames: this.anims.generateFrameNumbers('furnace', { start: 0, end: 5 }),
+        frameRate: 8,
+        repeat: -1,
+      });
+    }
   }
 
   createPlayer() {
@@ -802,6 +851,7 @@ class PrototypeScene extends Phaser.Scene {
     const hero = HEROES[this.heroKey];
     if (!hero?.usesFlipX) return; // only heroes with the warrior sprite set have attack animations
     this.isAttacking = true;
+    this.attackSfx?.play();
     const dir = this.facing === 'right' ? 'right' : 'left';
     this.player.anims.play(`${this.heroKey}-special_attack-${dir}`, true);
     this.player.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
@@ -914,9 +964,14 @@ class PrototypeScene extends Phaser.Scene {
       .setScale(0.44)
       .setDepth(this.propDepth);
 
+    this.tent = this.add.image(610, WAGON_BASELINE_Y, 'largeTent')
+      .setOrigin(0.5, 1)
+      .setScale(2.5)
+      .setDepth(this.propDepth);
+
     this.hut = this.add.image(2240, HUT_BASELINE_Y, 'forestHut')
       .setOrigin(0.5, 1)
-      .setScale(0.80)
+      .setScale(1.9)
       .setDepth(this.propDepth);
 
     this.hutDoorZone = this.add.zone(this.hut.x + 34, HUT_BASELINE_Y - 80, 150, 132).setOrigin(0.5, 0.5);
@@ -1093,6 +1148,8 @@ class PrototypeScene extends Phaser.Scene {
     this.musicTargetVolume = musicConfig.volume;
     this.music = this.sound.add(musicConfig.key, { loop: true, volume: 0 });
     this.writingSound = this.sound.add('writingSfx', { loop: true, volume: 0.18 });
+    this.attackSfx = this.sound.add('attackSfx', { volume: 0.55 });
+    this.jumpSfx   = this.sound.add('jumpSfx',   { volume: 0.45 });
 
     const startMusic = () => {
       if (!this.music.isPlaying) {
@@ -1567,7 +1624,7 @@ class PrototypeScene extends Phaser.Scene {
       centerY: portraitY,
     };
 
-    this.portraitSceneBg = this.add.tileSprite(portraitX, portraitY, portraitInner, portraitInner, 'forest').setOrigin(0.5);
+    this.portraitSceneBg = this.add.tileSprite(portraitX, portraitY, portraitInner, portraitInner, 'forestBack').setOrigin(0.5);
     this.portraitSceneBg.setTileScale(this.bgScale || 1, this.bgScale || 1);
     this.dialogueOverlay.add(this.portraitSceneBg);
 
@@ -2307,7 +2364,7 @@ class PrototypeScene extends Phaser.Scene {
     const canInteract = distance < 150;
     this.npcTooltip.setVisible(canInteract);
     if (canInteract) {
-      this.npcTooltip.setPosition(this.player.x, this.player.y - 96);
+      this.npcTooltip.setPosition(this.npc.x, this.npc.y - 96);
     }
   }
 
@@ -2319,13 +2376,13 @@ class PrototypeScene extends Phaser.Scene {
     const nearOnionPatch = onionDistance < 180;
     this.onionPatchTooltip?.setVisible(nearOnionPatch && !this.isDialogueOpen && !this.isMenuOpen && this.scriptedNpcTargetX === null);
     if (nearOnionPatch) {
-      this.onionPatchTooltip.setPosition(this.player.x, this.player.y - 96);
+      this.onionPatchTooltip.setPosition(this.onionPatch.x, this.onionPatch.y - 80);
     }
 
     const nearHutDoor = this.hutDoorZone ? this.physics.overlap(this.player, this.hutDoorZone) : false;
     this.hutTooltip?.setVisible(nearHutDoor && !this.isDialogueOpen && !this.isMenuOpen && this.scriptedNpcTargetX === null);
     if (nearHutDoor) {
-      this.hutTooltip.setPosition(this.player.x, this.player.y - 96);
+      this.hutTooltip.setPosition(this.hut.x, this.hut.y - this.hut.displayHeight - 10);
     }
 
     if (this.itemReceiveContainer?.visible) {
@@ -2333,8 +2390,7 @@ class PrototypeScene extends Phaser.Scene {
     }
 
     if (this.updateScriptedNpcMovement()) {
-      this.bg.tilePositionX = this.cameras.main.scrollX * 0.28;
-      return;
+      return; // scrollFactor handles forest parallax; city bg updated below if needed
     }
 
     if (Phaser.Input.Keyboard.JustDown(this.menuKey)) {
@@ -2408,6 +2464,7 @@ class PrototypeScene extends Phaser.Scene {
 
     if (upJustPressed && onGround) {
       this.player.setVelocityY(-760);
+      this.jumpSfx?.play();
     }
 
     if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
@@ -2439,7 +2496,11 @@ class PrototypeScene extends Phaser.Scene {
     this.npc.setDepth(8);
     if (this.wanderer) this.wanderer.setDepth(8);
     this.handleSceneBoundaries(velocityX, onGround);
-    this.bg.tilePositionX = this.cameras.main.scrollX * 0.28;
+    // Both scenes now use scrollFactor parallax — no manual tilePositionX update needed.
+    // Drift the sky/cloud layer slowly rightward even when the player is stationary.
+    if (this.parallaxLayers?.[0]) {
+      this.parallaxLayers[0].tilePositionX -= 0.25;
+    }
   }
 }
 
@@ -2481,6 +2542,7 @@ class CityScene extends PrototypeScene {
     this.createCityWall();
     this.createCityBuildings();
     this.createAnimations();
+    this.createProps();
     this.createPlayer();
     this.createCityNPCs();
     if (this.shouldUseSceneAtmosphere()) this.createAtmosphere();
@@ -2820,7 +2882,18 @@ class CityScene extends PrototypeScene {
   }
 
   createNPC() {}
-  createProps() {}
+
+  createProps() {
+    const centerX = CITY_WORLD_WIDTH / 2;
+    const baseY = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
+    // Animated furnace in front of blacksmith shop (offset to its right side)
+    this.furnaceSprite = this.add.sprite(centerX - 2350 + 340, baseY, 'furnace', 0)
+      .setOrigin(0.5, 1)
+      .setScale(3.0)
+      .setDepth(9);
+    this.furnaceSprite.play('furnace-anim');
+  }
+
   beginOnionPatchInteraction() {}
   updateScriptedNpcMovement() { return false; }
 
@@ -3174,7 +3247,7 @@ class CityScene extends PrototypeScene {
       const canInteract = distance < 150 && !this.isDialogueOpen && !this.isMenuOpen;
       tooltip?.setVisible(canInteract);
       if (canInteract) {
-        tooltip.setPosition(this.player.x, this.player.y - 96);
+        tooltip.setPosition(npc.x, npc.y - 96);
         if (distance < nearestDistance) {
           nearestDistance = distance;
           this.activeNearbyNpc = npc;
@@ -3298,6 +3371,7 @@ class CityScene extends PrototypeScene {
 
     if (upJustPressed && onGround) {
       this.player.setVelocityY(-760);
+      this.jumpSfx?.play();
     }
 
     if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {

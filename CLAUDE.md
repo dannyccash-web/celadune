@@ -49,4 +49,4 @@ rm ~/Documents/Claude/Projects/Celadune/.git/refs/remotes/origin/main.lock
 ## Cache busting
 main.js is loaded with a `?v=N` query string in index.html. Bump the version
 number whenever making significant changes so users don't get stale cached JS.
-Current version: v=2
+Current version: v=17

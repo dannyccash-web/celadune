@@ -259,44 +259,52 @@ def build_random_spec(gender='male', seed=None):
     skin = str(rng.choice(skin_files)) if skin_files else None
 
     # Clothing — pick shirt, pants, and boots separately
+    # 'Split hose' is medieval leggings → pants, not shirts
     clothing_dir = PARTS_DIR / f'clothing_{suffix}'
-    shirt_files  = [f for f in clothing_dir.glob('*.png') if any(x in f.name for x in ['Shirt', 'Chainmail', 'Corset', 'hose', 'Split'])]
-    pants_files  = [f for f in clothing_dir.glob('*.png') if 'Pants' in f.name or 'Skirt' in f.name]
-    boots_files  = [f for f in clothing_dir.glob('*.png') if 'Boot' in f.name or 'Shoe' in f.name or 'Sock' in f.name]
-    shirt  = str(rng.choice(shirt_files))  if shirt_files  else None
-    pants  = str(rng.choice(pants_files))  if pants_files  else None
-    boots  = str(rng.choice(boots_files))  if boots_files  else None
+    all_clothing = [f for f in clothing_dir.glob('*.png')
+                    if 'DONT' not in f.name and 'Links' not in f.name
+                    and 'Underwear' not in f.name and 'Panties' not in f.name and 'Bra' not in f.name
+                    and 'swim trunks' not in f.name]
+
+    shirt_keywords = ['Shirt', 'Chainmail', 'Corset']
+    pants_keywords = ['Pants', 'Skirt', 'hose', 'Split']
+    boots_keywords = ['Boot', 'Shoe', 'Sock']
+
+    shirt_files = [f for f in all_clothing if any(x in f.name for x in shirt_keywords)]
+    pants_files = [f for f in all_clothing if any(x in f.name for x in pants_keywords)]
+    boots_files = [f for f in all_clothing if any(x in f.name for x in boots_keywords)]
+
+    # Prefer coloured shirts over plain white defaults; fall back to full pool if needed
+    coloured_shirts = [f for f in shirt_files if f.name not in ('Shirt.png', 'Shirt v2.png', 'Corset.png', 'Corset v2.png')]
+    shirt_pool = coloured_shirts if coloured_shirts else shirt_files
+    shirt = str(rng.choice(shirt_pool)) if shirt_pool else None
+    pants = str(rng.choice(pants_files)) if pants_files else None
+    boots = str(rng.choice(boots_files)) if boots_files else None
     clothing = None  # legacy field unused in random gen
 
-    # Hair
-    hair_files = list((PARTS_DIR / f'hair_{suffix}').glob('*.png'))
+    # Hair — full random across all styles
+    hair_files = [f for f in (PARTS_DIR / f'hair_{suffix}').glob('*.png')]
     hair = str(rng.choice(hair_files)) if hair_files else None
 
-    # Hat (50% chance)
-    hat = None
-    if rng.random() < 0.5:
-        hat_files = list((PARTS_DIR / f'hats_{suffix}').glob('*.png'))
-        hat = str(rng.choice(hat_files)) if hat_files else None
+    # Hat — always pick one (100%)
+    hat_files = list((PARTS_DIR / f'hats_{suffix}').glob('*.png'))
+    hat = str(rng.choice(hat_files)) if hat_files else None
 
-    # Back layer (40% chance — cape, backpack, etc.)
+    # Back layer (50% chance — cape, backpack, lantern)
     back_layer = None
-    if rng.random() < 0.4:
+    if rng.random() < 0.5:
         back_files = list((PARTS_DIR / 'back_layers').glob('*.png'))
-        # For a wandering village NPC, prefer capes/backpacks over shields
         friendly = [f for f in back_files if 'Cape' in f.name or 'Backpack' in f.name or 'Lantern' in f.name]
         back_pool = friendly if friendly else back_files
         back_layer = str(rng.choice(back_pool)) if back_pool else None
 
-    # Arm layer (30% chance)
+    # Arm layer — OFF by default; gloves should only be set in explicit specs
     arm_layer = None
-    if rng.random() < 0.3:
-        arm_files = list((PARTS_DIR / f'arm_layers_{suffix}').glob('*.png'))
-        arm_layer = str(rng.choice(arm_files)) if arm_files else None
 
-    # Hand item (40% chance — prefer friendly items)
+    # Hand item (45% chance — prefer friendly/civilian items)
     hand_item = None
-    if rng.random() < 0.4:
-        hand_files = list((PARTS_DIR / f'hand_items_{suffix}').glob('*.png'))
+    if rng.random() < 0.45:
+        hand_files = [f for f in (PARTS_DIR / f'hand_items_{suffix}').glob('*.png')]
         friendly_hands = [f for f in hand_files if any(x in f.name for x in ['Flower', 'Basket', 'Hoe', 'Stick'])]
         hand_pool = friendly_hands if friendly_hands else hand_files
         hand_item = str(rng.choice(hand_pool)) if hand_pool else None
