@@ -1,7 +1,12 @@
 {
-  "type": "complete",
   "name": "Forest Hut",
   "seed": 10,
-  "source": "/sessions/funny-optimistic-thompson/mnt/Celadune/assets/buildings/open_hall.png",
-  "_size": "132x335"
+  "width": 5,
+  "wall_height": 4,
+  "wall": "wall_stone_dark",
+  "door": "red",
+  "window": "window_glass",
+  "roof": "peaked",
+  "door_col": 2,
+  "_size_px": "160\u00d7192"
 }

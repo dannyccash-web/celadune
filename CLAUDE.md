@@ -106,38 +106,41 @@ Single-row strips (not LPC grid). Use `createGandalfNpcAnimations` helper in mai
 - `assets/House Tiles.png` — Two stone house variants (each 184×224px, 32px tile grid)
 - `assets/House outside Tiles 32x32 v2.png` — Two complete hall buildings + parts strip
 
-### Parts library
-- **Location:** assets/building-parts/
-  - roofs/ (2: roof_stone_v1, roof_stone_v2 — 184×64px each)
-  - walls/ (6: wall_stone_upper_v1/v2 — 184×96px; wall_stone_lower_v1/v2 — 184×64px; wall_teal_wide — 96×96px; wall_teal_narrow — 64×64px)
-  - accessories/ (1: column_capital — 32×48px)
-- **Complete sprites:** assets/buildings/ — open_hall.png, stone_hall.png, stone_house_v1.png, stone_house_v2.png
+### Tile library
+- **Location:** assets/building-parts/tiles/ — individual 32×32px tiles extracted from source sheets
+  - roof/ (10 tiles): peak_left/center/right, slope_left_eave/left/center/right/right_eave, ceramic_top, ceramic_main
+  - walls/ (2 tiles): wall_stone.png (light), wall_stone_dark.png
+  - doors/ (6 tiles — each door is 2 tiles tall = 32×64px): door_wood/teal/red × top/bottom
+  - windows/ (1 tile): window_glass.png (32×32px)
+- **Scale:** 1 tile = 32px. NPCs are 64×64px (2 tiles tall). Door = 1×2 tiles = 32×64px (matches NPC height).
 
 ### Compositor
 - **Script:** tools/building_compositor.py
-- **Random stone house:** `python3 tools/building_compositor.py --random stone_house --seed 42 --name "Old Cottage" --out assets/buildings/my_building/`
-- **Random complete building:** `python3 tools/building_compositor.py --random complete --seed 7 --out assets/buildings/my_building/`
+- **Random building:** `python3 tools/building_compositor.py --random --seed 42 --name "Old Cottage" --out assets/buildings/old_cottage/`
 - **From spec:** `python3 tools/building_compositor.py --spec spec.json --out assets/buildings/my_building/`
-- **List parts:** `python3 tools/building_compositor.py --list`
-- **Output:** building.png (single static RGBA PNG), spec.json
+- **List tiles:** `python3 tools/building_compositor.py --list`
+- **Output:** building.png (single static RGBA PNG at native tile scale), spec.json
 
-### Layer order for stone_house (top → bottom)
-roof → upper_wall → lower_wall
+### Building rules (tile grid)
+- **Wall base:** W tiles wide (5–8) × H tiles tall (3–5); random wall texture (stone or stone_dark)
+- **Door:** 1 tile wide × 2 tiles tall at ground level (bottom 2 rows), random column (not at edges)
+- **Windows:** 1×1 tiles, greedy-filled with 1-tile buffer from edges, door, and each other
+- **Roof:** sits above wall base; either peaked (2 tile rows, triangular) or ceramic (2 tile rows, flat-facing)
+- **No scaling** — buildings are placed at native pixel size in the game world
 
-All stone_house parts are **184px wide** — required for vertical stacking to work. Parts from different families (teal panels at 96px/64px) cannot be mixed with stone_house parts.
-
-### Building types
-- `stone_house` — composited from interchangeable parts; all parts must be 184px wide
-- `complete` — random pick from a pre-assembled sprite (open_hall, stone_hall, stone_house_v1/v2)
+### Roof assembly (peaked)
+Peak row (row 0): cols 2 to W-3 — peak_left + [peak_center…] + peak_right
+Slope row (row 1): cols 1 to W-2 — slope_left_eave + slope_left + [slope_center…] + slope_right + slope_right_eave
+Outer columns are transparent (eave overhang effect).
 
 ### Adding a new building to the game
-1. Generate sprite: `python3 tools/building_compositor.py --random stone_house --seed N --name "Name" --out assets/buildings/my_building/`
-2. Load the image in `preload()`: `this.load.image('myBuilding', 'assets/buildings/my_building/building.png')`
-3. Place in scene: `this.add.image(x, y, 'myBuilding').setDepth(7).setOrigin(0.5, 1)`
-4. Depth 7 = props layer (same as hut, wagon)
+1. Generate: `python3 tools/building_compositor.py --random --seed N --name "Name" --out assets/buildings/my_building/`
+2. Load in `preload()`: `this.load.image('myBuilding', 'assets/buildings/my_building/building.png')`
+3. Place in scene: `this.add.image(x, y, 'myBuilding').setOrigin(0.5, 1).setDepth(8)`
+4. No scaling needed — sprite is at correct game scale.
 
-### Expanding the parts library
-To add new parts: drop PNGs into the appropriate subfolder under assets/building-parts/. Width must match the family (184px for stone_house). The compositor picks randomly from all files in each subfolder, so new parts are available immediately with no code changes.
+### Expanding the tile library
+Drop new 32×32 PNGs into the appropriate subfolder under assets/building-parts/tiles/. For new wall textures, add them to WALL_OPTIONS in building_compositor.py.
 
 ## Key scene info
 - **PrototypeScene** = forest/overworld scene (first scene after hero select)
@@ -149,4 +152,4 @@ To add new parts: drop PNGs into the appropriate subfolder under assets/building
 ## Cache busting
 main.js is loaded with a `?v=N` query string in index.html. Bump the version
 number whenever making significant changes so users don't get stale cached JS.
-Current version: v=18
+Current version: v=19

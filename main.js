@@ -971,7 +971,6 @@ class PrototypeScene extends Phaser.Scene {
 
     this.hut = this.add.image(2240, HUT_BASELINE_Y, 'forestHut')
       .setOrigin(0.5, 1)
-      .setScale(1.9)
       .setDepth(this.propDepth);
 
     this.hutDoorZone = this.add.zone(this.hut.x + 34, HUT_BASELINE_Y - 80, 150, 132).setOrigin(0.5, 0.5);
@@ -2620,25 +2619,22 @@ class CityScene extends PrototypeScene {
     const baseY = BLACK_TILE_GROUND_Y - 12;
     const centerX = CITY_WORLD_WIDTH / 2;
     const placements = [
-      { key: 'cityHouse3', x: centerX - 3500, h: 470, id: 'cityHouse3' },
-      { key: 'cityBlacksmithShop', x: centerX - 2350, h: 660, id: 'cityBlacksmithShop' },
-      { key: 'cityTavern', x: centerX - 1280, h: 660, id: 'cityTavern' },
-      { key: 'cityArchway', x: centerX, h: 660, id: 'cityArchway' },
-      { key: 'cityHouse1', x: centerX + 1080, h: 510, id: 'cityHouse1' },
-      { key: 'cityMagicShop', x: centerX + 2380, h: 880, id: 'cityMagicShop' },
-      { key: 'cityHouse2', x: centerX + 3740, h: 430, id: 'cityHouse2' },
+      { key: 'cityHouse3',        x: centerX - 3500 },
+      { key: 'cityBlacksmithShop', x: centerX - 2350 },
+      { key: 'cityTavern',        x: centerX - 1280 },
+      { key: 'cityArchway',       x: centerX        },
+      { key: 'cityHouse1',        x: centerX + 1080 },
+      { key: 'cityMagicShop',     x: centerX + 2380 },
+      { key: 'cityHouse2',        x: centerX + 3740 },
     ];
 
     this.cityBuildingMap = {};
-    placements.forEach(({ key, x, h, id }) => {
-      const texture = this.textures.get(key).getSourceImage();
-      const displayWidth = texture.width * (h / texture.height);
+    placements.forEach(({ key, x }) => {
       const building = this.add.image(x, baseY, key)
         .setOrigin(0.5, 1)
-        .setDisplaySize(displayWidth, h)
         .setDepth(8);
       this.cityBuildings.add(building);
-      this.cityBuildingMap[id] = building;
+      this.cityBuildingMap[key] = building;
     });
   }
 

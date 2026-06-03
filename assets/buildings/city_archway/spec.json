@@ -1,7 +1,12 @@
 {
-  "type": "complete",
   "name": "City Archway",
-  "seed": null,
-  "source": "assets/buildings/stone_house_v1.png",
-  "_size": "184x224"
+  "seed": 77,
+  "width": 7,
+  "wall_height": 4,
+  "wall": "wall_stone",
+  "door": "wood",
+  "window": "window_glass",
+  "roof": "peaked",
+  "door_col": 3,
+  "_size_px": "224\u00d7192"
 }

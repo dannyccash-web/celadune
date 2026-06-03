@@ -1,9 +1,12 @@
 {
-  "type": "stone_house",
   "name": "City House 1",
   "seed": 11,
-  "roof": "/sessions/funny-optimistic-thompson/mnt/Celadune/assets/building-parts/roofs/roof_stone_v2.png",
-  "upper_wall": "/sessions/funny-optimistic-thompson/mnt/Celadune/assets/building-parts/walls/wall_stone_upper_v2.png",
-  "lower_wall": "/sessions/funny-optimistic-thompson/mnt/Celadune/assets/building-parts/walls/wall_stone_lower_v2.png",
-  "_size": "184x224"
+  "width": 8,
+  "wall_height": 5,
+  "wall": "wall_stone_dark",
+  "door": "teal",
+  "window": "window_glass",
+  "roof": "peaked",
+  "door_col": 5,
+  "_size_px": "256\u00d7224"
 }

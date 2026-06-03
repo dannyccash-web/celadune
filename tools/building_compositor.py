@@ -1,240 +1,295 @@
 #!/usr/bin/env python3
 """
-Building Compositor for Celadune
-Composites GandalfHardcore building part layers into static building sprites.
+Building Compositor for Celadune — Tile-Based
+Generates buildings by assembling individual 32×32 tiles.
+
+Scale: 1 tile = 32px. NPCs are 64×64px (2 tiles tall).
+Door = 1 tile wide × 2 tiles tall = 32×64px (matches NPC height).
+
+Building anatomy (bottom to top in the image, top to bottom in the scene):
+  Wall base  — W tiles wide × H tiles tall (min 5 wide × 3 tall)
+    • Door   — 1×2 tiles at ground level (bottom 2 rows of wall), random column
+    • Windows — 1×1 tiles, greedy-filled in non-forbidden cells
+    • Wall   — fills all remaining cells
+  Roof       — sits above the wall base
+    • 'peaked'  — 2 rows: peak row + slope row, using slope/peak tiles
+    • 'ceramic' — 2 rows: ceramic_top + ceramic_main, tiled across full width
+
+1-tile buffer rule for windows:
+  • Edge columns (col 0 and W-1) are always plain wall.
+  • No window may be orthogonally adjacent to the door or another window.
 
 Usage:
-  python3 tools/building_compositor.py --random stone_house --seed 42 --name "Old Cottage" --out assets/buildings/old_cottage/
-  python3 tools/building_compositor.py --random complete   --seed 7  --name "The Rusty Mug" --out assets/buildings/rusty_mug/
+  python3 tools/building_compositor.py --random --seed 42 --name "Old Cottage" --out assets/buildings/old_cottage/
   python3 tools/building_compositor.py --spec spec.json --out assets/buildings/my_building/
   python3 tools/building_compositor.py --list
 
-Building types:
-  stone_house  — Composited from interchangeable roof + upper wall + lower wall sections (184px wide)
-  complete     — Random pick from a pre-assembled complete building sprite
-
 Output per building:
-  building.png  — Single static sprite (RGBA PNG, transparent background)
-  spec.json     — Parts manifest for exact reproduction
-
-Parts library:  assets/building-parts/
-  roofs/        — Peaked roof sections (must be same width as walls for stacking)
-  walls/        — Wall sections (upper floor, lower floor, and facade panels)
-  accessories/  — Column capitals and other decorative pieces
-
-Complete buildings: assets/buildings/
-  open_hall.png, stone_hall.png, stone_house_v1.png, stone_house_v2.png
-
-Layer order for stone_house compositing (top to bottom):
-  roof → upper_wall → lower_wall
+  building.png  — Single static RGBA PNG at native tile scale
+  spec.json     — Full spec for exact reproduction
 """
 
 import argparse
 import json
-import os
 import random
 import sys
 from pathlib import Path
 from PIL import Image
-import numpy as np
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 
-SCRIPT_DIR    = Path(__file__).parent
-PROJECT_DIR   = SCRIPT_DIR.parent
-PARTS_DIR     = PROJECT_DIR / "assets" / "building-parts"
-BUILDINGS_DIR = PROJECT_DIR / "assets" / "buildings"
+SCRIPT_DIR  = Path(__file__).parent
+PROJECT_DIR = SCRIPT_DIR.parent
+TILES_DIR   = PROJECT_DIR / "assets" / "building-parts" / "tiles"
 
-# ── Building type definitions ──────────────────────────────────────────────────
+TILE = 32  # px per tile
 
-# stone_house: parts stack vertically (roof on top, then upper wall, then lower wall)
-# All parts in the 'stone_house' family are 184px wide, heights vary.
-STONE_HOUSE_LAYERS = ["roof", "upper_wall", "lower_wall"]
+# ── Tile loader (cached) ───────────────────────────────────────────────────────
 
-PART_GLOBS = {
-    "stone_house": {
-        "roof":       "roofs/roof_stone_*.png",
-        "upper_wall": "walls/wall_stone_upper_*.png",
-        "lower_wall": "walls/wall_stone_lower_*.png",
+_tile_cache: dict[str, Image.Image] = {}
+
+def load_tile(rel_path: str) -> Image.Image:
+    if rel_path not in _tile_cache:
+        full = TILES_DIR / rel_path
+        if not full.exists():
+            raise FileNotFoundError(f"Tile not found: {full}")
+        _tile_cache[rel_path] = Image.open(full).convert("RGBA")
+    return _tile_cache[rel_path]
+
+
+# ── Roof builders ──────────────────────────────────────────────────────────────
+
+def build_peaked_roof(W: int) -> Image.Image:
+    """
+    Peaked (triangular) roof for a building W tiles wide.
+    Output: W*32 wide × 64 tall (2 tile rows). Transparent outside the triangle.
+
+    Peak row  (y 0–31):  covers cols 2 … W-3  (W-4 tiles)
+    Slope row (y 32–63): covers cols 1 … W-2  (W-2 tiles)
+    Outer columns are transparent (roof doesn't extend to building edges).
+    """
+    img = Image.new("RGBA", (W * TILE, 2 * TILE), (0, 0, 0, 0))
+
+    # ── Peak row ──────────────────────────────────────────────────────────────
+    p_start = 2
+    p_end   = W - 3
+    for col in range(p_start, p_end + 1):
+        if p_start == p_end:
+            tile = load_tile("roof/peak_center.png")   # single-tile peak
+        elif col == p_start:
+            tile = load_tile("roof/peak_left.png")
+        elif col == p_end:
+            tile = load_tile("roof/peak_right.png")
+        else:
+            tile = load_tile("roof/peak_center.png")
+        img.paste(tile, (col * TILE, 0), tile)
+
+    # ── Slope row ─────────────────────────────────────────────────────────────
+    s_start = 1
+    s_end   = W - 2
+    s_len   = s_end - s_start  # number of interior slots
+    for col in range(s_start, s_end + 1):
+        pos = col - s_start   # 0-indexed position within slope row
+        if col == s_start:
+            tile = load_tile("roof/slope_left_eave.png")
+        elif col == s_end:
+            tile = load_tile("roof/slope_right_eave.png")
+        elif pos == 1 and s_len > 2:
+            tile = load_tile("roof/slope_left.png")
+        elif col == s_end - 1 and s_len > 2:
+            tile = load_tile("roof/slope_right.png")
+        else:
+            tile = load_tile("roof/slope_center.png")
+        img.paste(tile, (col * TILE, TILE), tile)
+
+    return img
+
+
+def build_ceramic_roof(W: int) -> Image.Image:
+    """
+    Flat-facing ceramic tile roof, W tiles wide × 2 tile rows tall.
+    Row 0: ceramic_top trim; Row 1: ceramic_main (repeatable).
+    """
+    img = Image.new("RGBA", (W * TILE, 2 * TILE), (0, 0, 0, 0))
+    top  = load_tile("roof/ceramic_top.png")
+    main = load_tile("roof/ceramic_main.png")
+    for col in range(W):
+        img.paste(top,  (col * TILE, 0),    top)
+        img.paste(main, (col * TILE, TILE), main)
+    return img
+
+
+# ── Wall base builder ──────────────────────────────────────────────────────────
+
+def build_wall(W: int, H: int, wall_key: str, door_key: str,
+               window_key: str, door_col: int) -> Image.Image:
+    """
+    Build the wall base as a W*32 × H*32 image.
+
+    Grid rows: 0 = top, H-1 = ground level.
+    Door bottom tile at (H-1, door_col); door top at (H-2, door_col).
+    Windows fill non-forbidden cells; everything else is wall.
+    """
+    # ── Grid initialisation ───────────────────────────────────────────────────
+    grid: list[list[str]] = [["wall"] * W for _ in range(H)]
+
+    # Place door (bottom 2 rows of wall)
+    grid[H - 1][door_col] = "door_bottom"
+    grid[H - 2][door_col] = "door_top"
+
+    # ── Forbidden cells (window buffer rules) ─────────────────────────────────
+    forbidden: set[tuple[int, int]] = set()
+
+    # Edge columns are always plain wall
+    for r in range(H):
+        forbidden.add((r, 0))
+        forbidden.add((r, W - 1))
+
+    # Door tiles and their orthogonal neighbours (1-tile buffer)
+    for door_row in (H - 1, H - 2):
+        for dr, dc in ((0, 0), (-1, 0), (1, 0), (0, -1), (0, 1)):
+            nr, nc = door_row + dr, door_col + dc
+            if 0 <= nr < H and 0 <= nc < W:
+                forbidden.add((nr, nc))
+
+    # ── Greedy window placement ───────────────────────────────────────────────
+    placed: set[tuple[int, int]] = set()
+    for r in range(H):
+        for c in range(W):
+            if (r, c) in forbidden or grid[r][c] != "wall":
+                continue
+            # Skip if orthogonally adjacent to an already-placed window
+            if any((r + dr, c + dc) in placed
+                   for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1))):
+                continue
+            grid[r][c] = "window"
+            placed.add((r, c))
+
+    # ── Composite image ───────────────────────────────────────────────────────
+    img = Image.new("RGBA", (W * TILE, H * TILE), (0, 0, 0, 0))
+
+    wall_tile   = load_tile(f"walls/{wall_key}.png")
+    window_tile = load_tile(f"windows/{window_key}.png")
+    door_top    = load_tile(f"doors/door_{door_key}_top.png")
+    door_bottom = load_tile(f"doors/door_{door_key}_bottom.png")
+
+    tile_map = {
+        "wall":        wall_tile,
+        "window":      window_tile,
+        "door_top":    door_top,
+        "door_bottom": door_bottom,
     }
-}
 
-COMPLETE_BUILDINGS = [
-    "open_hall.png",
-    "stone_hall.png",
-    "stone_house_v1.png",
-    "stone_house_v2.png",
-]
+    for r in range(H):
+        for c in range(W):
+            tile = tile_map[grid[r][c]]
+            img.paste(tile, (c * TILE, r * TILE), tile)
 
-# ── Compositor ─────────────────────────────────────────────────────────────────
-
-def stack_vertically(parts):
-    """
-    Stack a list of RGBA PIL Images vertically (top to bottom).
-    All images must have the same width. Heights are summed.
-    """
-    widths  = [p.size[0] for p in parts]
-    heights = [p.size[1] for p in parts]
-    if len(set(widths)) != 1:
-        raise ValueError(f"Part widths don't match for vertical stacking: {widths}")
-    total_h = sum(heights)
-    canvas  = Image.new("RGBA", (widths[0], total_h), (0, 0, 0, 0))
-    y = 0
-    for part in parts:
-        canvas.paste(part, (0, y), part)
-        y += part.size[1]
-    return canvas
+    return img
 
 
-def build_stone_house(spec, out_dir):
-    """
-    Composite a stone_house from roof + upper_wall + lower_wall parts.
-    Returns path to the saved building.png.
-    """
-    out_path = Path(out_dir)
-    out_path.mkdir(parents=True, exist_ok=True)
+# ── Full building ──────────────────────────────────────────────────────────────
 
-    layers = []
-    for key in STONE_HOUSE_LAYERS:
-        path = spec.get(key)
-        if not path:
-            raise ValueError(f"Missing required part '{key}' in spec")
-        img = Image.open(path).convert("RGBA")
-        layers.append(img)
-        print(f"  {key}: {Path(path).name}  ({img.size[0]}x{img.size[1]})")
+def generate_building(spec: dict, out_dir: str) -> Path:
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
 
-    print("Stacking layers...")
-    building = stack_vertically(layers)
+    W        = spec["width"]
+    H        = spec["wall_height"]
+    wall_key = spec["wall"]          # e.g. "wall_stone"
+    door_key = spec["door"]          # e.g. "wood", "teal", "red"
+    win_key  = spec["window"]        # e.g. "window_glass"
+    roof_t   = spec["roof"]          # "peaked" or "ceramic"
+    door_col = spec["door_col"]
 
-    building_path = out_path / "building.png"
-    spec_path     = out_path / "spec.json"
+    print(f"  Size: {W}×{H} wall tiles, roof: {roof_t}, door: {door_key} @ col {door_col}, wall: {wall_key}")
 
-    building.save(building_path)
+    roof = build_peaked_roof(W) if roof_t == "peaked" else build_ceramic_roof(W)
+    wall = build_wall(W, H, wall_key, door_key, win_key, door_col)
 
-    output_spec = {k: str(v) if isinstance(v, Path) else v for k, v in spec.items()}
-    output_spec["_size"] = f"{building.size[0]}x{building.size[1]}"
-    with open(spec_path, "w") as f:
-        json.dump(output_spec, f, indent=2)
+    total_h = roof.height + wall.height
+    building = Image.new("RGBA", (W * TILE, total_h), (0, 0, 0, 0))
+    building.paste(roof, (0, 0),           roof)
+    building.paste(wall, (0, roof.height), wall)
 
-    print(f"\nSaved {building_path}  ({building.size[0]}x{building.size[1]})")
-    return building_path
+    bp = out / "building.png"
+    sp = out / "spec.json"
+    building.save(bp)
 
+    export = {k: v for k, v in spec.items()}
+    export["_size_px"] = f"{building.width}×{building.height}"
+    with open(sp, "w") as f:
+        json.dump(export, f, indent=2)
 
-def build_complete(spec, out_dir):
-    """
-    Copy a pre-assembled complete building sprite to the output directory.
-    """
-    out_path = Path(out_dir)
-    out_path.mkdir(parents=True, exist_ok=True)
-
-    src = spec.get("source")
-    if not src:
-        raise ValueError("Missing 'source' in spec for complete building")
-
-    img = Image.open(src).convert("RGBA")
-    building_path = out_path / "building.png"
-    spec_path     = out_path / "spec.json"
-
-    img.save(building_path)
-    output_spec = {k: str(v) if isinstance(v, Path) else v for k, v in spec.items()}
-    output_spec["_size"] = f"{img.size[0]}x{img.size[1]}"
-    with open(spec_path, "w") as f:
-        json.dump(output_spec, f, indent=2)
-
-    print(f"  source: {Path(src).name}  ({img.size[0]}x{img.size[1]})")
-    print(f"\nSaved {building_path}  ({img.size[0]}x{img.size[1]})")
-    return building_path
+    print(f"  → {bp}  ({building.width}×{building.height}px)")
+    return bp
 
 
-# ── Random spec builders ───────────────────────────────────────────────────────
+# ── Random spec builder ────────────────────────────────────────────────────────
 
-def pick_random(glob_pattern, rng):
-    """Pick a random PNG matching a glob pattern under PARTS_DIR."""
-    files = sorted(PARTS_DIR.glob(glob_pattern))
-    if not files:
-        raise FileNotFoundError(f"No files found for pattern: {PARTS_DIR / glob_pattern}")
-    return str(rng.choice(files))
+WALL_OPTIONS   = ["wall_stone", "wall_stone_dark"]
+DOOR_OPTIONS   = ["wood", "teal", "red"]
+WINDOW_OPTIONS = ["window_glass"]
+ROOF_OPTIONS   = ["peaked", "ceramic"]
 
-
-def build_random_spec_stone_house(seed=None, name=None):
+def build_random_spec(seed=None, name=None) -> dict:
     rng = random.Random(seed)
-    spec = {
-        "type":       "stone_house",
-        "name":       name,
-        "seed":       seed,
-    }
-    globs = PART_GLOBS["stone_house"]
-    for key, pattern in globs.items():
-        spec[key] = pick_random(pattern, rng)
-    return spec
 
+    W    = rng.randint(5, 8)
+    H    = rng.randint(3, 5)
+    wall = rng.choice(WALL_OPTIONS)
+    door = rng.choice(DOOR_OPTIONS)
+    win  = rng.choice(WINDOW_OPTIONS)
+    roof = rng.choice(ROOF_OPTIONS)
 
-def build_random_spec_complete(seed=None, name=None):
-    rng = random.Random(seed)
-    available = [str(BUILDINGS_DIR / b) for b in COMPLETE_BUILDINGS
-                 if (BUILDINGS_DIR / b).exists()]
-    if not available:
-        raise FileNotFoundError(f"No complete buildings found in {BUILDINGS_DIR}")
-    source = rng.choice(available)
+    # Door column: interior only (cols 1 to W-2), skipping edge-adjacent
+    door_col = rng.randint(1, W - 2)
+
     return {
-        "type":   "complete",
-        "name":   name,
-        "seed":   seed,
-        "source": source,
+        "name":        name,
+        "seed":        seed,
+        "width":       W,
+        "wall_height": H,
+        "wall":        wall,
+        "door":        door,
+        "window":      win,
+        "roof":        roof,
+        "door_col":    door_col,
     }
 
 
 # ── Part listing ───────────────────────────────────────────────────────────────
 
 def list_parts():
-    print(f"\nBuilding parts library ({PARTS_DIR}):\n")
-    if not PARTS_DIR.exists():
-        print("  (parts directory not found)")
-    else:
-        for folder in sorted(PARTS_DIR.iterdir()):
-            if folder.is_dir():
-                files = sorted(f.name for f in folder.glob("*.png"))
-                print(f"  {folder.name}/  ({len(files)} parts)")
-                for f in files:
-                    print(f"    {f}")
-
-    print(f"\nComplete building sprites ({BUILDINGS_DIR}):\n")
-    for b in COMPLETE_BUILDINGS:
-        path = BUILDINGS_DIR / b
-        status = "✓" if path.exists() else "✗ missing"
-        print(f"  {b}  {status}")
-
-    print(f"\nBuilding types (--random):\n")
-    print("  stone_house  — roof + upper_wall + lower_wall (184px wide)")
-    print("  complete     — random pick from complete building sprites")
+    print(f"\nTile library ({TILES_DIR}):\n")
+    for cat in sorted(TILES_DIR.iterdir()):
+        if cat.is_dir():
+            files = sorted(f.name for f in cat.glob("*.png"))
+            print(f"  {cat.name}/  ({len(files)} tiles)")
+            for f in files:
+                print(f"    {f}")
+    print(f"\nRandom options:")
+    print(f"  wall:   {WALL_OPTIONS}")
+    print(f"  door:   {DOOR_OPTIONS}")
+    print(f"  roof:   {ROOF_OPTIONS}")
+    print(f"  width:  5–8 tiles  ({5*TILE}–{8*TILE}px)")
+    print(f"  height: 3–5 wall tiles + 2 roof tiles")
+    print(f"  door:   1×2 tiles = {TILE}×{TILE*2}px (matches 64px NPC height)")
     print()
 
 
-# ── Main entry ─────────────────────────────────────────────────────────────────
-
-def generate_building(spec, out_dir):
-    btype = spec.get("type")
-    if btype == "stone_house":
-        return build_stone_house(spec, out_dir)
-    elif btype == "complete":
-        return build_complete(spec, out_dir)
-    else:
-        raise ValueError(f"Unknown building type: '{btype}'. Expected 'stone_house' or 'complete'.")
-
+# ── CLI ────────────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(description="Celadune Building Compositor")
+    parser = argparse.ArgumentParser(description="Celadune Building Compositor (tile-based)")
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--random", metavar="TYPE",
-                       help="Building type to generate randomly: stone_house | complete")
-    group.add_argument("--spec",   metavar="FILE",
-                       help="JSON spec file with layer paths")
-    group.add_argument("--list",   action="store_true",
-                       help="List available parts and building types")
+    group.add_argument("--random", action="store_true", help="Generate a random building")
+    group.add_argument("--spec",   metavar="FILE",      help="JSON spec file")
+    group.add_argument("--list",   action="store_true", help="List available tiles")
 
-    parser.add_argument("--out",  metavar="DIR",  help="Output directory (required for --spec/--random)")
-    parser.add_argument("--seed", metavar="INT",  type=int, help="Random seed for reproducibility")
-    parser.add_argument("--name", metavar="NAME", help="Building name (stored in spec.json)")
+    parser.add_argument("--out",  metavar="DIR", help="Output directory")
+    parser.add_argument("--seed", metavar="INT", type=int)
+    parser.add_argument("--name", metavar="NAME")
 
     args = parser.parse_args()
 
@@ -243,27 +298,20 @@ def main():
         return
 
     if not args.out:
-        parser.error("--out is required when generating a building")
+        parser.error("--out is required")
 
     if args.spec:
         with open(args.spec) as f:
             spec = json.load(f)
         print(f"Building from spec: {args.spec}")
     else:
-        btype = args.random.lower()
-        if btype == "stone_house":
-            print(f"Building random stone_house (seed={args.seed})...")
-            spec = build_random_spec_stone_house(seed=args.seed, name=args.name)
-        elif btype == "complete":
-            print(f"Building random complete building (seed={args.seed})...")
-            spec = build_random_spec_complete(seed=args.seed, name=args.name)
-        else:
-            parser.error(f"Unknown --random type '{args.random}'. Choose: stone_house | complete")
+        print(f"Random building (seed={args.seed})...")
+        spec = build_random_spec(seed=args.seed, name=args.name)
 
-    print("\nSpec:")
+    print("Spec:")
     for k, v in spec.items():
-        val = Path(v).name if isinstance(v, str) and v.endswith(".png") else v
-        print(f"  {k}: {val}")
+        if not k.startswith("_"):
+            print(f"  {k}: {v}")
     print()
 
     generate_building(spec, args.out)

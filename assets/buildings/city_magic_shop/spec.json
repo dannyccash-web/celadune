@@ -1,7 +1,12 @@
 {
-  "type": "complete",
   "name": "The Arcane Emporium",
-  "seed": null,
-  "source": "assets/buildings/stone_hall.png",
-  "_size": "128x335"
+  "seed": 66,
+  "width": 5,
+  "wall_height": 4,
+  "wall": "wall_stone_dark",
+  "door": "wood",
+  "window": "window_glass",
+  "roof": "ceramic",
+  "door_col": 2,
+  "_size_px": "160\u00d7192"
 }

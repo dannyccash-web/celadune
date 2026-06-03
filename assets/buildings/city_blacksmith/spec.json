@@ -1,9 +1,12 @@
 {
-  "type": "stone_house",
   "name": "Blacksmith Shop",
   "seed": 56,
-  "roof": "/sessions/funny-optimistic-thompson/mnt/Celadune/assets/building-parts/roofs/roof_stone_v1.png",
-  "upper_wall": "/sessions/funny-optimistic-thompson/mnt/Celadune/assets/building-parts/walls/wall_stone_upper_v2.png",
-  "lower_wall": "/sessions/funny-optimistic-thompson/mnt/Celadune/assets/building-parts/walls/wall_stone_lower_v2.png",
-  "_size": "184x224"
+  "width": 5,
+  "wall_height": 4,
+  "wall": "wall_stone_dark",
+  "door": "red",
+  "window": "window_glass",
+  "roof": "peaked",
+  "door_col": 1,
+  "_size_px": "160\u00d7192"
 }
