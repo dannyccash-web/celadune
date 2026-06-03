@@ -5,6 +5,7 @@ Composites GandalfHardcore sprite part layers into Phaser-ready spritesheets.
 
 Usage:
   python3 npc_compositor.py --spec spec.json --out assets/npcs/my_npc/
+  python3 npc_compositor.py --random random --out assets/npcs/my_npc/
   python3 npc_compositor.py --random male --out assets/npcs/my_npc/
   python3 npc_compositor.py --list              # list all available parts
 
@@ -248,13 +249,17 @@ def pick_random(folder, rng=None):
     return str(random.choice(files) if rng is None else rng.choice(files))
 
 
-def build_random_spec(gender='male', seed=None):
-    """Build a random NPC spec for the given gender."""
+def build_random_spec(gender='random', seed=None):
+    """Build a random NPC spec for the given gender ('male', 'female', or 'random')."""
     rng = random.Random(seed)
-    suffix = gender.lower()
-    opp_suffix = 'female' if suffix == 'male' else 'male'
 
-    # Skin — pick matching gender
+    # Gender — random 50/50 unless specified
+    if gender.lower() == 'random':
+        suffix = rng.choice(['male', 'female'])
+    else:
+        suffix = gender.lower()
+
+    # Skin — random from matching gender pool
     skin_files = list((PARTS_DIR / 'skin').glob(f'*{suffix.capitalize()}*.png'))
     skin = str(rng.choice(skin_files)) if skin_files else None
 
@@ -274,40 +279,38 @@ def build_random_spec(gender='male', seed=None):
     pants_files = [f for f in all_clothing if any(x in f.name for x in pants_keywords)]
     boots_files = [f for f in all_clothing if any(x in f.name for x in boots_keywords)]
 
-    # Prefer coloured shirts over plain white defaults; fall back to full pool if needed
-    coloured_shirts = [f for f in shirt_files if f.name not in ('Shirt.png', 'Shirt v2.png', 'Corset.png', 'Corset v2.png')]
-    shirt_pool = coloured_shirts if coloured_shirts else shirt_files
-    shirt = str(rng.choice(shirt_pool)) if shirt_pool else None
+    # All shirts (including plain white) are in the random pool
+    shirt = str(rng.choice(shirt_files)) if shirt_files else None
     pants = str(rng.choice(pants_files)) if pants_files else None
     boots = str(rng.choice(boots_files)) if boots_files else None
     clothing = None  # legacy field unused in random gen
 
-    # Hair — full random across all styles
+    # Hair — always assigned, full random across all styles
     hair_files = [f for f in (PARTS_DIR / f'hair_{suffix}').glob('*.png')]
     hair = str(rng.choice(hair_files)) if hair_files else None
 
-    # Hat — always pick one (100%)
-    hat_files = list((PARTS_DIR / f'hats_{suffix}').glob('*.png'))
-    hat = str(rng.choice(hat_files)) if hat_files else None
+    # Hat — 10% chance
+    hat = None
+    if rng.random() < 0.10:
+        hat_files = list((PARTS_DIR / f'hats_{suffix}').glob('*.png'))
+        hat = str(rng.choice(hat_files)) if hat_files else None
 
-    # Back layer (50% chance — cape, backpack, lantern)
+    # Back layer — 10% chance (cape, backpack, lantern)
     back_layer = None
-    if rng.random() < 0.5:
+    if rng.random() < 0.10:
         back_files = list((PARTS_DIR / 'back_layers').glob('*.png'))
         friendly = [f for f in back_files if 'Cape' in f.name or 'Backpack' in f.name or 'Lantern' in f.name]
         back_pool = friendly if friendly else back_files
         back_layer = str(rng.choice(back_pool)) if back_pool else None
 
-    # Arm layer — OFF by default; gloves should only be set in explicit specs
+    # Arm layer (gloves) — 10% chance
     arm_layer = None
+    if rng.random() < 0.10:
+        arm_files = list((PARTS_DIR / f'arm_layers_{suffix}').glob('*.png'))
+        arm_layer = str(rng.choice(arm_files)) if arm_files else None
 
-    # Hand item (45% chance — prefer friendly/civilian items)
+    # Hand item — OFF by default; only assigned if explicitly specified in a spec
     hand_item = None
-    if rng.random() < 0.45:
-        hand_files = [f for f in (PARTS_DIR / f'hand_items_{suffix}').glob('*.png')]
-        friendly_hands = [f for f in hand_files if any(x in f.name for x in ['Flower', 'Basket', 'Hoe', 'Stick'])]
-        hand_pool = friendly_hands if friendly_hands else hand_files
-        hand_item = str(rng.choice(hand_pool)) if hand_pool else None
 
     return {
         'gender': suffix,
@@ -371,8 +374,8 @@ def main():
             spec = json.load(f)
     else:
         gender = args.random.lower()
-        if gender not in ('male', 'female'):
-            parser.error('--random must be "male" or "female"')
+        if gender not in ('male', 'female', 'random'):
+            parser.error('--random must be "male", "female", or "random"')
         print(f"Building random {gender} NPC (seed={args.seed})...")
         spec = build_random_spec(gender=gender, seed=args.seed)
         if args.name:

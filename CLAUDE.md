@@ -31,13 +31,74 @@ rm ~/Documents/Claude/Projects/Celadune/.git/refs/remotes/origin/main.lock
 - **No build step** — plain JS served as static files via GitHub Pages
 
 ## NPC system (GandalfHardcore modular sprites)
-- **Parts library:** assets/npc-parts/ (232 PNGs across 12 categories)
-- **Compositor:** tools/npc_compositor.py
-  - `python3 tools/npc_compositor.py --random male --seed 42 --name "Aldric" --out assets/npcs/my_npc/`
-  - Produces walk.png (8 frames, 64×64) and idle.png (5 frames, 64×64)
-- **Existing NPCs:** assets/npcs/hut_wanderer/ (Aldric, seed 42)
-- **Adding a new NPC to the game:** follow the HUT_WANDERER pattern in main.js
-- **Sprite orientation:** GandalfHardcore sprites face LEFT by default. Use `setFlipX(true)` when moving right, `setFlipX(false)` when moving left.
+
+### Parts library
+- **Location:** assets/npc-parts/ — 13 categories, ~256 PNGs total
+  - skin/ (10: Male Skin1–5, Female Skin1–5)
+  - hair_male/ (33), hair_female/ (35)
+  - hats_male/ (22), hats_female/ (19)
+  - clothing_male/ (26), clothing_female/ (24)
+  - back_layers/ (11: capes, backpacks, shields, lanterns — gender-neutral)
+  - arm_layers_male/ (7), arm_layers_female/ (7) — gloves
+  - hand_items_male/ (18), hand_items_female/ (20) — weapons, tools, flowers
+  - character_effects/ (24: blood, buff, debuff, hearts, stars, lines — runtime overlays, not used in compositor)
+
+### Compositor
+- **Script:** tools/npc_compositor.py
+- **Random NPC (random gender):** `python3 tools/npc_compositor.py --random random --seed 42 --name "Name" --out assets/npcs/my_npc/`
+- **Random NPC (specific gender):** `python3 tools/npc_compositor.py --random male --seed 42 --name "Aldric" --out assets/npcs/my_npc/`
+- **From spec:** `python3 tools/npc_compositor.py --spec spec.json --out assets/npcs/my_npc/`
+- **List parts:** `python3 tools/npc_compositor.py --list`
+- **Output:** walk.png (8 frames, 64×64), idle.png (5 frames, 64×64), spec.json
+
+### Layer order (back → front)
+back_layer → skin → boots → pants → shirt → clothing → arm_layer → hand_item → hair → hat
+
+### Random generation rules
+- Gender: randomly chosen (50/50) unless `--random male` or `--random female` is specified
+- Skin: randomly chosen from matching gender pool
+- Shirt: full pool including plain white variants
+- Hair: always assigned
+- Hat: **10% chance** unless specified
+- Back layer (cape/backpack/lantern): **10% chance** unless specified
+- Gloves (arm_layer): **10% chance** unless specified
+- Hand item: **OFF by default** — only assigned if explicitly set in a spec
+- Boots always assigned; pants always assigned
+
+### Sprite orientation
+GandalfHardcore sprites face **LEFT** by default.
+- `setFlipX(true)` when moving RIGHT
+- `setFlipX(false)` when moving left
+
+### Animation format
+Single-row strips (not LPC grid). Use `createGandalfNpcAnimations` helper in main.js.
+- walk.png: 8 frames → `${key}-walk` animation, frameRate 10
+- idle.png: 5 frames → `${key}-idle` animation, frameRate 4
+- Direction handled by setFlipX, NOT separate left/right animation keys
+
+### Existing NPCs
+| NPC | Key | Asset folder | Seed | Notes |
+|-----|-----|-------------|------|-------|
+| Mirelle | forestLady | assets/npcs/forest_lady/ | custom | Silver hair recolored; red corset, white skirt |
+| Aldric | hutWanderer | assets/npcs/hut_wanderer/ | 42 | Patrols x=1860–2170 in front of hut |
+| Bram Alder | npcCity1 | assets/npcs/npc_city_1/ | 117 | City NPC |
+| Ysra Thorn | npcCity2 | assets/npcs/npc_city_2/ | 200 | City NPC, female |
+| Teren Vale | npcCity3 | assets/npcs/npc_city_3/ | 124 | City NPC |
+| Padrig | npcTavernChef | assets/npcs/npc_tavern_chef/ | 141 | Tavern chef |
+
+### Adding a new NPC to the game
+1. Generate sprite: `python3 tools/npc_compositor.py --random random --seed N --name "Name" --out assets/npcs/my_npc/`
+2. Add a config constant like `HUT_WANDERER` in main.js
+3. Call `createGandalfNpcAnimations(this, config)` in `createAnimations()`
+4. Load spritesheets in `preload()` with frameWidth: 64, frameHeight: 64
+5. Spawn sprite, set depth 8, play idle anim, setFlipX(true) to start facing right
+6. Add patrol logic following the `updateHutWanderer()` pattern
+
+### Depth hierarchy
+- Player: depth 10
+- All NPCs: depth 8
+- Props (hut, wagon): depth 7
+- Ground front tiles: depth 12
 
 ## Key scene info
 - **PrototypeScene** = forest/overworld scene (first scene after hero select)
