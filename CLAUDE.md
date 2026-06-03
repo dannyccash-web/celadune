@@ -149,4 +149,4 @@ To add new parts: drop PNGs into the appropriate subfolder under assets/building
 ## Cache busting
 main.js is loaded with a `?v=N` query string in index.html. Bump the version
 number whenever making significant changes so users don't get stale cached JS.
-Current version: v=17
+Current version: v=18
