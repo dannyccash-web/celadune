@@ -100,6 +100,45 @@ Single-row strips (not LPC grid). Use `createGandalfNpcAnimations` helper in mai
 - Props (hut, wagon): depth 7
 - Ground front tiles: depth 12
 
+## Building system (GandalfHardcore modular buildings)
+
+### Source sheets
+- `assets/House Tiles.png` — Two stone house variants (each 184×224px, 32px tile grid)
+- `assets/House outside Tiles 32x32 v2.png` — Two complete hall buildings + parts strip
+
+### Parts library
+- **Location:** assets/building-parts/
+  - roofs/ (2: roof_stone_v1, roof_stone_v2 — 184×64px each)
+  - walls/ (6: wall_stone_upper_v1/v2 — 184×96px; wall_stone_lower_v1/v2 — 184×64px; wall_teal_wide — 96×96px; wall_teal_narrow — 64×64px)
+  - accessories/ (1: column_capital — 32×48px)
+- **Complete sprites:** assets/buildings/ — open_hall.png, stone_hall.png, stone_house_v1.png, stone_house_v2.png
+
+### Compositor
+- **Script:** tools/building_compositor.py
+- **Random stone house:** `python3 tools/building_compositor.py --random stone_house --seed 42 --name "Old Cottage" --out assets/buildings/my_building/`
+- **Random complete building:** `python3 tools/building_compositor.py --random complete --seed 7 --out assets/buildings/my_building/`
+- **From spec:** `python3 tools/building_compositor.py --spec spec.json --out assets/buildings/my_building/`
+- **List parts:** `python3 tools/building_compositor.py --list`
+- **Output:** building.png (single static RGBA PNG), spec.json
+
+### Layer order for stone_house (top → bottom)
+roof → upper_wall → lower_wall
+
+All stone_house parts are **184px wide** — required for vertical stacking to work. Parts from different families (teal panels at 96px/64px) cannot be mixed with stone_house parts.
+
+### Building types
+- `stone_house` — composited from interchangeable parts; all parts must be 184px wide
+- `complete` — random pick from a pre-assembled sprite (open_hall, stone_hall, stone_house_v1/v2)
+
+### Adding a new building to the game
+1. Generate sprite: `python3 tools/building_compositor.py --random stone_house --seed N --name "Name" --out assets/buildings/my_building/`
+2. Load the image in `preload()`: `this.load.image('myBuilding', 'assets/buildings/my_building/building.png')`
+3. Place in scene: `this.add.image(x, y, 'myBuilding').setDepth(7).setOrigin(0.5, 1)`
+4. Depth 7 = props layer (same as hut, wagon)
+
+### Expanding the parts library
+To add new parts: drop PNGs into the appropriate subfolder under assets/building-parts/. Width must match the family (184px for stone_house). The compositor picks randomly from all files in each subfolder, so new parts are available immediately with no code changes.
+
 ## Key scene info
 - **PrototypeScene** = forest/overworld scene (first scene after hero select)
   - Hut at x=2240, Mirelle (forestLady) patrols x=2420–2660
