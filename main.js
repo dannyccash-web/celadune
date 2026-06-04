@@ -589,6 +589,13 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('brokenWagon', 'assets/props/broken_wagon.png');
     this.load.image('onionPatch', 'assets/props/onion_patch.png');
     this.load.image('largeTent', 'assets/props/large_tent.png');
+    this.load.image('decorSmallTent',    'assets/props/decor_small_tent.png');
+    this.load.image('decorCauldron',     'assets/props/decor_cauldron.png');
+    this.load.image('decorWoodLogs',     'assets/props/decor_wood_logs.png');
+    this.load.image('decorGrassLarge',   'assets/props/decor_grass_large.png');
+    this.load.image('decorGrassSmall',   'assets/props/decor_grass_small.png');
+    this.load.image('decorPumpkinSmall', 'assets/props/decor_pumpkin_small.png');
+    this.load.image('decorPumpkinLarge', 'assets/props/decor_pumpkin_large.png');
     this.load.spritesheet('furnace', 'assets/props/furnace_animated.png', { frameWidth: 64, frameHeight: 64 });
     this.load.image('menuOnions', 'assets/ui/onions.png');
     this.load.image('wayfarersSalve', 'assets/ui/wayfarers_salve.png');
@@ -800,6 +807,7 @@ class PrototypeScene extends Phaser.Scene {
       'blackTile', 'ground0', 'ground1', 'ground2', 'ground3',
       'cityGround1', 'cityGround2', 'cityGround3', 'parchment', 'forestHut',
       'brokenWagon', 'onionPatch', 'largeTent', 'furnace', 'menuOnions', 'wayfarersSalve',
+      'decorSmallTent', 'decorCauldron', 'decorWoodLogs', 'decorGrassLarge', 'decorGrassSmall', 'decorPumpkinSmall', 'decorPumpkinLarge',
       'cityHouse1', 'cityHouse2', 'cityHouse3', 'cityBlacksmithShop', 'cityTavern',
       'cityMagicShop', 'cityArchway', 'cityWall1', 'cityWall2', 'cityWall3',
       'forestLady-idle', 'forestLady-walk',
@@ -983,13 +991,44 @@ class PrototypeScene extends Phaser.Scene {
       .setScale(0.44)
       .setDepth(this.propDepth);
 
-    this.tent = this.add.image(610, WAGON_BASELINE_Y, 'largeTent')
+    // Small tent from Decor.png
+    this.tent = this.add.image(610, WAGON_BASELINE_Y, 'decorSmallTent')
       .setOrigin(0.5, 1)
-      .setScale(2.5)
+      .setScale(4.5)
+      .setDepth(this.propDepth);
+
+    // Cauldron on stand + wood logs to the right of the tent
+    this.add.image(760, WAGON_BASELINE_Y, 'decorWoodLogs')
+      .setOrigin(0.5, 1)
+      .setScale(4)
+      .setDepth(this.propDepth);
+    this.add.image(760, WAGON_BASELINE_Y - 36, 'decorCauldron')
+      .setOrigin(0.5, 1)
+      .setScale(4)
       .setDepth(this.propDepth);
 
     this.hut = this.add.image(2240, HUT_BASELINE_Y, 'forestHut')
       .setOrigin(0.5, 1)
+      .setDepth(this.propDepth);
+
+    // Grass stalks to the left of the hut
+    this.add.image(2050, WAGON_BASELINE_Y, 'decorGrassLarge')
+      .setOrigin(0.5, 1)
+      .setScale(4)
+      .setDepth(this.propDepth);
+    this.add.image(2000, WAGON_BASELINE_Y, 'decorGrassSmall')
+      .setOrigin(0.5, 1)
+      .setScale(4)
+      .setDepth(this.propDepth);
+
+    // Pumpkins to the left of the grass
+    this.add.image(1900, WAGON_BASELINE_Y, 'decorPumpkinLarge')
+      .setOrigin(0.5, 1)
+      .setScale(4)
+      .setDepth(this.propDepth);
+    this.add.image(1858, WAGON_BASELINE_Y, 'decorPumpkinSmall')
+      .setOrigin(0.5, 1)
+      .setScale(4)
       .setDepth(this.propDepth);
 
     this.hutDoorZone = this.add.zone(this.hut.x + 34, HUT_BASELINE_Y - 80, 150, 132).setOrigin(0.5, 0.5);
