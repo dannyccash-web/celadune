@@ -196,6 +196,23 @@ function createCaelanAnimations(scene) {
       }
     });
   });
+
+  // Rise animation: death frames played in reverse (lying → standing)
+  ['right', 'left'].forEach((dir) => {
+    const key = `${hero}-rise-${dir}`;
+    if (!scene.anims.exists(key)) {
+      scene.anims.create({
+        key,
+        frames: [
+          { key: `${hero}-death`, frame: 2 },
+          { key: `${hero}-death`, frame: 1 },
+          { key: `${hero}-death`, frame: 0 },
+        ],
+        frameRate: 3,
+        repeat: 0,
+      });
+    }
+  });
 }
 
 function createForestLadyAnimations(scene) {
@@ -356,7 +373,7 @@ class HeroSelectScene extends Phaser.Scene {
   constructor() {
     super('HeroSelectScene');
     this.selectedHeroIndex = 0;
-    this.heroOrder = ['caelan', 'nerisse'];
+    this.heroOrder = ['caelan'];
   }
 
   preload() {
@@ -409,7 +426,7 @@ class HeroSelectScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     this.heroCards = this.heroOrder.map((heroKey, index) => {
-      const x = index === 0 ? 768 : 1152;
+      const x = GAME_WIDTH / 2;
       const y = 538;
 
       const outer = this.add.rectangle(x, y, 300, 398, 0x000000, 0).setStrokeStyle(4, 0xdab56a, 0.98);
@@ -548,7 +565,6 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('forestBack',     'assets/bg/forest_back.png');
     this.load.image('forestMid',      'assets/bg/forest_mid.png');
     this.load.image('forestShort',    'assets/bg/forest_short.png');
-    this.load.image('cityBg', 'assets/bg/city_background.jpeg');
     this.load.image('blackTile', 'assets/tiles/black_tile.png');
     this.load.image('ground0', 'assets/tiles/ground_tile.png');
     this.load.image('ground1', 'assets/tiles/ground_tile_1.png');
@@ -636,6 +652,37 @@ class PrototypeScene extends Phaser.Scene {
 
     this.player.setPosition(this.startX, this.startY);
 
+    // --- Opening intro sequence (first load only) ---
+    const isFirstLoad = !this.scene.settings.data?.fromTransition;
+    this.introComplete = !isFirstLoad; // skip intro on scene transitions
+
+    // Black fade-in overlay (shown on both first load and transitions)
+    this.introOverlay = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 1)
+      .setScrollFactor(0)
+      .setDepth(200);
+    this.tweens.add({
+      targets: this.introOverlay,
+      alpha: 0,
+      duration: 2000,
+      ease: 'Linear',
+      onComplete: () => this.introOverlay.setVisible(false),
+    });
+
+    if (isFirstLoad) {
+      // Start lying down (last frame of death sheet)
+      this.player.anims.stop();
+      this.player.setTexture('caelan-death', 2);
+
+      // After 5s, play rise animation; when done, start idle and hand over control
+      this.time.delayedCall(5000, () => {
+        this.player.anims.play('caelan-rise-right', true);
+        this.player.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+          this.player.anims.play('caelan-idle-right', true);
+          this.introComplete = true;
+        });
+      });
+    }
+
     this.cursors = this.input.keyboard.createCursorKeys();
     this.menuKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
     this.enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
@@ -651,8 +698,9 @@ class PrototypeScene extends Phaser.Scene {
 
     // Make sprites wide enough that every layer covers the screen at every scroll position.
     // With scrollFactor, the sprite drifts left as the camera scrolls right;
-    // maxDrift = WORLD_WIDTH * maxFactor = 5120 * 0.90 ≈ 4608, so width = WORLD_WIDTH + GAME_WIDTH covers it.
-    const spriteWidth = WORLD_WIDTH + GAME_WIDTH;
+    // maxDrift = worldW * maxFactor, so width = worldW + GAME_WIDTH covers it.
+    const worldW = this.sceneWorldWidth || WORLD_WIDTH;
+    const spriteWidth = worldW + GAME_WIDTH;
 
     // Sky shifts up independently so clouds sit higher in the visible area.
     const skyOffset = -100;
@@ -747,7 +795,7 @@ class PrototypeScene extends Phaser.Scene {
   }
 
   applyTextureFiltering() {
-    this.setTextureFilter(['forestSky', 'forestMountain', 'forestBack', 'forestMid', 'forestShort', 'cityBg', 'forestHutInterior'], Phaser.Textures.FilterMode.LINEAR);
+    this.setTextureFilter(['forestSky', 'forestMountain', 'forestBack', 'forestMid', 'forestShort', 'forestHutInterior'], Phaser.Textures.FilterMode.LINEAR);
     this.setTextureFilter([
       'blackTile', 'ground0', 'ground1', 'ground2', 'ground3',
       'cityGround1', 'cityGround2', 'cityGround3', 'parchment', 'forestHut',
@@ -1774,6 +1822,7 @@ class PrototypeScene extends Phaser.Scene {
         heroKey: this.heroKey,
         startX: safeStartX,
         startY: safeStartY,
+        fromTransition: true,
         inventoryItems: this.inventoryItems,
         equipmentItems: this.equipmentItems,
         playerGold: this.playerGold,
@@ -2362,6 +2411,8 @@ class PrototypeScene extends Phaser.Scene {
       return; // scrollFactor handles forest parallax; city bg updated below if needed
     }
 
+    if (!this.introComplete) return; // block all input during opening sequence
+
     if (Phaser.Input.Keyboard.JustDown(this.menuKey)) {
       if (this.isMenuOpen) {
         this.closeMenu();
@@ -2480,6 +2531,7 @@ class CityScene extends PrototypeScene {
 
   init(data) {
     super.init(data);
+    this.sceneWorldWidth = CITY_WORLD_WIDTH;
     this.startX = data?.startX ?? 120;
     this.startY = data?.startY ?? 768;
     this.cityNpcStates = {
@@ -2520,22 +2572,7 @@ class CityScene extends PrototypeScene {
     this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
   }
 
-  createParallaxBackground() {
-    const cityTexture = this.textures.get('cityBg').getSourceImage();
-    const scale = GAME_HEIGHT / cityTexture.height;
-    this.bgScale = scale;
-    this.bgDisplayWidth = cityTexture.width * scale;
-    this.bgMaxOffset = Math.max(0, this.bgDisplayWidth - GAME_WIDTH);
-    this.cameraScrollRange = Math.max(1, CITY_WORLD_WIDTH - GAME_WIDTH);
-
-    this.bg = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'cityBg')
-      .setOrigin(0, 0)
-      .setScrollFactor(0)
-      .setDepth(-20);
-
-    this.bg.setTileScale(scale, scale);
-    this.bg.tilePositionX = 0;
-  }
+  // Inherits PrototypeScene.createParallaxBackground() — uses sceneWorldWidth set in init().
 
   createCityWall() {
     this.cityWallGroup = this.add.group();
@@ -2729,7 +2766,7 @@ class CityScene extends PrototypeScene {
       .setStrokeStyle(2, 0xdab56a, 0.95);
     this.dialogueOverlay.add(this.portraitFrame);
 
-    this.portraitSceneBg = this.add.tileSprite(portraitX, portraitY, portraitInner, portraitInner, 'cityBg').setOrigin(0.5);
+    this.portraitSceneBg = this.add.tileSprite(portraitX, portraitY, portraitInner, portraitInner, 'forestBack').setOrigin(0.5);
     this.portraitSceneBg.setTileScale(this.bgScale || 1, this.bgScale || 1);
     this.dialogueOverlay.add(this.portraitSceneBg);
 
@@ -3355,9 +3392,10 @@ class CityScene extends PrototypeScene {
     this.player.setDepth(10);
     this.handleSceneBoundaries(velocityX, onGround);
 
-    const scrollRatio = Phaser.Math.Clamp(this.cameras.main.scrollX / this.cameraScrollRange, 0, 1);
-    const backgroundOffset = this.bgMaxOffset * scrollRatio;
-    this.bg.tilePositionX = backgroundOffset / this.bgScale;
+    // Drift the sky layer (inherited parallax handles the rest via scrollFactor)
+    if (this.parallaxLayers?.[0]) {
+      this.parallaxLayers[0].tilePositionX -= 0.1;
+    }
   }
 }
 
