@@ -218,26 +218,6 @@ function createForestLadyAnimations(scene) {
   }
 }
 
-function createNpcWalkIdleAnimations(scene, prefix) {
-  const animations = [
-    { key: `${prefix}-idle-left`, sheet: `${prefix}-idle`, row: 1, start: 0, end: 1, rate: 3, repeat: -1 },
-    { key: `${prefix}-idle-right`, sheet: `${prefix}-idle`, row: 3, start: 0, end: 1, rate: 3, repeat: -1 },
-    { key: `${prefix}-walk-left`, sheet: `${prefix}-walk`, row: 1, start: 0, end: 8, rate: 8, repeat: -1 },
-    { key: `${prefix}-walk-right`, sheet: `${prefix}-walk`, row: 3, start: 0, end: 8, rate: 8, repeat: -1 },
-  ];
-
-  animations.forEach((anim) => {
-    if (!scene.anims.exists(anim.key)) {
-      scene.anims.create({
-        key: anim.key,
-        frames: lpcFrameList(anim.sheet, anim.row, anim.start, anim.end),
-        frameRate: anim.rate,
-        repeat: anim.repeat,
-      });
-    }
-  });
-}
-
 // Animations for GandalfHardcore-style single-row spritesheets (flipX for direction)
 function createGandalfNpcAnimations(scene, npcConfig) {
   const { key, walkFrames, idleFrames } = npcConfig;
@@ -567,7 +547,6 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('forestMountain', 'assets/bg/forest_mountain.png');
     this.load.image('forestBack',     'assets/bg/forest_back.png');
     this.load.image('forestMid',      'assets/bg/forest_mid.png');
-    this.load.image('forestLong',     'assets/bg/forest_long.png');
     this.load.image('forestShort',    'assets/bg/forest_short.png');
     this.load.image('cityBg', 'assets/bg/city_background.jpeg');
     this.load.image('blackTile', 'assets/tiles/black_tile.png');
@@ -666,10 +645,6 @@ class PrototypeScene extends Phaser.Scene {
     this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
   }
 
-  getMusicConfig() {
-    return { key: 'forestTheme', volume: 0.42 };
-  }
-
   createParallaxBackground() {
     // Shift non-sky layers up so their bases land just below the ground line.
     const groundOffset = -(GAME_HEIGHT - (GROUND_Y + 20)); // ≈ -172
@@ -683,7 +658,6 @@ class PrototypeScene extends Phaser.Scene {
     const skyOffset = -100;
 
     // Layers ordered back→front. scrollFactor drives the parallax automatically.
-    // forestLong removed — visually identical to forestShort at this scale.
     const layerDefs = [
       { key: 'forestSky',      factor: 0.10, depth: -26, yOff: skyOffset },
       { key: 'forestMountain', factor: 0.26, depth: -25, yOff: groundOffset },
@@ -775,7 +749,7 @@ class PrototypeScene extends Phaser.Scene {
   }
 
   applyTextureFiltering() {
-    this.setTextureFilter(['forestSky', 'forestMountain', 'forestBack', 'forestMid', 'forestLong', 'forestShort', 'cityBg', 'forestHutInterior'], Phaser.Textures.FilterMode.LINEAR);
+    this.setTextureFilter(['forestSky', 'forestMountain', 'forestBack', 'forestMid', 'forestShort', 'cityBg', 'forestHutInterior'], Phaser.Textures.FilterMode.LINEAR);
     this.setTextureFilter([
       'blackTile', 'ground0', 'ground1', 'ground2', 'ground3',
       'cityGround1', 'cityGround2', 'cityGround3', 'parchment', 'forestHut',
@@ -954,7 +928,6 @@ class PrototypeScene extends Phaser.Scene {
     this.npc.anims.play('forestLady-idle', true);
     this.npcState = 'pause';
   }
-
 
   createProps() {
     this.propDepth = 7;
@@ -1680,7 +1653,6 @@ class PrototypeScene extends Phaser.Scene {
     this.portraitSceneBg.tilePositionX = (this.bg?.tilePositionX || 0) + this.dialoguePortraitRect.left;
     this.portraitSceneBg.tilePositionY = this.dialoguePortraitRect.top;
   }
-
 
   hasInventoryItem(name) {
     return this.inventoryItems.some((item) => item.name === name);
@@ -2503,22 +2475,9 @@ class PrototypeScene extends Phaser.Scene {
   }
 }
 
-
-
-
 class CityScene extends PrototypeScene {
   constructor() {
     super('CityScene');
-    this.facing = 'right';
-    this.selectedMenuIndex = 0;
-    this.menuPages = ['Inventory', 'Equipment', 'Controls'];
-    this.menuMode = 'categories';
-    this.menuSectionIndex = 0;
-    this.menuItemIndex = 0;
-    this.menuActionIndex = 0;
-    this.inventoryItems = [];
-    this.equipmentItems = [];
-    this.pendingItemPopupQueue = [];
   }
 
   init(data) {

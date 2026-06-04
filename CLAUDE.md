@@ -142,4 +142,4 @@ Drop new PNGs into assets/building-parts/v2/ following the naming convention (e.
 ## Cache busting
 main.js is loaded with a `?v=N` query string in index.html. Bump the version
 number whenever making significant changes so users don't get stale cached JS.
-Current version: v=19
+Current version: v=20
