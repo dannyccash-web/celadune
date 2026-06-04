@@ -112,6 +112,13 @@ def generate_building(spec: dict, out_dir: str) -> Path:
     base_img.paste(door_img, (door_x, 0), door_img)
     building.paste(base_img, (0, y), base_img)
 
+    # Scale if requested
+    scale = spec.get("scale", 1.0)
+    if scale != 1.0:
+        new_w = round(building.width * scale)
+        new_h = round(building.height * scale)
+        building = building.resize((new_w, new_h), Image.LANCZOS)
+
     # Save
     bp = out / "building.png"
     sp = out / "spec.json"
@@ -193,9 +200,11 @@ def main():
     group.add_argument("--spec",   metavar="FILE",      help="JSON spec file")
     group.add_argument("--list",   action="store_true", help="List available assets")
 
-    parser.add_argument("--out",  metavar="DIR", help="Output directory")
-    parser.add_argument("--seed", metavar="INT", type=int)
-    parser.add_argument("--name", metavar="NAME")
+    parser.add_argument("--out",   metavar="DIR", help="Output directory")
+    parser.add_argument("--seed",  metavar="INT", type=int)
+    parser.add_argument("--name",  metavar="NAME")
+    parser.add_argument("--scale", metavar="FLOAT", type=float, default=1.0,
+                        help="Scale factor for final image (e.g. 1.5 = 50%% bigger)")
 
     args = parser.parse_args()
 
@@ -213,6 +222,9 @@ def main():
     else:
         print(f"Random building (seed={args.seed})...")
         spec = build_random_spec(seed=args.seed, name=args.name)
+
+    if args.scale != 1.0:
+        spec["scale"] = args.scale
 
     print("Spec:")
     for k, v in spec.items():

@@ -7,5 +7,6 @@
   "door_x": 119,
   "has_upper_floor": false,
   "roof": "Large_Roof_1.png",
-  "_size_px": "320\u00d7256"
+  "scale": 1.5,
+  "_size_px": "480\u00d7384"
 }

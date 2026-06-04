@@ -8,5 +8,6 @@
   "has_upper_floor": true,
   "roof": "Large_Roof_1.png",
   "upper_floor": "Large_Upper_Floor_2.png",
-  "_size_px": "320\u00d7384"
+  "scale": 1.5,
+  "_size_px": "480\u00d7576"
 }
