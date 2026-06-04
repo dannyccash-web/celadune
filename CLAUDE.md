@@ -58,11 +58,11 @@ back_layer → skin → boots → pants → shirt → clothing → arm_layer →
 - Gender: randomly chosen (50/50) unless `--random male` or `--random female` is specified
 - Skin: randomly chosen from matching gender pool
 - Shirt: full pool including plain white variants
-- Hair: always assigned
 - Hat: **10% chance** unless specified
+- Hair: assigned only if **no hat** (hat covers hair)
 - Back layer (cape/backpack/lantern): **10% chance** unless specified
 - Gloves (arm_layer): **10% chance** unless specified
-- Hand item: **OFF by default** — only assigned if explicitly set in a spec
+- Hand item: **10% chance** unless specified
 - Boots always assigned; pants always assigned
 
 ### Sprite orientation

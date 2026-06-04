@@ -285,15 +285,17 @@ def build_random_spec(gender='random', seed=None):
     boots = str(rng.choice(boots_files)) if boots_files else None
     clothing = None  # legacy field unused in random gen
 
-    # Hair — always assigned, full random across all styles
-    hair_files = [f for f in (PARTS_DIR / f'hair_{suffix}').glob('*.png')]
-    hair = str(rng.choice(hair_files)) if hair_files else None
-
-    # Hat — 10% chance
+    # Hat — 10% chance; if hat, no hair (hat covers it)
     hat = None
+    hair = None
     if rng.random() < 0.10:
         hat_files = list((PARTS_DIR / f'hats_{suffix}').glob('*.png'))
         hat = str(rng.choice(hat_files)) if hat_files else None
+
+    # Hair — only assigned if no hat
+    if not hat:
+        hair_files = [f for f in (PARTS_DIR / f'hair_{suffix}').glob('*.png')]
+        hair = str(rng.choice(hair_files)) if hair_files else None
 
     # Back layer — 10% chance (cape, backpack, lantern)
     back_layer = None
@@ -309,8 +311,11 @@ def build_random_spec(gender='random', seed=None):
         arm_files = list((PARTS_DIR / f'arm_layers_{suffix}').glob('*.png'))
         arm_layer = str(rng.choice(arm_files)) if arm_files else None
 
-    # Hand item — OFF by default; only assigned if explicitly specified in a spec
+    # Hand item — 10% chance
     hand_item = None
+    if rng.random() < 0.10:
+        hand_files = list((PARTS_DIR / f'hand_items_{suffix}').glob('*.png'))
+        hand_item = str(rng.choice(hand_files)) if hand_files else None
 
     return {
         'gender': suffix,
