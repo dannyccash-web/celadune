@@ -548,7 +548,6 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('forestBack',     'assets/bg/forest_back.png');
     this.load.image('forestMid',      'assets/bg/forest_mid.png');
     this.load.image('forestShort',    'assets/bg/forest_short.png');
-    this.load.image('cityBg', 'assets/bg/city_background.jpeg');
     this.load.image('blackTile', 'assets/tiles/black_tile.png');
     this.load.image('ground0', 'assets/tiles/ground_tile.png');
     this.load.image('ground1', 'assets/tiles/ground_tile_1.png');
@@ -651,8 +650,9 @@ class PrototypeScene extends Phaser.Scene {
 
     // Make sprites wide enough that every layer covers the screen at every scroll position.
     // With scrollFactor, the sprite drifts left as the camera scrolls right;
-    // maxDrift = WORLD_WIDTH * maxFactor = 5120 * 0.90 ≈ 4608, so width = WORLD_WIDTH + GAME_WIDTH covers it.
-    const spriteWidth = WORLD_WIDTH + GAME_WIDTH;
+    // maxDrift = worldW * maxFactor, so width = worldW + GAME_WIDTH covers it.
+    const worldW = this.sceneWorldWidth || WORLD_WIDTH;
+    const spriteWidth = worldW + GAME_WIDTH;
 
     // Sky shifts up independently so clouds sit higher in the visible area.
     const skyOffset = -100;
@@ -747,7 +747,7 @@ class PrototypeScene extends Phaser.Scene {
   }
 
   applyTextureFiltering() {
-    this.setTextureFilter(['forestSky', 'forestMountain', 'forestBack', 'forestMid', 'forestShort', 'cityBg', 'forestHutInterior'], Phaser.Textures.FilterMode.LINEAR);
+    this.setTextureFilter(['forestSky', 'forestMountain', 'forestBack', 'forestMid', 'forestShort', 'forestHutInterior'], Phaser.Textures.FilterMode.LINEAR);
     this.setTextureFilter([
       'blackTile', 'ground0', 'ground1', 'ground2', 'ground3',
       'cityGround1', 'cityGround2', 'cityGround3', 'parchment', 'forestHut',
@@ -2480,6 +2480,7 @@ class CityScene extends PrototypeScene {
 
   init(data) {
     super.init(data);
+    this.sceneWorldWidth = CITY_WORLD_WIDTH;
     this.startX = data?.startX ?? 120;
     this.startY = data?.startY ?? 768;
     this.cityNpcStates = {
@@ -2520,22 +2521,7 @@ class CityScene extends PrototypeScene {
     this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
   }
 
-  createParallaxBackground() {
-    const cityTexture = this.textures.get('cityBg').getSourceImage();
-    const scale = GAME_HEIGHT / cityTexture.height;
-    this.bgScale = scale;
-    this.bgDisplayWidth = cityTexture.width * scale;
-    this.bgMaxOffset = Math.max(0, this.bgDisplayWidth - GAME_WIDTH);
-    this.cameraScrollRange = Math.max(1, CITY_WORLD_WIDTH - GAME_WIDTH);
-
-    this.bg = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'cityBg')
-      .setOrigin(0, 0)
-      .setScrollFactor(0)
-      .setDepth(-20);
-
-    this.bg.setTileScale(scale, scale);
-    this.bg.tilePositionX = 0;
-  }
+  // Inherits PrototypeScene.createParallaxBackground() — uses sceneWorldWidth set in init().
 
   createCityWall() {
     this.cityWallGroup = this.add.group();
@@ -2729,7 +2715,7 @@ class CityScene extends PrototypeScene {
       .setStrokeStyle(2, 0xdab56a, 0.95);
     this.dialogueOverlay.add(this.portraitFrame);
 
-    this.portraitSceneBg = this.add.tileSprite(portraitX, portraitY, portraitInner, portraitInner, 'cityBg').setOrigin(0.5);
+    this.portraitSceneBg = this.add.tileSprite(portraitX, portraitY, portraitInner, portraitInner, 'forestBack').setOrigin(0.5);
     this.portraitSceneBg.setTileScale(this.bgScale || 1, this.bgScale || 1);
     this.dialogueOverlay.add(this.portraitSceneBg);
 
@@ -3355,9 +3341,10 @@ class CityScene extends PrototypeScene {
     this.player.setDepth(10);
     this.handleSceneBoundaries(velocityX, onGround);
 
-    const scrollRatio = Phaser.Math.Clamp(this.cameras.main.scrollX / this.cameraScrollRange, 0, 1);
-    const backgroundOffset = this.bgMaxOffset * scrollRatio;
-    this.bg.tilePositionX = backgroundOffset / this.bgScale;
+    // Drift the sky layer (inherited parallax handles the rest via scrollFactor)
+    if (this.parallaxLayers?.[0]) {
+      this.parallaxLayers[0].tilePositionX -= 0.1;
+    }
   }
 }
 
