@@ -5,9 +5,8 @@
   "base": "Small_Base_2.png",
   "door": "Door_1.png",
   "door_x": 27,
-  "has_upper_floor": true,
-  "roof": "Small_Roof_2.png",
   "upper_floor": "Small_Upper_Floor_2.png",
-  "scale": 1.5,
-  "_size_px": "384\u00d7576"
+  "window": "Window_2.png",
+  "roof": "Small_Roof_4.png",
+  "_size_px": "384\u00d7528"
 }

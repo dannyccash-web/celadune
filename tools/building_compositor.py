@@ -1,22 +1,29 @@
 #!/usr/bin/env python3
 """
-Building Compositor for Celadune — Layer-Based
-Generates buildings by stacking pre-made PNG layers (base, upper floor, roof, door).
+Building Compositor for Celadune — Layer-Based (v2)
+Generates buildings by stacking pre-made PNG layers (base, upper floor, roof, door, window).
 
-Assets live in assets/building-parts/v2/:
-  Small_Base_1.png, Small_Base_2.png           (256×128)
-  Large_Base_1.png, Large_Base_2.png           (320×128)
-  Small_Upper_Floor_1.png, Small_Upper_Floor_2.png  (256×128)
-  Large_Upper_Floor_1.png, Large_Upper_Floor_2.png  (320×128)
-  Small_Roof_1.png, Small_Roof_2.png           (256×128)
-  Large_Roof_1.png, Large_Roof_2.png           (320×128)
-  Door_1.png                                   (96×128)
+All assets are pre-scaled at 1.5x and live in assets/building-parts/v2/:
+  Small_Base_1/2.png              (384×192)
+  Large_Base_1/2.png              (480×192)
+  Small_Upper_Floor_1.png         (384×192)
+  Small_Upper_Floor_2.png         (384×144)   ← shorter variant
+  Large_Upper_Floor_1.png         (480×192)
+  Large_Upper_Floor_2.png         (480×145)   ← shorter variant
+  Small_Roof_1/2/3/4.png          (384×192)
+  Large_Roof_1/2/3/4.png          (480×192)
+  Door_1/2/3.png                  (144×192)
+  Window_1/2.png                  (384×144)   ← overlay for upper floor
 
-Building assembly (bottom to top):
+Building assembly (bottom to top in the final image):
   1. Base (small or large, random pick)
   2. Door composited onto the base at a random horizontal position
-  3. Optional upper floor (50% chance, matching size class)
-  4. Roof (matching size class)
+  3. Upper floor (always present, matching size class)
+  4. Window composited onto the upper floor
+  5. Roof (matching size class) — sits flush on top of the upper floor
+
+Upper floors have varying heights, so total building height depends on
+which upper floor is chosen.
 
 Usage:
   python3 tools/building_compositor.py --random --seed 42 --name "Old Cottage" --out assets/buildings/old_cottage/
@@ -24,7 +31,7 @@ Usage:
   python3 tools/building_compositor.py --list
 
 Output per building:
-  building.png  — Single static RGBA PNG
+  building.png  — Single static RGBA PNG (no additional scaling needed)
   spec.json     — Full spec for exact reproduction
 """
 
@@ -41,11 +48,13 @@ SCRIPT_DIR  = Path(__file__).parent
 PROJECT_DIR = SCRIPT_DIR.parent
 PARTS_DIR   = PROJECT_DIR / "assets" / "building-parts" / "v2"
 
-LAYER_HEIGHT = 128  # every layer is 128px tall
-SMALL_WIDTH  = 256
-LARGE_WIDTH  = 320
-DOOR_WIDTH   = 96
-DOOR_HEIGHT  = 128
+SMALL_WIDTH  = 384
+LARGE_WIDTH  = 480
+BASE_HEIGHT  = 192
+ROOF_HEIGHT  = 192
+DOOR_WIDTH   = 144
+DOOR_HEIGHT  = 192
+WINDOW_WIDTH = 384  # window overlays are sized for small buildings
 
 # ── Asset catalogue ───────────────────────────────────────────────────────────
 
@@ -54,9 +63,10 @@ ASSETS = {
     "large_bases":   ["Large_Base_1.png", "Large_Base_2.png"],
     "small_uppers":  ["Small_Upper_Floor_1.png", "Small_Upper_Floor_2.png"],
     "large_uppers":  ["Large_Upper_Floor_1.png", "Large_Upper_Floor_2.png"],
-    "small_roofs":   ["Small_Roof_1.png", "Small_Roof_2.png"],
-    "large_roofs":   ["Large_Roof_1.png", "Large_Roof_2.png"],
-    "doors":         ["Door_1.png"],
+    "small_roofs":   ["Small_Roof_1.png", "Small_Roof_2.png", "Small_Roof_3.png", "Small_Roof_4.png"],
+    "large_roofs":   ["Large_Roof_1.png", "Large_Roof_2.png", "Large_Roof_3.png", "Large_Roof_4.png"],
+    "doors":         ["Door_1.png", "Door_2.png", "Door_3.png"],
+    "windows":       ["Window_1.png", "Window_2.png"],
 }
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -79,45 +89,48 @@ def generate_building(spec: dict, out_dir: str) -> Path:
     out.mkdir(parents=True, exist_ok=True)
 
     size_class   = spec["size"]           # "small" or "large"
-    base_file    = spec["base"]           # e.g. "Small_Base_1.png"
-    door_file    = spec["door"]           # e.g. "Door_1.png"
-    door_x       = spec["door_x"]         # pixel offset for door on base
-    has_upper    = spec["has_upper_floor"]
-    upper_file   = spec.get("upper_floor")  # None if no upper floor
+    base_file    = spec["base"]
+    door_file    = spec["door"]
+    door_x       = spec["door_x"]
+    upper_file   = spec["upper_floor"]
+    window_file  = spec["window"]
     roof_file    = spec["roof"]
 
     width = SMALL_WIDTH if size_class == "small" else LARGE_WIDTH
 
-    # Count layers to determine total height
-    num_layers = 2  # base + roof always present
-    if has_upper:
-        num_layers = 3
-    total_height = num_layers * LAYER_HEIGHT
+    # Upper floors have varying heights — read the actual image height
+    upper_img = load(upper_file).copy()
+    upper_height = upper_img.height
+
+    # Total height = roof + upper floor + base
+    total_height = ROOF_HEIGHT + upper_height + BASE_HEIGHT
 
     building = Image.new("RGBA", (width, total_height), (0, 0, 0, 0))
 
-    # Stack from top to bottom: roof, [upper], base
+    # Stack from top to bottom: roof, upper floor (with window), base (with door)
     y = 0
+
+    # Roof
     building.paste(load(roof_file), (0, y), load(roof_file))
-    y += LAYER_HEIGHT
+    y += ROOF_HEIGHT
 
-    if has_upper:
-        building.paste(load(upper_file), (0, y), load(upper_file))
-        y += LAYER_HEIGHT
+    # Upper floor with window overlay
+    window_img = load(window_file)
+    # Center window horizontally on the upper floor
+    window_x = (width - window_img.width) // 2
+    # Align window to the bottom of the upper floor layer
+    window_y = upper_height - window_img.height
+    if window_y < 0:
+        window_y = 0
+    upper_img.paste(window_img, (window_x, window_y), window_img)
+    building.paste(upper_img, (0, y), upper_img)
+    y += upper_height
 
-    # Base layer
+    # Base layer with door
     base_img = load(base_file).copy()
-    # Composite door onto base
     door_img = load(door_file)
     base_img.paste(door_img, (door_x, 0), door_img)
     building.paste(base_img, (0, y), base_img)
-
-    # Scale if requested
-    scale = spec.get("scale", 1.0)
-    if scale != 1.0:
-        new_w = round(building.width * scale)
-        new_h = round(building.height * scale)
-        building = building.resize((new_w, new_h), Image.LANCZOS)
 
     # Save
     bp = out / "building.png"
@@ -150,27 +163,24 @@ def build_random_spec(seed=None, name=None) -> dict:
         roof  = rng.choice(ASSETS["large_roofs"])
         upper = rng.choice(ASSETS["large_uppers"])
 
-    door = rng.choice(ASSETS["doors"])
-    has_upper = rng.random() < 0.5
+    door   = rng.choice(ASSETS["doors"])
+    window = rng.choice(ASSETS["windows"])
 
     # Random door X: must fit within the base width
     max_door_x = width - DOOR_WIDTH
     door_x = rng.randint(0, max_door_x)
 
-    spec = {
-        "name":            name,
-        "seed":            seed,
-        "size":            size_class,
-        "base":            base,
-        "door":            door,
-        "door_x":          door_x,
-        "has_upper_floor": has_upper,
-        "roof":            roof,
+    return {
+        "name":        name,
+        "seed":        seed,
+        "size":        size_class,
+        "base":        base,
+        "door":        door,
+        "door_x":      door_x,
+        "upper_floor": upper,
+        "window":      window,
+        "roof":        roof,
     }
-    if has_upper:
-        spec["upper_floor"] = upper
-
-    return spec
 
 
 # ── Part listing ──────────────────────────────────────────────────────────────
@@ -181,30 +191,32 @@ def list_parts():
         print(f"  {category}:")
         for f in files:
             path = PARTS_DIR / f
-            exists = "✓" if path.exists() else "✗ MISSING"
-            print(f"    {f}  {exists}")
+            if path.exists():
+                img = Image.open(path)
+                print(f"    {f}  ✓  {img.width}×{img.height}")
+            else:
+                print(f"    {f}  ✗ MISSING")
     print(f"\nBuilding rules:")
     print(f"  Size:        50/50 small ({SMALL_WIDTH}px) or large ({LARGE_WIDTH}px)")
-    print(f"  Upper floor: 50% chance")
+    print(f"  Upper floor: always present (varying heights)")
+    print(f"  Window:      overlaid on upper floor")
     print(f"  Door:        {DOOR_WIDTH}×{DOOR_HEIGHT}px, random X placement")
-    print(f"  Height:      256px (no upper) or 384px (with upper)")
+    print(f"  Assets are pre-scaled — no runtime scaling applied")
     print()
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(description="Celadune Building Compositor (layer-based)")
+    parser = argparse.ArgumentParser(description="Celadune Building Compositor (layer-based v2)")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--random", action="store_true", help="Generate a random building")
     group.add_argument("--spec",   metavar="FILE",      help="JSON spec file")
     group.add_argument("--list",   action="store_true", help="List available assets")
 
-    parser.add_argument("--out",   metavar="DIR", help="Output directory")
-    parser.add_argument("--seed",  metavar="INT", type=int)
-    parser.add_argument("--name",  metavar="NAME")
-    parser.add_argument("--scale", metavar="FLOAT", type=float, default=1.0,
-                        help="Scale factor for final image (e.g. 1.5 = 50%% bigger)")
+    parser.add_argument("--out",  metavar="DIR", help="Output directory")
+    parser.add_argument("--seed", metavar="INT", type=int)
+    parser.add_argument("--name", metavar="NAME")
 
     args = parser.parse_args()
 
@@ -222,9 +234,6 @@ def main():
     else:
         print(f"Random building (seed={args.seed})...")
         spec = build_random_spec(seed=args.seed, name=args.name)
-
-    if args.scale != 1.0:
-        spec["scale"] = args.scale
 
     print("Spec:")
     for k, v in spec.items():

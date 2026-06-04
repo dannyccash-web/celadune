@@ -103,26 +103,28 @@ Single-row strips (not LPC grid). Use `createGandalfNpcAnimations` helper in mai
 ## Building system (layer-based compositor)
 
 ### Asset library
-- **Location:** assets/building-parts/v2/ — pre-made PNG layers stacked vertically
-  - Bases: Small_Base_1/2.png (256×128), Large_Base_1/2.png (320×128)
-  - Upper floors: Small_Upper_Floor_1/2.png (256×128), Large_Upper_Floor_1/2.png (320×128)
-  - Roofs: Small_Roof_1/2.png (256×128), Large_Roof_1/2.png (320×128)
-  - Doors: Door_1.png (96×128)
+- **Location:** assets/building-parts/v2/ — pre-scaled 1.5x PNG layers
+  - Bases: Small_Base_1/2.png (384×192), Large_Base_1/2.png (480×192)
+  - Upper floors: Small_Upper_Floor_1.png (384×192), Small_Upper_Floor_2.png (384×144), Large_Upper_Floor_1.png (480×192), Large_Upper_Floor_2.png (480×145) — varying heights
+  - Roofs: Small_Roof_1/2/3/4.png (384×192), Large_Roof_1/2/3/4.png (480×192)
+  - Doors: Door_1/2/3.png (144×192)
+  - Windows: Window_1/2.png (384×144) — overlay for upper floor
 
 ### Compositor
 - **Script:** tools/building_compositor.py
 - **Random building:** `python3 tools/building_compositor.py --random --seed 42 --name "Old Cottage" --out assets/buildings/old_cottage/`
 - **From spec:** `python3 tools/building_compositor.py --spec spec.json --out assets/buildings/my_building/`
 - **List assets:** `python3 tools/building_compositor.py --list`
-- **Output:** building.png (single static RGBA PNG), spec.json
+- **Output:** building.png (single static RGBA PNG, no runtime scaling), spec.json
 
 ### Building rules
-- **Size class:** 50/50 random — small (256px wide) or large (320px wide)
+- **Size class:** 50/50 random — small (384px wide) or large (480px wide)
 - **Base:** random pick from matching size class (2 variants each)
-- **Door:** 96×128px, composited onto base at random X position
-- **Upper floor:** 50% chance; uses matching size class layer
-- **Roof:** always present; random pick from matching size class (2 variants each)
-- **Final height:** 256px (no upper) or 384px (with upper floor)
+- **Door:** 144×192px, composited onto base at random X position
+- **Upper floor:** always present; matching size class (varying heights: 144–192px)
+- **Window:** random pick from 2 variants, overlaid centered on upper floor
+- **Roof:** always present; random pick from matching size class (4 variants each), sits flush on upper floor
+- **Final height:** varies by upper floor height (528–576px)
 
 ### Adding a new building to the game
 1. Generate: `python3 tools/building_compositor.py --random --seed N --name "Name" --out assets/buildings/my_building/`
@@ -130,7 +132,7 @@ Single-row strips (not LPC grid). Use `createGandalfNpcAnimations` helper in mai
 3. Place in scene: `this.add.image(x, y, 'myBuilding').setOrigin(0.5, 1).setDepth(8)`
 
 ### Expanding the asset library
-Drop new PNGs into assets/building-parts/v2/ following the naming convention (e.g. Small_Base_3.png) and add the filename to the ASSETS dict in building_compositor.py.
+Drop new PNGs into assets/building-parts/v2/ following the naming convention (e.g. Small_Base_3.png, Door_4.png) and add the filename to the ASSETS dict in building_compositor.py.
 
 ## Key scene info
 - **PrototypeScene** = forest/overworld scene (first scene after hero select)

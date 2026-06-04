@@ -3,10 +3,10 @@
   "seed": 80,
   "size": "large",
   "base": "Large_Base_2.png",
-  "door": "Door_1.png",
-  "door_x": 95,
-  "has_upper_floor": false,
-  "roof": "Large_Roof_2.png",
-  "scale": 1.5,
-  "_size_px": "480\u00d7384"
+  "door": "Door_2.png",
+  "door_x": 191,
+  "upper_floor": "Large_Upper_Floor_2.png",
+  "window": "Window_2.png",
+  "roof": "Large_Roof_4.png",
+  "_size_px": "480\u00d7529"
 }
