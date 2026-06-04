@@ -669,9 +669,7 @@ class PrototypeScene extends Phaser.Scene {
     this.parallaxLayers = layerDefs.map(({ key, factor, depth, yOff }) => {
       const tex = this.textures.get(key).getSourceImage();
       const scale = GAME_HEIGHT / tex.height;
-      // forestMountain has no transparent edge padding, so close its rendering seam
-      // by widening the horizontal tile scale slightly (vertical stays exact).
-      const scaleX = key === 'forestMountain' ? scale * 1.016 : scale;
+      const scaleX = scale;
       const sprite = this.add.tileSprite(0, yOff, spriteWidth, GAME_HEIGHT, key)
         .setOrigin(0, 0)
         .setScrollFactor(factor, 0)
@@ -2470,7 +2468,7 @@ class PrototypeScene extends Phaser.Scene {
     // Both scenes now use scrollFactor parallax — no manual tilePositionX update needed.
     // Drift the sky/cloud layer slowly rightward even when the player is stationary.
     if (this.parallaxLayers?.[0]) {
-      this.parallaxLayers[0].tilePositionX -= 0.25;
+      this.parallaxLayers[0].tilePositionX -= 0.1;
     }
   }
 }
