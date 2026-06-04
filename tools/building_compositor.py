@@ -1,23 +1,22 @@
 #!/usr/bin/env python3
 """
-Building Compositor for Celadune — Tile-Based
-Generates buildings by assembling individual 32×32 tiles.
+Building Compositor for Celadune — Layer-Based
+Generates buildings by stacking pre-made PNG layers (base, upper floor, roof, door).
 
-Scale: 1 tile = 32px. NPCs are 64×64px (2 tiles tall).
-Door = 1 tile wide × 2 tiles tall = 32×64px (matches NPC height).
+Assets live in assets/building-parts/v2/:
+  Small_Base_1.png, Small_Base_2.png           (256×128)
+  Large_Base_1.png, Large_Base_2.png           (320×128)
+  Small_Upper_Floor_1.png, Small_Upper_Floor_2.png  (256×128)
+  Large_Upper_Floor_1.png, Large_Upper_Floor_2.png  (320×128)
+  Small_Roof_1.png, Small_Roof_2.png           (256×128)
+  Large_Roof_1.png, Large_Roof_2.png           (320×128)
+  Door_1.png                                   (96×128)
 
-Building anatomy (bottom to top in the image, top to bottom in the scene):
-  Wall base  — W tiles wide × H tiles tall (min 5 wide × 3 tall)
-    • Door   — 1×2 tiles at ground level (bottom 2 rows of wall), random column
-    • Windows — 1×1 tiles, greedy-filled in non-forbidden cells
-    • Wall   — fills all remaining cells
-  Roof       — sits above the wall base
-    • 'peaked'  — 2 rows: peak row + slope row, using slope/peak tiles
-    • 'ceramic' — 2 rows: ceramic_top + ceramic_main, tiled across full width
-
-1-tile buffer rule for windows:
-  • Edge columns (col 0 and W-1) are always plain wall.
-  • No window may be orthogonally adjacent to the door or another window.
+Building assembly (bottom to top):
+  1. Base (small or large, random pick)
+  2. Door composited onto the base at a random horizontal position
+  3. Optional upper floor (50% chance, matching size class)
+  4. Roof (matching size class)
 
 Usage:
   python3 tools/building_compositor.py --random --seed 42 --name "Old Cottage" --out assets/buildings/old_cottage/
@@ -25,7 +24,7 @@ Usage:
   python3 tools/building_compositor.py --list
 
 Output per building:
-  building.png  — Single static RGBA PNG at native tile scale
+  building.png  — Single static RGBA PNG
   spec.json     — Full spec for exact reproduction
 """
 
@@ -36,182 +35,84 @@ import sys
 from pathlib import Path
 from PIL import Image
 
-# ── Paths ──────────────────────────────────────────────────────────────────────
+# ── Paths ─────────────────────────────────────────────────────────────────────
 
 SCRIPT_DIR  = Path(__file__).parent
 PROJECT_DIR = SCRIPT_DIR.parent
-TILES_DIR   = PROJECT_DIR / "assets" / "building-parts" / "tiles"
+PARTS_DIR   = PROJECT_DIR / "assets" / "building-parts" / "v2"
 
-TILE = 32  # px per tile
+LAYER_HEIGHT = 128  # every layer is 128px tall
+SMALL_WIDTH  = 256
+LARGE_WIDTH  = 320
+DOOR_WIDTH   = 96
+DOOR_HEIGHT  = 128
 
-# ── Tile loader (cached) ───────────────────────────────────────────────────────
+# ── Asset catalogue ───────────────────────────────────────────────────────────
 
-_tile_cache: dict[str, Image.Image] = {}
+ASSETS = {
+    "small_bases":   ["Small_Base_1.png", "Small_Base_2.png"],
+    "large_bases":   ["Large_Base_1.png", "Large_Base_2.png"],
+    "small_uppers":  ["Small_Upper_Floor_1.png", "Small_Upper_Floor_2.png"],
+    "large_uppers":  ["Large_Upper_Floor_1.png", "Large_Upper_Floor_2.png"],
+    "small_roofs":   ["Small_Roof_1.png", "Small_Roof_2.png"],
+    "large_roofs":   ["Large_Roof_1.png", "Large_Roof_2.png"],
+    "doors":         ["Door_1.png"],
+}
 
-def load_tile(rel_path: str) -> Image.Image:
-    if rel_path not in _tile_cache:
-        full = TILES_DIR / rel_path
-        if not full.exists():
-            raise FileNotFoundError(f"Tile not found: {full}")
-        _tile_cache[rel_path] = Image.open(full).convert("RGBA")
-    return _tile_cache[rel_path]
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
+_cache: dict[str, Image.Image] = {}
 
-# ── Roof builders ──────────────────────────────────────────────────────────────
-
-def build_peaked_roof(W: int) -> Image.Image:
-    """
-    Peaked (triangular) roof for a building W tiles wide.
-    Output: W*32 wide × 64 tall (2 tile rows). Transparent outside the triangle.
-
-    Peak row  (y 0–31):  covers cols 2 … W-3  (W-4 tiles)
-    Slope row (y 32–63): covers cols 1 … W-2  (W-2 tiles)
-    Outer columns are transparent (roof doesn't extend to building edges).
-    """
-    img = Image.new("RGBA", (W * TILE, 2 * TILE), (0, 0, 0, 0))
-
-    # ── Peak row ──────────────────────────────────────────────────────────────
-    p_start = 2
-    p_end   = W - 3
-    for col in range(p_start, p_end + 1):
-        if p_start == p_end:
-            tile = load_tile("roof/peak_center.png")   # single-tile peak
-        elif col == p_start:
-            tile = load_tile("roof/peak_left.png")
-        elif col == p_end:
-            tile = load_tile("roof/peak_right.png")
-        else:
-            tile = load_tile("roof/peak_center.png")
-        img.paste(tile, (col * TILE, 0), tile)
-
-    # ── Slope row ─────────────────────────────────────────────────────────────
-    s_start = 1
-    s_end   = W - 2
-    s_len   = s_end - s_start  # number of interior slots
-    for col in range(s_start, s_end + 1):
-        pos = col - s_start   # 0-indexed position within slope row
-        if col == s_start:
-            tile = load_tile("roof/slope_left_eave.png")
-        elif col == s_end:
-            tile = load_tile("roof/slope_right_eave.png")
-        elif pos == 1 and s_len > 2:
-            tile = load_tile("roof/slope_left.png")
-        elif col == s_end - 1 and s_len > 2:
-            tile = load_tile("roof/slope_right.png")
-        else:
-            tile = load_tile("roof/slope_center.png")
-        img.paste(tile, (col * TILE, TILE), tile)
-
-    return img
+def load(filename: str) -> Image.Image:
+    if filename not in _cache:
+        path = PARTS_DIR / filename
+        if not path.exists():
+            raise FileNotFoundError(f"Asset not found: {path}")
+        _cache[filename] = Image.open(path).convert("RGBA")
+    return _cache[filename]
 
 
-def build_ceramic_roof(W: int) -> Image.Image:
-    """
-    Flat-facing ceramic tile roof, W tiles wide × 2 tile rows tall.
-    Row 0: ceramic_top trim; Row 1: ceramic_main (repeatable).
-    """
-    img = Image.new("RGBA", (W * TILE, 2 * TILE), (0, 0, 0, 0))
-    top  = load_tile("roof/ceramic_top.png")
-    main = load_tile("roof/ceramic_main.png")
-    for col in range(W):
-        img.paste(top,  (col * TILE, 0),    top)
-        img.paste(main, (col * TILE, TILE), main)
-    return img
-
-
-# ── Wall base builder ──────────────────────────────────────────────────────────
-
-def build_wall(W: int, H: int, wall_key: str, door_key: str,
-               window_key: str, door_col: int) -> Image.Image:
-    """
-    Build the wall base as a W*32 × H*32 image.
-
-    Grid rows: 0 = top, H-1 = ground level.
-    Door bottom tile at (H-1, door_col); door top at (H-2, door_col).
-    Windows fill non-forbidden cells; everything else is wall.
-    """
-    # ── Grid initialisation ───────────────────────────────────────────────────
-    grid: list[list[str]] = [["wall"] * W for _ in range(H)]
-
-    # Place door (bottom 2 rows of wall)
-    grid[H - 1][door_col] = "door_bottom"
-    grid[H - 2][door_col] = "door_top"
-
-    # ── Forbidden cells (window buffer rules) ─────────────────────────────────
-    forbidden: set[tuple[int, int]] = set()
-
-    # Edge columns are always plain wall
-    for r in range(H):
-        forbidden.add((r, 0))
-        forbidden.add((r, W - 1))
-
-    # Door tiles and their orthogonal neighbours (1-tile buffer)
-    for door_row in (H - 1, H - 2):
-        for dr, dc in ((0, 0), (-1, 0), (1, 0), (0, -1), (0, 1)):
-            nr, nc = door_row + dr, door_col + dc
-            if 0 <= nr < H and 0 <= nc < W:
-                forbidden.add((nr, nc))
-
-    # ── Greedy window placement ───────────────────────────────────────────────
-    placed: set[tuple[int, int]] = set()
-    for r in range(H):
-        for c in range(W):
-            if (r, c) in forbidden or grid[r][c] != "wall":
-                continue
-            # Skip if orthogonally adjacent to an already-placed window
-            if any((r + dr, c + dc) in placed
-                   for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1))):
-                continue
-            grid[r][c] = "window"
-            placed.add((r, c))
-
-    # ── Composite image ───────────────────────────────────────────────────────
-    img = Image.new("RGBA", (W * TILE, H * TILE), (0, 0, 0, 0))
-
-    wall_tile   = load_tile(f"walls/{wall_key}.png")
-    window_tile = load_tile(f"windows/{window_key}.png")
-    door_top    = load_tile(f"doors/door_{door_key}_top.png")
-    door_bottom = load_tile(f"doors/door_{door_key}_bottom.png")
-
-    tile_map = {
-        "wall":        wall_tile,
-        "window":      window_tile,
-        "door_top":    door_top,
-        "door_bottom": door_bottom,
-    }
-
-    for r in range(H):
-        for c in range(W):
-            tile = tile_map[grid[r][c]]
-            img.paste(tile, (c * TILE, r * TILE), tile)
-
-    return img
-
-
-# ── Full building ──────────────────────────────────────────────────────────────
+# ── Building generation ───────────────────────────────────────────────────────
 
 def generate_building(spec: dict, out_dir: str) -> Path:
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
 
-    W        = spec["width"]
-    H        = spec["wall_height"]
-    wall_key = spec["wall"]          # e.g. "wall_stone"
-    door_key = spec["door"]          # e.g. "wood", "teal", "red"
-    win_key  = spec["window"]        # e.g. "window_glass"
-    roof_t   = spec["roof"]          # "peaked" or "ceramic"
-    door_col = spec["door_col"]
+    size_class   = spec["size"]           # "small" or "large"
+    base_file    = spec["base"]           # e.g. "Small_Base_1.png"
+    door_file    = spec["door"]           # e.g. "Door_1.png"
+    door_x       = spec["door_x"]         # pixel offset for door on base
+    has_upper    = spec["has_upper_floor"]
+    upper_file   = spec.get("upper_floor")  # None if no upper floor
+    roof_file    = spec["roof"]
 
-    print(f"  Size: {W}×{H} wall tiles, roof: {roof_t}, door: {door_key} @ col {door_col}, wall: {wall_key}")
+    width = SMALL_WIDTH if size_class == "small" else LARGE_WIDTH
 
-    roof = build_peaked_roof(W) if roof_t == "peaked" else build_ceramic_roof(W)
-    wall = build_wall(W, H, wall_key, door_key, win_key, door_col)
+    # Count layers to determine total height
+    num_layers = 2  # base + roof always present
+    if has_upper:
+        num_layers = 3
+    total_height = num_layers * LAYER_HEIGHT
 
-    total_h = roof.height + wall.height
-    building = Image.new("RGBA", (W * TILE, total_h), (0, 0, 0, 0))
-    building.paste(roof, (0, 0),           roof)
-    building.paste(wall, (0, roof.height), wall)
+    building = Image.new("RGBA", (width, total_height), (0, 0, 0, 0))
 
+    # Stack from top to bottom: roof, [upper], base
+    y = 0
+    building.paste(load(roof_file), (0, y), load(roof_file))
+    y += LAYER_HEIGHT
+
+    if has_upper:
+        building.paste(load(upper_file), (0, y), load(upper_file))
+        y += LAYER_HEIGHT
+
+    # Base layer
+    base_img = load(base_file).copy()
+    # Composite door onto base
+    door_img = load(door_file)
+    base_img.paste(door_img, (door_x, 0), door_img)
+    building.paste(base_img, (0, y), base_img)
+
+    # Save
     bp = out / "building.png"
     sp = out / "spec.json"
     building.save(bp)
@@ -225,67 +126,72 @@ def generate_building(spec: dict, out_dir: str) -> Path:
     return bp
 
 
-# ── Random spec builder ────────────────────────────────────────────────────────
-
-WALL_OPTIONS   = ["wall_stone", "wall_stone_dark"]
-DOOR_OPTIONS   = ["wood", "teal", "red"]
-WINDOW_OPTIONS = ["window_glass"]
-ROOF_OPTIONS   = ["peaked", "ceramic"]
+# ── Random spec builder ───────────────────────────────────────────────────────
 
 def build_random_spec(seed=None, name=None) -> dict:
     rng = random.Random(seed)
 
-    W    = rng.randint(5, 8)
-    H    = rng.randint(3, 5)
-    wall = rng.choice(WALL_OPTIONS)
-    door = rng.choice(DOOR_OPTIONS)
-    win  = rng.choice(WINDOW_OPTIONS)
-    roof = rng.choice(ROOF_OPTIONS)
+    size_class = rng.choice(["small", "large"])
+    width = SMALL_WIDTH if size_class == "small" else LARGE_WIDTH
 
-    # Door column: interior only (cols 1 to W-2), skipping edge-adjacent
-    door_col = rng.randint(1, W - 2)
+    if size_class == "small":
+        base  = rng.choice(ASSETS["small_bases"])
+        roof  = rng.choice(ASSETS["small_roofs"])
+        upper = rng.choice(ASSETS["small_uppers"])
+    else:
+        base  = rng.choice(ASSETS["large_bases"])
+        roof  = rng.choice(ASSETS["large_roofs"])
+        upper = rng.choice(ASSETS["large_uppers"])
 
-    return {
-        "name":        name,
-        "seed":        seed,
-        "width":       W,
-        "wall_height": H,
-        "wall":        wall,
-        "door":        door,
-        "window":      win,
-        "roof":        roof,
-        "door_col":    door_col,
+    door = rng.choice(ASSETS["doors"])
+    has_upper = rng.random() < 0.5
+
+    # Random door X: must fit within the base width
+    max_door_x = width - DOOR_WIDTH
+    door_x = rng.randint(0, max_door_x)
+
+    spec = {
+        "name":            name,
+        "seed":            seed,
+        "size":            size_class,
+        "base":            base,
+        "door":            door,
+        "door_x":          door_x,
+        "has_upper_floor": has_upper,
+        "roof":            roof,
     }
+    if has_upper:
+        spec["upper_floor"] = upper
+
+    return spec
 
 
-# ── Part listing ───────────────────────────────────────────────────────────────
+# ── Part listing ──────────────────────────────────────────────────────────────
 
 def list_parts():
-    print(f"\nTile library ({TILES_DIR}):\n")
-    for cat in sorted(TILES_DIR.iterdir()):
-        if cat.is_dir():
-            files = sorted(f.name for f in cat.glob("*.png"))
-            print(f"  {cat.name}/  ({len(files)} tiles)")
-            for f in files:
-                print(f"    {f}")
-    print(f"\nRandom options:")
-    print(f"  wall:   {WALL_OPTIONS}")
-    print(f"  door:   {DOOR_OPTIONS}")
-    print(f"  roof:   {ROOF_OPTIONS}")
-    print(f"  width:  5–8 tiles  ({5*TILE}–{8*TILE}px)")
-    print(f"  height: 3–5 wall tiles + 2 roof tiles")
-    print(f"  door:   1×2 tiles = {TILE}×{TILE*2}px (matches 64px NPC height)")
+    print(f"\nAsset library ({PARTS_DIR}):\n")
+    for category, files in ASSETS.items():
+        print(f"  {category}:")
+        for f in files:
+            path = PARTS_DIR / f
+            exists = "✓" if path.exists() else "✗ MISSING"
+            print(f"    {f}  {exists}")
+    print(f"\nBuilding rules:")
+    print(f"  Size:        50/50 small ({SMALL_WIDTH}px) or large ({LARGE_WIDTH}px)")
+    print(f"  Upper floor: 50% chance")
+    print(f"  Door:        {DOOR_WIDTH}×{DOOR_HEIGHT}px, random X placement")
+    print(f"  Height:      256px (no upper) or 384px (with upper)")
     print()
 
 
-# ── CLI ────────────────────────────────────────────────────────────────────────
+# ── CLI ───────────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(description="Celadune Building Compositor (tile-based)")
+    parser = argparse.ArgumentParser(description="Celadune Building Compositor (layer-based)")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--random", action="store_true", help="Generate a random building")
     group.add_argument("--spec",   metavar="FILE",      help="JSON spec file")
-    group.add_argument("--list",   action="store_true", help="List available tiles")
+    group.add_argument("--list",   action="store_true", help="List available assets")
 
     parser.add_argument("--out",  metavar="DIR", help="Output directory")
     parser.add_argument("--seed", metavar="INT", type=int)

@@ -100,47 +100,37 @@ Single-row strips (not LPC grid). Use `createGandalfNpcAnimations` helper in mai
 - Props (hut, wagon): depth 7
 - Ground front tiles: depth 12
 
-## Building system (GandalfHardcore modular buildings)
+## Building system (layer-based compositor)
 
-### Source sheets
-- `assets/House Tiles.png` — Two stone house variants (each 184×224px, 32px tile grid)
-- `assets/House outside Tiles 32x32 v2.png` — Two complete hall buildings + parts strip
-
-### Tile library
-- **Location:** assets/building-parts/tiles/ — individual 32×32px tiles extracted from source sheets
-  - roof/ (10 tiles): peak_left/center/right, slope_left_eave/left/center/right/right_eave, ceramic_top, ceramic_main
-  - walls/ (2 tiles): wall_stone.png (light), wall_stone_dark.png
-  - doors/ (6 tiles — each door is 2 tiles tall = 32×64px): door_wood/teal/red × top/bottom
-  - windows/ (1 tile): window_glass.png (32×32px)
-- **Scale:** 1 tile = 32px. NPCs are 64×64px (2 tiles tall). Door = 1×2 tiles = 32×64px (matches NPC height).
+### Asset library
+- **Location:** assets/building-parts/v2/ — pre-made PNG layers stacked vertically
+  - Bases: Small_Base_1/2.png (256×128), Large_Base_1/2.png (320×128)
+  - Upper floors: Small_Upper_Floor_1/2.png (256×128), Large_Upper_Floor_1/2.png (320×128)
+  - Roofs: Small_Roof_1/2.png (256×128), Large_Roof_1/2.png (320×128)
+  - Doors: Door_1.png (96×128)
 
 ### Compositor
 - **Script:** tools/building_compositor.py
 - **Random building:** `python3 tools/building_compositor.py --random --seed 42 --name "Old Cottage" --out assets/buildings/old_cottage/`
 - **From spec:** `python3 tools/building_compositor.py --spec spec.json --out assets/buildings/my_building/`
-- **List tiles:** `python3 tools/building_compositor.py --list`
-- **Output:** building.png (single static RGBA PNG at native tile scale), spec.json
+- **List assets:** `python3 tools/building_compositor.py --list`
+- **Output:** building.png (single static RGBA PNG), spec.json
 
-### Building rules (tile grid)
-- **Wall base:** W tiles wide (5–8) × H tiles tall (3–5); random wall texture (stone or stone_dark)
-- **Door:** 1 tile wide × 2 tiles tall at ground level (bottom 2 rows), random column (not at edges)
-- **Windows:** 1×1 tiles, greedy-filled with 1-tile buffer from edges, door, and each other
-- **Roof:** sits above wall base; either peaked (2 tile rows, triangular) or ceramic (2 tile rows, flat-facing)
-- **No scaling** — buildings are placed at native pixel size in the game world
-
-### Roof assembly (peaked)
-Peak row (row 0): cols 2 to W-3 — peak_left + [peak_center…] + peak_right
-Slope row (row 1): cols 1 to W-2 — slope_left_eave + slope_left + [slope_center…] + slope_right + slope_right_eave
-Outer columns are transparent (eave overhang effect).
+### Building rules
+- **Size class:** 50/50 random — small (256px wide) or large (320px wide)
+- **Base:** random pick from matching size class (2 variants each)
+- **Door:** 96×128px, composited onto base at random X position
+- **Upper floor:** 50% chance; uses matching size class layer
+- **Roof:** always present; random pick from matching size class (2 variants each)
+- **Final height:** 256px (no upper) or 384px (with upper floor)
 
 ### Adding a new building to the game
 1. Generate: `python3 tools/building_compositor.py --random --seed N --name "Name" --out assets/buildings/my_building/`
 2. Load in `preload()`: `this.load.image('myBuilding', 'assets/buildings/my_building/building.png')`
 3. Place in scene: `this.add.image(x, y, 'myBuilding').setOrigin(0.5, 1).setDepth(8)`
-4. No scaling needed — sprite is at correct game scale.
 
-### Expanding the tile library
-Drop new 32×32 PNGs into the appropriate subfolder under assets/building-parts/tiles/. For new wall textures, add them to WALL_OPTIONS in building_compositor.py.
+### Expanding the asset library
+Drop new PNGs into assets/building-parts/v2/ following the naming convention (e.g. Small_Base_3.png) and add the filename to the ASSETS dict in building_compositor.py.
 
 ## Key scene info
 - **PrototypeScene** = forest/overworld scene (first scene after hero select)
