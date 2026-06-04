@@ -1,12 +1,11 @@
 {
-  "name": "The Gilded Flagon",
-  "seed": 44,
-  "width": 8,
-  "wall_height": 5,
-  "wall": "wall_stone",
-  "door": "wood",
-  "window": "window_glass",
-  "roof": "peaked",
-  "door_col": 3,
-  "_size_px": "256\u00d7224"
+  "name": "City Tavern",
+  "seed": 60,
+  "size": "large",
+  "base": "Large_Base_2.png",
+  "door": "Door_1.png",
+  "door_x": 119,
+  "has_upper_floor": false,
+  "roof": "Large_Roof_1.png",
+  "_size_px": "320\u00d7256"
 }

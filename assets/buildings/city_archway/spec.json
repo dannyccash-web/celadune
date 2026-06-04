@@ -1,12 +1,12 @@
 {
   "name": "City Archway",
-  "seed": 77,
-  "width": 7,
-  "wall_height": 4,
-  "wall": "wall_stone",
-  "door": "wood",
-  "window": "window_glass",
-  "roof": "peaked",
-  "door_col": 3,
-  "_size_px": "224\u00d7192"
+  "seed": 20,
+  "size": "small",
+  "base": "Small_Base_2.png",
+  "door": "Door_1.png",
+  "door_x": 104,
+  "has_upper_floor": true,
+  "roof": "Small_Roof_1.png",
+  "upper_floor": "Small_Upper_Floor_2.png",
+  "_size_px": "256\u00d7384"
 }

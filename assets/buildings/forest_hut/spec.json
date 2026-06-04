@@ -1,12 +1,12 @@
 {
   "name": "Forest Hut",
   "seed": 10,
-  "width": 5,
-  "wall_height": 4,
-  "wall": "wall_stone_dark",
-  "door": "red",
-  "window": "window_glass",
-  "roof": "peaked",
-  "door_col": 2,
-  "_size_px": "160\u00d7192"
+  "size": "small",
+  "base": "Small_Base_2.png",
+  "door": "Door_1.png",
+  "door_x": 125,
+  "has_upper_floor": true,
+  "roof": "Small_Roof_2.png",
+  "upper_floor": "Small_Upper_Floor_1.png",
+  "_size_px": "256\u00d7384"
 }

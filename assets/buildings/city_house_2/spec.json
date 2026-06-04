@@ -1,12 +1,12 @@
 {
   "name": "City House 2",
-  "seed": 22,
-  "width": 6,
-  "wall_height": 3,
-  "wall": "wall_stone",
-  "door": "red",
-  "window": "window_glass",
-  "roof": "peaked",
-  "door_col": 1,
-  "_size_px": "192\u00d7160"
+  "seed": 40,
+  "size": "large",
+  "base": "Large_Base_1.png",
+  "door": "Door_1.png",
+  "door_x": 89,
+  "has_upper_floor": true,
+  "roof": "Large_Roof_1.png",
+  "upper_floor": "Large_Upper_Floor_2.png",
+  "_size_px": "320\u00d7384"
 }
