@@ -1927,12 +1927,9 @@ class PrototypeScene extends Phaser.Scene {
       centerY: portraitY,
     };
 
-    this.portraitSceneBg = this.add.tileSprite(portraitX, portraitY, portraitInner, portraitInner, 'forestBack').setOrigin(0.5);
-    this.portraitSceneBg.setTileScale(this.bgScale || 1, this.bgScale || 1);
-    this.dialogueOverlay.add(this.portraitSceneBg);
-
+    // Portrait bg and sprite live OUTSIDE the overlay container so geometry masks work correctly
     this.portraitMaskGraphics = this.add.graphics();
-    this.portraitMaskGraphics.setScrollFactor(0).setDepth(229).setVisible(false);
+    this.portraitMaskGraphics.setScrollFactor(0).setDepth(231).setVisible(false);
     this.portraitMaskGraphics.fillStyle(0xffffff, 1);
     this.portraitMaskGraphics.fillRect(
       this.dialoguePortraitRect.left,
@@ -1941,15 +1938,23 @@ class PrototypeScene extends Phaser.Scene {
       this.dialoguePortraitRect.height
     );
     this.portraitMask = this.portraitMaskGraphics.createGeometryMask();
-    this.portraitSceneBg.setMask(this.portraitMask);
 
-    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 290, 'forestLady-idle', 0)
+    this.portraitSceneBg = this.add.tileSprite(portraitX, portraitY, portraitInner, portraitInner, 'forestBack')
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(232)
+      .setTileScale(this.bgScale || 1, this.bgScale || 1)
+      .setMask(this.portraitMask)
+      .setVisible(false);
+
+    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 150, 'forestLady-idle', 0)
       .setOrigin(0.5, 1)
       .setScale(8.0)
       .setFlipX(true)
+      .setScrollFactor(0)
+      .setDepth(233)
       .setMask(this.portraitMask)
-      .setVisible(true);
-    this.dialogueOverlay.add(this.npcPortrait);
+      .setVisible(false);
 
     this.dialogueSpeakerText = this.add.text(textX, contentTop + 12, FOREST_LADY.name, {
       fontFamily: 'Macondo Swash Caps',
@@ -2267,6 +2272,8 @@ class PrototypeScene extends Phaser.Scene {
   closeDialogue() {
     this.isDialogueOpen = false;
     this.dialogueOverlay.setVisible(false);
+    this.portraitSceneBg?.setVisible(false);
+    this.npcPortrait?.setVisible(false);
     this.clearDialogueOptions();
     this.stopTypewriter();
     this.physics.world.resume();
@@ -2722,7 +2729,7 @@ class PrototypeScene extends Phaser.Scene {
     }
 
     const upJustPressed = Phaser.Input.Keyboard.JustDown(this.cursors.up);
-    const interactPressed = Phaser.Input.Keyboard.JustDown(this.eKey) || Phaser.Input.Keyboard.JustDown(this.enterKey);
+    const interactPressed = Phaser.Input.Keyboard.JustDown(this.enterKey);
     const nearNpc = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.npc.x, this.npc.y) < 150;
     if (nearHutDoor && interactPressed) {
       this.enterHut();
@@ -3065,12 +3072,8 @@ class CityScene extends PrototypeScene {
       .setStrokeStyle(2, 0xdab56a, 0.95);
     this.dialogueOverlay.add(this.portraitFrame);
 
-    this.portraitSceneBg = this.add.tileSprite(portraitX, portraitY, portraitInner, portraitInner, 'forestBack').setOrigin(0.5);
-    this.portraitSceneBg.setTileScale(this.bgScale || 1, this.bgScale || 1);
-    this.dialogueOverlay.add(this.portraitSceneBg);
-
     this.portraitMaskGraphics = this.add.graphics();
-    this.portraitMaskGraphics.setScrollFactor(0).setDepth(229).setVisible(false);
+    this.portraitMaskGraphics.setScrollFactor(0).setDepth(231).setVisible(false);
     this.portraitMaskGraphics.fillStyle(0xffffff, 1);
     this.portraitMaskGraphics.fillRect(
       this.dialoguePortraitRect.left,
@@ -3079,15 +3082,23 @@ class CityScene extends PrototypeScene {
       this.dialoguePortraitRect.height
     );
     this.portraitMask = this.portraitMaskGraphics.createGeometryMask();
-    this.portraitSceneBg.setMask(this.portraitMask);
 
-    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 290, `${CITY_NPCS.city1.key}-idle`, 26)
+    this.portraitSceneBg = this.add.tileSprite(portraitX, portraitY, portraitInner, portraitInner, 'forestBack')
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(232)
+      .setTileScale(this.bgScale || 1, this.bgScale || 1)
+      .setMask(this.portraitMask)
+      .setVisible(false);
+
+    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 150, `${CITY_NPCS.city1.key}-idle`, 26)
       .setOrigin(0.5, 1)
       .setScale(8.0)
       .setFlipX(true)
+      .setScrollFactor(0)
+      .setDepth(233)
       .setMask(this.portraitMask)
-      .setVisible(true);
-    this.dialogueOverlay.add(this.npcPortrait);
+      .setVisible(false);
 
     this.dialogueSpeakerText = this.add.text(textX, contentTop + 12, '', {
       fontFamily: 'Macondo Swash Caps',
@@ -3254,6 +3265,8 @@ class CityScene extends PrototypeScene {
   closeDialogue() {
     this.isDialogueOpen = false;
     this.dialogueOverlay.setVisible(false);
+    this.portraitSceneBg?.setVisible(false);
+    this.npcPortrait?.setVisible(false);
     this.clearDialogueOptions();
     this.stopTypewriter();
     this.physics.world.resume();
@@ -3726,7 +3739,7 @@ class CityScene extends PrototypeScene {
     }
 
     const upJustPressed = Phaser.Input.Keyboard.JustDown(this.cursors.up);
-    const interactPressed = Phaser.Input.Keyboard.JustDown(this.eKey) || Phaser.Input.Keyboard.JustDown(this.enterKey);
+    const interactPressed = Phaser.Input.Keyboard.JustDown(this.enterKey);
     const nearNpc = this.getClosestCityNpc();
     if (nearNpc && interactPressed) {
       this.openDialogue(nearNpc.npcId);
