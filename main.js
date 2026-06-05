@@ -1503,13 +1503,41 @@ class PrototypeScene extends Phaser.Scene {
   }
 
   createUI() {
-    this.hud = this.add.text(26, 22, 'Press M for Menu', {
+    this.hud = this.add.text(GAME_WIDTH - 18, 18, 'M  Menu', {
       fontFamily: 'Roboto Mono',
-      fontSize: '28px',
-      color: '#eef7ff',
+      fontSize: '18px',
+      color: '#c8dcea',
       stroke: '#0a1218',
-      strokeThickness: 5,
-    }).setScrollFactor(0).setDepth(60);
+      strokeThickness: 4,
+    }).setOrigin(1, 0).setScrollFactor(0).setDepth(60);
+    this.createHealthBar();
+  }
+
+  createHealthBar() {
+    const barX = 24;
+    const barY = 24;
+    const barW = 180;
+    const barH = 16;
+    this.healthBarBg = this.add.rectangle(barX, barY, barW, barH, 0x1a0a0a, 0.85)
+      .setOrigin(0, 0).setScrollFactor(0).setDepth(220);
+    this.healthBarFg = this.add.rectangle(barX + 2, barY + 2, barW - 4, barH - 4, 0xdd3333)
+      .setOrigin(0, 0).setScrollFactor(0).setDepth(221);
+    this.healthBarMax = barW - 4;
+    this.healthBarLabel = this.add.text(barX + barW + 8, barY + 1, `${this.playerHealth ?? 10} / 10`, {
+      fontFamily: 'Roboto Mono', fontSize: '13px', color: '#f5e2b6',
+    }).setOrigin(0, 0).setScrollFactor(0).setDepth(221);
+    this.add.text(barX, barY - 15, 'HP', {
+      fontFamily: 'Roboto Mono', fontSize: '12px', color: '#dd3333',
+    }).setOrigin(0, 0).setScrollFactor(0).setDepth(221);
+  }
+
+  updateHealthBar() {
+    if (!this.healthBarFg) return;
+    const hp = this.playerHealth ?? 10;
+    const maxHp = this.playerMaxHealth ?? 10;
+    const pct = hp / maxHp;
+    this.healthBarFg.setDisplaySize(Math.max(0, this.healthBarMax * pct), 12);
+    this.healthBarLabel.setText(`${hp} / ${maxHp}`);
   }
 
   createItemReceiveUI() {
@@ -3951,7 +3979,6 @@ class WildernessScene extends PrototypeScene {
     this.createPlayer();
     this.createCamera();
     this.createUI();
-    this.createHealthBar();
     this.createItemReceiveUI();
     this.createAudio();
     this.createMenu();
@@ -4059,32 +4086,6 @@ class WildernessScene extends PrototypeScene {
         if (this.playerHealth <= 0) this.onPlayerDeath();
       });
     });
-  }
-
-  createHealthBar() {
-    const barX = 24;
-    const barY = 24;
-    const barW = 200;
-    const barH = 18;
-    this.healthBarBg = this.add.rectangle(barX, barY, barW, barH, 0x1a0a0a, 0.85)
-      .setOrigin(0, 0).setScrollFactor(0).setDepth(220);
-    this.healthBarFg = this.add.rectangle(barX + 2, barY + 2, barW - 4, barH - 4, 0xdd3333)
-      .setOrigin(0, 0).setScrollFactor(0).setDepth(221);
-    this.healthBarMax = barW - 4;
-    this.healthBarLabel = this.add.text(barX + barW + 8, barY + 1, `${this.playerHealth} / ${this.playerMaxHealth}`, {
-      fontFamily: 'Roboto Mono', fontSize: '14px', color: '#f5e2b6',
-    }).setOrigin(0, 0).setScrollFactor(0).setDepth(221);
-    // Heart icon text
-    this.add.text(barX - 2, barY - 14, 'HP', {
-      fontFamily: 'Roboto Mono', fontSize: '12px', color: '#dd3333',
-    }).setOrigin(0, 0).setScrollFactor(0).setDepth(221);
-  }
-
-  updateHealthBar() {
-    if (!this.healthBarFg) return;
-    const pct = this.playerHealth / this.playerMaxHealth;
-    this.healthBarFg.setDisplaySize(Math.max(0, this.healthBarMax * pct), 14);
-    this.healthBarLabel.setText(`${this.playerHealth} / ${this.playerMaxHealth}`);
   }
 
   onPlayerDeath() {
