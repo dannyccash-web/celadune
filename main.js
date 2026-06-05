@@ -78,6 +78,19 @@ const CITY_NPCS = {
   city2: { id: 'city2', key: 'npcCity2', name: 'Ysra Thorn', idle: 'assets/npcs/npc_city_2/idle.png', walk: 'assets/npcs/npc_city_2/walk.png' },
   city3: { id: 'city3', key: 'npcCity3', name: 'Teren Vale', idle: 'assets/npcs/npc_city_3/idle.png', walk: 'assets/npcs/npc_city_3/walk.png' },
   tavernChef: { id: 'tavernChef', key: 'npcTavernChef', name: 'Padrig', idle: 'assets/npcs/npc_tavern_chef/idle.png', walk: 'assets/npcs/npc_tavern_chef/walk.png' },
+  city4: { id: 'city4', key: 'npcCity4', name: 'Oswin', idle: 'assets/npcs/npc_city_4/idle.png', walk: 'assets/npcs/npc_city_4/walk.png' },
+  city5: { id: 'city5', key: 'npcCity5', name: 'Rilla', idle: 'assets/npcs/npc_city_5/idle.png', walk: 'assets/npcs/npc_city_5/walk.png' },
+};
+
+const FARM_WORKER = {
+  key: 'farmWorker',
+  name: 'Lena',
+  idle: 'assets/npcs/farm_worker/idle.png',
+  walk: 'assets/npcs/farm_worker/walk.png',
+  frameW: 64,
+  frameH: 64,
+  walkFrames: 8,
+  idleFrames: 5,
 };
 
 const WAYFARERS_SALVE_ITEM = {
@@ -612,6 +625,8 @@ class PrototypeScene extends Phaser.Scene {
     this.load.spritesheet('forestLady-walk', FOREST_LADY.walk, { frameWidth: 64, frameHeight: 64 });
     this.load.spritesheet(`${HUT_WANDERER.key}-walk`, HUT_WANDERER.walk, { frameWidth: HUT_WANDERER.frameW, frameHeight: HUT_WANDERER.frameH });
     this.load.spritesheet(`${HUT_WANDERER.key}-idle`, HUT_WANDERER.idle, { frameWidth: HUT_WANDERER.frameW, frameHeight: HUT_WANDERER.frameH });
+    this.load.spritesheet(`${FARM_WORKER.key}-walk`, FARM_WORKER.walk, { frameWidth: FARM_WORKER.frameW, frameHeight: FARM_WORKER.frameH });
+    this.load.spritesheet(`${FARM_WORKER.key}-idle`, FARM_WORKER.idle, { frameWidth: FARM_WORKER.frameW, frameHeight: FARM_WORKER.frameH });
 
     Object.values(CITY_NPCS).forEach((npc) => {
       this.load.spritesheet(`${npc.key}-idle`, npc.idle, { frameWidth: 64, frameHeight: 64 });
@@ -695,6 +710,7 @@ class PrototypeScene extends Phaser.Scene {
     }
 
     this.createDog();
+    this.createFarmWorker();
 
     this.cursors = this.input.keyboard.createCursorKeys();
     this.menuKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
@@ -934,6 +950,7 @@ class PrototypeScene extends Phaser.Scene {
     createForestLadyAnimations(this);
     Object.values(CITY_NPCS).forEach((npc) => createGandalfNpcAnimations(this, { key: npc.key, walkFrames: 8, idleFrames: 5 }));
     createGandalfNpcAnimations(this, HUT_WANDERER);
+    createGandalfNpcAnimations(this, FARM_WORKER);
     if (!this.anims.exists('furnace-anim')) {
       this.anims.create({
         key: 'furnace-anim',
@@ -945,7 +962,7 @@ class PrototypeScene extends Phaser.Scene {
     if (!this.anims.exists('dog-walk')) {
       this.anims.create({
         key: 'dog-walk',
-        frames: this.anims.generateFrameNumbers('dogWalk', { start: 0, end: 5 }),
+        frames: this.anims.generateFrameNumbers('dogWalk', { start: 0, end: 4 }), // frame 5 is empty
         frameRate: 10,
         repeat: -1,
       });
@@ -1058,6 +1075,60 @@ class PrototypeScene extends Phaser.Scene {
     this.wandererTooltip.add([wTooltipBg, wTooltipText]);
   }
 
+  createFarmWorker() {
+    const minX = 2950;
+    const maxX = 3300;
+    this.farmWorker = this.physics.add.sprite(minX + 100, 768, `${FARM_WORKER.key}-idle`, 0);
+    this.farmWorker.setScale(3.0);
+    this.farmWorker.setDepth(8);
+    this.farmWorker.body.setSize(18, 34);
+    this.farmWorker.body.setOffset(23, 28);
+    this.farmWorker.setCollideWorldBounds(true);
+    this.physics.add.collider(this.farmWorker, this.ground);
+
+    this.farmWorker.wanderMinX = minX;
+    this.farmWorker.wanderMaxX = maxX;
+    this.farmWorker.wanderDirection = 'right';
+    this.farmWorker.wanderSpeed = 40;
+    this.farmWorker.wanderPauseMs = 4500;
+    this.farmWorker.pauseUntil = this.time.now + 2000;
+    this.farmWorker.anims.play(`${FARM_WORKER.key}-idle`, true);
+    this.farmWorker.setFlipX(true); // GandalfHardcore faces left; flip for right
+
+    this.farmWorkerTooltip = this.add.container(0, 0).setDepth(30).setVisible(false);
+    const fwBg = this.add.rectangle(0, 0, 110, 30, 0x1c1209, 0.82).setStrokeStyle(2, 0xdab56a, 0.95);
+    const fwText = this.add.text(0, 0, FARM_WORKER.name, {
+      fontFamily: 'Roboto Mono', fontSize: '16px', color: '#f7edd6',
+    }).setOrigin(0.5);
+    this.farmWorkerTooltip.add([fwBg, fwText]);
+  }
+
+  updateFarmWorker() {
+    const w = this.farmWorker;
+    if (!w || this.isMenuOpen || this.isDialogueOpen) return;
+    if (this.time.now < w.pauseUntil) {
+      w.setVelocityX(0);
+      if (w.anims.currentAnim?.key !== `${FARM_WORKER.key}-idle`) w.anims.play(`${FARM_WORKER.key}-idle`, true);
+      return;
+    }
+    const dir = w.wanderDirection === 'right' ? 1 : -1;
+    w.setVelocityX(dir * w.wanderSpeed);
+    w.setFlipX(w.wanderDirection === 'right');
+    if (w.anims.currentAnim?.key !== `${FARM_WORKER.key}-walk`) w.anims.play(`${FARM_WORKER.key}-walk`, true);
+    const atEnd = w.wanderDirection === 'right' ? w.x >= w.wanderMaxX - 4 : w.x <= w.wanderMinX + 4;
+    if (atEnd) {
+      w.wanderDirection = w.wanderDirection === 'right' ? 'left' : 'right';
+      w.pauseUntil = this.time.now + w.wanderPauseMs;
+    }
+    // Tooltip
+    if (this.farmWorkerTooltip) {
+      const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, w.x, w.y);
+      const near = d < 150 && !this.isDialogueOpen && !this.isMenuOpen;
+      this.farmWorkerTooltip.setVisible(near);
+      if (near) this.farmWorkerTooltip.setPosition(w.x, w.y - 96);
+    }
+  }
+
   updateHutWanderer() {
     const w = this.wanderer;
     if (!w || this.isMenuOpen || this.isDialogueOpen) return;
@@ -1161,6 +1232,19 @@ class PrototypeScene extends Phaser.Scene {
       .setOrigin(0.5, 1)
       .setScale(0.34)
       .setDepth(this.propDepth);
+
+    // Additional crop patches to the right
+    this.add.image(2990, ONION_PATCH_BASELINE_Y, 'onionPatch')
+      .setOrigin(0.5, 1).setScale(0.28).setDepth(this.propDepth);
+    this.add.image(3130, ONION_PATCH_BASELINE_Y, 'onionPatch')
+      .setOrigin(0.5, 1).setScale(0.32).setDepth(this.propDepth);
+    this.add.image(3260, ONION_PATCH_BASELINE_Y, 'onionPatch')
+      .setOrigin(0.5, 1).setScale(0.26).setDepth(this.propDepth);
+    // Grass stalks mixed in between crops for variety
+    this.add.image(3060, ONION_PATCH_BASELINE_Y, 'decorGrassSmall')
+      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
+    this.add.image(3200, ONION_PATCH_BASELINE_Y, 'decorGrassLarge')
+      .setOrigin(0.5, 1).setScale(2.8).setDepth(this.propDepth);
 
     this.onionPatchTooltip = this.add.container(0, 0).setDepth(30).setVisible(false);
     const onionTooltipBg = this.add.rectangle(0, 0, 132, 30, 0x1c1209, 0.82).setStrokeStyle(2, 0xdab56a, 0.95);
@@ -2124,6 +2208,7 @@ class PrototypeScene extends Phaser.Scene {
     this.player.setVelocity(0, 0);
     this.player.anims.play(`${this.heroKey}-idle-${this.facing}`, true);
     if (this.wanderer) { this.wanderer.setVelocityX(0); this.wanderer.anims.pause(); }
+    if (this.farmWorker) { this.farmWorker.setVelocityX(0); this.farmWorker.anims.pause(); }
     if (this.dog) { this.dog.setVelocityX(0); }
     if (sequence === 'mirelle' && this.npc) {
       this.npc.setVelocityX(0);
@@ -2153,12 +2238,39 @@ class PrototypeScene extends Phaser.Scene {
       this.wanderer.anims.resume();
       this.wanderer.pauseUntil = this.time.now + 600;
     }
+    if (this.farmWorker) {
+      this.farmWorker.anims.resume();
+      this.farmWorker.pauseUntil = this.time.now + 600;
+    }
     this.scheduleNpcBehavior(900);
     this.flushQueuedItemReceivePopups();
   }
 
   startDialogueSequence(sequence = 'mirelle') {
     this.dialogueChoiceIndex = 0;
+
+    // ── Lena (farm worker) ──────────────────────────────────────────────────
+    if (sequence === 'lena') {
+      const lines = {
+        1: "Stay away from me. I don't want any trouble.",
+        2: "I don't know you. Don't bother me while I'm working.",
+        3: "Just here tending the crops. Don't mind me.",
+        4: "The harvest is looking decent this season. Keep an eye out for rabbits though — they've been getting into the patch.",
+        5: "Good to see you around! These onions need watching. The rabbits have been relentless lately.",
+        6: "What a nice day for the fields! Mirelle says the onions are coming in beautifully.",
+        7: "Caelan! Always glad when you're around. Mirelle says the same. The whole farm feels safer with you here.",
+      };
+      const rep = this.playerReputation || 4;
+      if (this.npcPortrait) this.npcPortrait.setTexture(`${FARM_WORKER.key}-idle`).setFrame(0);
+      this.dialogueState = 'lenaGreet';
+      this.showDialogueLine({
+        speaker: FARM_WORKER.name,
+        speakerType: 'npc',
+        text: lines[rep],
+        choices: rep <= 2 ? ['...'] : ["I'll keep an eye out."],
+      });
+      return;
+    }
 
     // ── Aldric (hut wanderer) ───────────────────────────────────────────────
     if (sequence === 'aldric') {
@@ -2375,8 +2487,8 @@ class PrototypeScene extends Phaser.Scene {
     this.clearDialogueOptions();
     this.dialogueAwaitingChoice = false;
 
-    // ── Aldric ──────────────────────────────────────────────────────────────
-    if (this.dialogueState === 'aldricGreet') {
+    // ── Lena / Aldric ────────────────────────────────────────────────────────
+    if (this.dialogueState === 'lenaGreet' || this.dialogueState === 'aldricGreet') {
       this.closeDialogue();
       return;
     }
@@ -2515,6 +2627,7 @@ class PrototypeScene extends Phaser.Scene {
   update() {
     this.updateNPCBehavior();
     this.updateHutWanderer();
+    this.updateFarmWorker();
     this.updateDog();
 
     const nearHutDoor = this.hutDoorZone ? this.physics.overlap(this.player, this.hutDoorZone) : false;
@@ -2587,6 +2700,13 @@ class PrototypeScene extends Phaser.Scene {
       : false;
     if (nearWanderer && interactPressed) {
       this.openDialogue('aldric');
+      return;
+    }
+    const nearFarmWorker = this.farmWorker
+      ? Phaser.Math.Distance.Between(this.player.x, this.player.y, this.farmWorker.x, this.farmWorker.y) < 150
+      : false;
+    if (nearFarmWorker && interactPressed) {
+      this.openDialogue('lena');
       return;
     }
 
@@ -2798,12 +2918,31 @@ class CityScene extends PrototypeScene {
         pauseDuration: 5000,
         tooltip: `${CITY_NPCS.tavernChef.name} (Chef)`,
       },
+      {
+        id: 'city4',
+        npcKey: CITY_NPCS.city4.key,
+        x: 1250,
+        minX: 700,
+        maxX: 1900,
+        speed: 46,
+        pauseDuration: 4000,
+        tooltip: CITY_NPCS.city4.name,
+      },
+      {
+        id: 'city5',
+        npcKey: CITY_NPCS.city5.key,
+        x: 3450,
+        minX: 3000,
+        maxX: 4200,
+        speed: 44,
+        pauseDuration: 5000,
+        tooltip: CITY_NPCS.city5.name,
+      },
     ];
 
     this.cityNpcs = this.cityNpcConfigs.map((config) => {
-      const isTavernChef = config.id === 'tavernChef';
-      const npc = this.physics.add.sprite(config.x, isTavernChef ? 770 : 766, `${config.npcKey}-idle`, 0);
-      npc.setScale(isTavernChef ? 2.75 : 3.0);
+      const npc = this.physics.add.sprite(config.x, 766, `${config.npcKey}-idle`, 0);
+      npc.setScale(3.0);
       npc.setCollideWorldBounds(true);
       npc.setDragX(1400);
       npc.setMaxVelocity(140, 1200);
@@ -3002,7 +3141,7 @@ class CityScene extends PrototypeScene {
 
     // Furnace at blacksmith (x=960), offset right
     this.furnaceSprite = this.add.sprite(960 + 280, baseY, 'furnace', 0)
-      .setOrigin(0.5, 1).setScale(3.0).setDepth(9);
+      .setOrigin(0.5, 1).setScale(3.0).setDepth(7);
     this.furnaceSprite.play('furnace-anim');
 
     // Props at depth 9: in front of buildings (8), behind player (10)
@@ -3235,6 +3374,58 @@ class CityScene extends PrototypeScene {
         text: greetLines[rep] || greetLines[4],
         choices: ['Maybe another time.'],
       });
+    }
+
+    // ── Oswin (city4) — merchant near entrance ──────────────────────────────
+    if (npcId === 'city4') {
+      if (rep <= 2) {
+        this.dialogueState = 'city4End';
+        this.showDialogueLine({
+          speaker: CITY_NPCS.city4.name,
+          text: repLine({ 1: 'Not interested in talking.', 2: 'Got nothing for you. Move on.' }),
+          choices: ['...'],
+        });
+        return;
+      }
+      this.dialogueState = 'city4Greet';
+      this.showDialogueLine({
+        speaker: CITY_NPCS.city4.name,
+        text: repLine({
+          3: "Business is slow today. Can't say I'm feeling chatty.",
+          4: `Market day's Thursday — that's when ${TOWN_NAME} really comes alive.`,
+          5: `Good day! There's always something to trade in ${TOWN_NAME} if you know who to ask.`,
+          6: 'A pleasure to meet you! Business picks up when good folk pass through.',
+          7: "Caelan! An honor. I'll have to tell my wife I spoke with you today.",
+        }),
+        choices: ['Good to know.'],
+      });
+      return;
+    }
+
+    // ── Rilla (city5) — local townswoman ────────────────────────────────────
+    if (npcId === 'city5') {
+      if (rep <= 2) {
+        this.dialogueState = 'city5End';
+        this.showDialogueLine({
+          speaker: CITY_NPCS.city5.name,
+          text: repLine({ 1: "Don't talk to me.", 2: 'I have nothing to say to you.' }),
+          choices: ['...'],
+        });
+        return;
+      }
+      this.dialogueState = 'city5Greet';
+      this.showDialogueLine({
+        speaker: CITY_NPCS.city5.name,
+        text: repLine({
+          3: `Not the best day for visitors, honestly.`,
+          4: `It's a decent enough town if you give it a chance. ${TOWN_NAME} grows on you.`,
+          5: `Welcome! Don't let the size fool you — there's plenty of life here.`,
+          6: `What a lovely day! The baker just pulled fresh bread out. ${TOWN_NAME} smells wonderful right now.`,
+          7: `Oh, Caelan! I've heard so much. ${TOWN_NAME} is lucky to have people like you stopping by.`,
+        }),
+        choices: ['Thanks, always nice to hear.'],
+      });
+      return;
     }
   }
 
