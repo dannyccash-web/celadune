@@ -2901,9 +2901,9 @@ class CityScene extends PrototypeScene {
     const placements = [
       { key: 'cityArchway',        x:  380 },
       { key: 'cityBlacksmithShop', x:  960 },
-      { key: 'cityHouse3',         x: 1540 },
-      { key: 'cityHouse1',         x: 2120 }, // house where tavern used to be
-      { key: 'cityTavern',         x: 2700 }, // Padrig's tavern — 3rd from right
+      { key: 'cityTavern',         x: 1540 }, // Padrig's tavern — 3rd from left
+      { key: 'cityHouse1',         x: 2120 },
+      { key: 'cityHouse3',         x: 2700 },
       { key: 'cityMagicShop',      x: 3280 },
       { key: 'cityHouse2',         x: 3860 },
     ];
@@ -2912,7 +2912,7 @@ class CityScene extends PrototypeScene {
     placements.forEach(({ key, x }) => {
       const building = this.add.image(x, baseY, key)
         .setOrigin(0.5, 1)
-        .setDepth(8);
+        .setDepth(7); // behind props (8) and NPCs (9)
       this.cityBuildings.add(building);
       this.cityBuildingMap[key] = building;
     });
@@ -2992,7 +2992,7 @@ class CityScene extends PrototypeScene {
       npc.setMaxVelocity(140, 1200);
       npc.setSize(18, 34);
       npc.setOffset(23, 28);
-      npc.setDepth(8);
+      npc.setDepth(9);
       npc.npcId = config.id;
       npc.npcKey = config.npcKey;
       npc.facing = 'right';
@@ -3186,40 +3186,39 @@ class CityScene extends PrototypeScene {
 
   createProps() {
     const baseY = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
-    const s = 4.5; // props at 4.5x to match NPC/building scale
-    const pd = 9;  // depth 9: in front of buildings (8), behind player (10)
+    const s = 3.0; // props at 3.0x
+    const pd = 8;  // depth 8: in front of buildings (7), behind NPCs (9) and player (10)
 
     // ── Blacksmith (x=960) ──
-    // Furnace moved near blacksmith with slight right overlap
     this.furnaceSprite = this.add.sprite(960 + 230, baseY, 'furnace', 0)
-      .setOrigin(0.5, 1).setScale(3.0).setDepth(7);
+      .setOrigin(0.5, 1).setScale(3.0).setDepth(pd);
     this.furnaceSprite.play('furnace-anim');
-    this.add.image(960 - 230, baseY, 'decorCrateLarge').setOrigin(0.5, 1).setScale(s).setDepth(pd);
-    this.add.image(960 - 170, baseY, 'decorBarrelRound').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    this.add.image(960 - 220, baseY, 'decorCrateLarge').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    this.add.image(960 - 160, baseY, 'decorBarrelRound').setOrigin(0.5, 1).setScale(s).setDepth(pd);
 
-    // ── House3 (x=1540) ──
-    this.add.image(1540 + 220, baseY, 'decorCrateSmall').setOrigin(0.5, 1).setScale(s).setDepth(pd);
-    this.add.image(1540 - 230, baseY, 'decorBarrelsDuo').setOrigin(0.5, 1).setScale(s).setDepth(pd);
-
-    // ── House1 (x=2120) ──
-    this.add.image(2120 + 200, baseY, 'decorPottery').setOrigin(0.5, 1).setScale(s).setDepth(pd);
-    this.add.image(2120 - 210, baseY, 'decorCrateLarge').setOrigin(0.5, 1).setScale(s).setDepth(pd);
-
-    // ── Tavern (x=2700) — Padrig's place ──
-    this.add.image(2700 - 240, baseY, 'decorBarrelRound').setOrigin(0.5, 1).setScale(s).setDepth(pd);
-    this.add.image(2700 - 290, baseY, 'decorBarrelRound').setOrigin(0.5, 1).setScale(s).setDepth(pd);
-    // Cooking area to the right, slightly overlapping the tavern building
-    this.cookingAreaSprite = this.add.sprite(2700 + 260, baseY, 'cookingArea', 0)
+    // ── Tavern (x=1540) — Padrig's place, 3rd from left ──
+    this.add.image(1540 - 230, baseY, 'decorBarrelRound').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    this.add.image(1540 - 280, baseY, 'decorBarrelRound').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    // Cooking area to the right, overlapping the tavern building edge
+    this.cookingAreaSprite = this.add.sprite(1540 + 260, baseY, 'cookingArea', 0)
       .setOrigin(0.5, 1).setScale(3.5).setDepth(pd);
     this.cookingAreaSprite.play('cooking-area-anim');
 
+    // ── House1 (x=2120) ──
+    this.add.image(2120 + 200, baseY, 'decorPottery').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    this.add.image(2120 - 200, baseY, 'decorCrateLarge').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+
+    // ── House3 (x=2700) ──
+    this.add.image(2700 - 220, baseY, 'decorBarrelsDuo').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    this.add.image(2700 + 210, baseY, 'decorStool').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+
     // ── Magic shop (x=3280) ──
-    this.add.image(3280 - 220, baseY, 'decorPottery').setOrigin(0.5, 1).setScale(s).setDepth(pd);
-    this.add.image(3280 + 220, baseY, 'decorCrateSmall').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    this.add.image(3280 - 210, baseY, 'decorPottery').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    this.add.image(3280 + 210, baseY, 'decorCrateSmall').setOrigin(0.5, 1).setScale(s).setDepth(pd);
 
     // ── Far house (x=3860) ──
-    this.add.image(3860 - 230, baseY, 'decorBarrelsDuo').setOrigin(0.5, 1).setScale(s).setDepth(pd);
-    this.add.image(3860 + 200, baseY, 'decorStool').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    this.add.image(3860 - 220, baseY, 'decorBarrelsDuo').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    this.add.image(3860 + 200, baseY, 'decorCrateLarge').setOrigin(0.5, 1).setScale(s).setDepth(pd);
   }
 
   beginOnionPatchInteraction() {}
