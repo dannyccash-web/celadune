@@ -2245,6 +2245,7 @@ class PrototypeScene extends Phaser.Scene {
         choices: ["Sure, I'll bring them.", 'Not just now, Mirelle.'],
       });
       return;
+    }
   }
 
   showDialogueLine(line) {
@@ -3178,7 +3179,7 @@ class CityScene extends PrototypeScene {
         const afterLines = {
           1: "You again. Kitchen's not open to troublemakers.",
           2: "You're back. Don't cause problems in here.",
-          3: 'The stew's on if you need it. Don\'t linger.',
+          3: "The stew's on if you need it. Don't linger.",
           4: "The kitchen still smells better for Mirelle's onions. Tell her I haven't forgotten.",
           5: "Good to see you again! Stew's hot and the bread just came out.",
           6: "Welcome back! I've got a table saved. The lamb stew is particularly good today.",
