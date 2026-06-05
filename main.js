@@ -544,7 +544,8 @@ class PrototypeScene extends Phaser.Scene {
     this.dialogueChoiceIndex = 0;
     this.questState = 'notOffered';
     this.playerGold = 0;
-    this.playerReputation = 4; // 1–7, starts neutral
+    this.playerReputation = 4;
+    this.farmDogFled = false;
     this.storyFlags = { ...DEFAULT_STORY_FLAGS };
     this.scriptedNpcTargetX = null;
     this.scriptedNpcCallback = null;
@@ -559,6 +560,9 @@ class PrototypeScene extends Phaser.Scene {
     this.equipmentItems = Array.isArray(data?.equipmentItems) ? data.equipmentItems.map((item) => ({ ...item })) : [];
     this.playerGold = Number.isFinite(data?.playerGold) ? data.playerGold : 0;
     this.playerReputation = Number.isFinite(data?.playerReputation) ? data.playerReputation : 4;
+    this.farmDogFled = data?.farmDogFled ?? false;
+    this.cityDogFled = data?.cityDogFled ?? false;
+    this.playerHealth = Number.isFinite(data?.playerHealth) ? data.playerHealth : 10;
     this.questState = data?.questState || 'notOffered';
     this.storyFlags = { ...DEFAULT_STORY_FLAGS, ...(data?.storyFlags || {}) };
     this.isSceneTransitioning = false;
@@ -618,7 +622,8 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('decorBarrelsDuo',   'assets/props/decor_barrels_duo.png');
     this.load.image('decorStool',        'assets/props/decor_stool.png');
     this.load.image('decorPottery',      'assets/props/decor_pottery.png');
-    this.load.spritesheet('dogWalk', 'assets/npcs/dog/sheet.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('dogWalk',     'assets/npcs/dog/sheet.png',      { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('dogWalkGrey', 'assets/npcs/dog/sheet_grey.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('furnace', 'assets/props/furnace_animated.png', { frameWidth: 64, frameHeight: 64 });
     this.load.spritesheet('cookingArea', 'assets/props/cooking_area.png', { frameWidth: 64, frameHeight: 64 });
     this.load.image('menuOnions', 'assets/ui/onions.png');
@@ -696,7 +701,7 @@ class PrototypeScene extends Phaser.Scene {
     this.tweens.add({
       targets: this.introOverlay,
       alpha: 0,
-      duration: 2000,
+      duration: 3000,
       ease: 'Linear',
       onComplete: () => this.introOverlay.setVisible(false),
     });
@@ -707,7 +712,7 @@ class PrototypeScene extends Phaser.Scene {
       this.player.setTexture('caelan-death', 2);
 
       // After 5s, play rise animation; when done, start idle and hand over control
-      this.time.delayedCall(5000, () => {
+      this.time.delayedCall(4000, () => {
         this.player.anims.play('caelan-rise-right', true);
         this.player.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
           this.player.anims.play('caelan-idle-right', true);
@@ -729,6 +734,7 @@ class PrototypeScene extends Phaser.Scene {
   }
 
   createDog() {
+    if (this.farmDogFled) return; // dog fled — stays gone
     // Spawn the dog near the tent
     this.dog = this.physics.add.sprite(750, 768, 'dogWalk', 0);
     this.dog.setScale(3.1);
@@ -740,9 +746,9 @@ class PrototypeScene extends Phaser.Scene {
     this.dog.body.setDragX(1400);
     this.physics.add.collider(this.dog, this.ground);
 
-    // Dog AI state
+    // Dog AI state — roams full farm width
     this.dog.minX = 350;
-    this.dog.maxX = 1400;
+    this.dog.maxX = 3100;
     this.dog.speed = 62;
     this.dog.facing = 'right';
     this.dog.resting = false;
@@ -931,7 +937,7 @@ class PrototypeScene extends Phaser.Scene {
       'decorSmallTent', 'decorCauldron', 'decorWoodLogs', 'decorGrassLarge', 'decorGrassSmall', 'decorPumpkinSmall', 'decorPumpkinLarge',
       'decorBarrelLarge', 'decorBarrelSmall', 'decorCrate',
       'decorCrateSmall', 'decorCrateLarge', 'decorBarrelRound', 'decorBarrelsDuo', 'decorStool', 'decorPottery',
-      'dogWalk', 'cookingArea',
+      'dogWalk', 'dogWalkGrey', 'cookingArea',
       'cityHouse1', 'cityHouse2', 'cityHouse3', 'cityBlacksmithShop', 'cityTavern',
       'cityMagicShop', 'cityArchway', 'cityWall1', 'cityWall2', 'cityWall3',
       'forestLady-idle', 'forestLady-walk',
@@ -1002,6 +1008,22 @@ class PrototypeScene extends Phaser.Scene {
         repeat: -1,
       });
     }
+    if (!this.anims.exists('dog-grey-walk')) {
+      this.anims.create({
+        key: 'dog-grey-walk',
+        frames: this.anims.generateFrameNumbers('dogWalkGrey', { start: 0, end: 4 }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+    if (!this.anims.exists('dog-grey-run')) {
+      this.anims.create({
+        key: 'dog-grey-run',
+        frames: this.anims.generateFrameNumbers('dogWalkGrey', { start: 6, end: 11 }),
+        frameRate: 12,
+        repeat: -1,
+      });
+    }
   }
 
   createPlayer() {
@@ -1042,6 +1064,7 @@ class PrototypeScene extends Phaser.Scene {
       if (dist < 200) {
         this.dog.fleeing = true;
         this.dog.fleeDirection = this.dog.x < this.player.x ? 'left' : 'right';
+        this.farmDogFled = true; // persists across scene transitions
         this.changeReputation(-1);
       }
     }
@@ -1789,8 +1812,7 @@ class PrototypeScene extends Phaser.Scene {
         'Arrow Left / Right  Move\n' +
         'Arrow Up            Jump\n' +
         'Space               Attack\n' +
-        'E                   Interact\n' +
-        'Enter               Confirm\n' +
+        'Enter               Interact / Confirm\n' +
         'M                   Open Menu\n' +
         'Esc / Backspace     Cancel / Close'
       );
@@ -2118,6 +2140,9 @@ class PrototypeScene extends Phaser.Scene {
         equipmentItems: this.equipmentItems,
         playerGold: this.playerGold,
         playerReputation: this.playerReputation,
+        farmDogFled: this.farmDogFled,
+        cityDogFled: this.cityDogFled,
+        playerHealth: this.playerHealth,
         questState: this.questState,
         storyFlags: this.storyFlags,
       });
@@ -2825,6 +2850,7 @@ class CityScene extends PrototypeScene {
       chefOnionsDelivered: !!this.storyFlags.chefOnionsDelivered,
     };
     this.activeCityNpc = null;
+    this.cityDogFled = data?.cityDogFled ?? false;
   }
 
   create() {
@@ -2839,6 +2865,7 @@ class CityScene extends PrototypeScene {
     this.createProps();
     this.createPlayer();
     this.createCityNPCs();
+    this.createCityDog();
     if (this.shouldUseSceneAtmosphere()) this.createAtmosphere();
     this.createCamera();
     this.createUI();
@@ -3219,6 +3246,83 @@ class CityScene extends PrototypeScene {
     // ── Far house (x=3860) ──
     this.add.image(3860 - 220, baseY, 'decorBarrelsDuo').setOrigin(0.5, 1).setScale(s).setDepth(pd);
     this.add.image(3860 + 200, baseY, 'decorCrateLarge').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+  }
+
+  createCityDog() {
+    if (this.cityDogFled) return;
+    this.cityDog = this.physics.add.sprite(800, 766, 'dogWalkGrey', 0);
+    this.cityDog.setScale(3.1).setDepth(9).setFlipX(false);
+    this.cityDog.body.setSize(20, 18).setOffset(6, 14);
+    this.cityDog.body.setMaxVelocity(180, 1200).setDragX(1400);
+    this.physics.add.collider(this.cityDog, this.ground);
+    this.cityDog.minX = 400;
+    this.cityDog.maxX = CITY_WORLD_WIDTH - 400;
+    this.cityDog.speed = 60;
+    this.cityDog.facing = 'right';
+    this.cityDog.resting = false;
+    this.cityDog.restUntil = 0;
+    this.cityDog.fleeing = false;
+    this.cityDog.nextDecisionAt = this.time.now + Phaser.Math.Between(2000, 4000);
+    this.cityDog.anims.play('dog-grey-walk', true);
+  }
+
+  updateCityDog() {
+    const dog = this.cityDog;
+    if (!dog) return;
+    const now = this.time.now;
+
+    if (dog.fleeing) {
+      const dir = dog.fleeDirection === 'right' ? 1 : -1;
+      dog.setVelocityX(dir * 320);
+      dog.setFlipX(dog.fleeDirection === 'left');
+      if (!dog.anims.isPlaying || dog.anims.currentAnim?.key !== 'dog-grey-run') dog.anims.play('dog-grey-run', true);
+      return;
+    }
+
+    if (this.isDialogueOpen || this.isMenuOpen) {
+      dog.setVelocityX(0);
+      if (dog.anims.isPlaying) dog.anims.stop();
+      return;
+    }
+
+    if (dog.resting) {
+      dog.setVelocityX(0);
+      if (dog.anims.isPlaying) dog.anims.stop();
+      if (now >= dog.restUntil) {
+        dog.resting = false;
+        dog.nextDecisionAt = now + Phaser.Math.Between(1500, 3500);
+      }
+      return;
+    }
+
+    if (now >= dog.nextDecisionAt) {
+      const roll = Math.random();
+      if (roll < 0.28) {
+        dog.resting = true;
+        dog.restUntil = now + Phaser.Math.Between(2000, 5000);
+        return;
+      }
+      const distToPlayer = Phaser.Math.Distance.Between(dog.x, dog.y, this.player.x, this.player.y);
+      const nearNpc = this.cityNpcs?.[Math.floor(Math.random() * (this.cityNpcs?.length || 1))];
+      if (roll < 0.50 && distToPlayer > 80 && distToPlayer < 600) {
+        dog.facing = dog.x < this.player.x ? 'right' : 'left';
+      } else if (nearNpc && roll < 0.65) {
+        dog.facing = dog.x < nearNpc.x ? 'right' : 'left';
+      } else {
+        dog.facing = Math.random() < 0.5 ? 'right' : 'left';
+      }
+      dog.nextDecisionAt = now + Phaser.Math.Between(2500, 6000);
+    }
+
+    if (dog.x <= dog.minX + 8) dog.facing = 'right';
+    if (dog.x >= dog.maxX - 8) dog.facing = 'left';
+
+    dog.setVelocityX((dog.facing === 'right' ? 1 : -1) * dog.speed);
+    dog.setFlipX(dog.facing === 'left');
+
+    if (!dog.anims.isPlaying || dog.anims.currentAnim?.key !== 'dog-grey-walk') {
+      dog.anims.play('dog-grey-walk', true);
+    }
   }
 
   beginOnionPatchInteraction() {}
@@ -3682,6 +3786,9 @@ class CityScene extends PrototypeScene {
     if (velocityX < 0 && this.player.body.blocked.left) {
       this.transitionToScene('PrototypeScene', WORLD_WIDTH - 72, this.player.y);
     }
+    if (velocityX > 0 && this.player.body.blocked.right) {
+      this.transitionToScene('WildernessScene', 72, this.player.y);
+    }
   }
 
   createCamera() {
@@ -3693,6 +3800,7 @@ class CityScene extends PrototypeScene {
 
   update() {
     this.updateNPCBehavior();
+    this.updateCityDog();
 
     if (this.itemReceiveContainer?.visible) {
       this.itemReceiveContainer.setPosition(this.player.x, this.player.y - 116);
@@ -3767,6 +3875,15 @@ class CityScene extends PrototypeScene {
 
     if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
       this.startAttack();
+      if (this.cityDog && !this.cityDog.fleeing) {
+        const distD = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.cityDog.x, this.cityDog.y);
+        if (distD < 200) {
+          this.cityDog.fleeing = true;
+          this.cityDog.fleeDirection = this.cityDog.x < this.player.x ? 'left' : 'right';
+          this.cityDogFled = true;
+          this.changeReputation(-1);
+        }
+      }
     }
 
     const animPrefix = this.facing === 'left' ? 'left' : 'right';
@@ -3797,6 +3914,348 @@ class CityScene extends PrototypeScene {
     if (this.parallaxLayers?.[0]) {
       this.parallaxLayers[0].tilePositionX -= 0.1;
     }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WildernessScene — enemy test area east of Millhaven
+// ─────────────────────────────────────────────────────────────────────────────
+class WildernessScene extends PrototypeScene {
+  constructor() {
+    super('WildernessScene');
+  }
+
+  init(data) {
+    super.init(data);
+    this.sceneWorldWidth = WORLD_WIDTH;
+    this.startX = data?.startX ?? 120;
+    this.startY = data?.startY ?? 768;
+    this.playerHealth = Number.isFinite(data?.playerHealth) ? data.playerHealth : 10;
+    this.playerMaxHealth = 10;
+  }
+
+  preload() {
+    super.preload();
+    if (!this.textures.exists('slimeBlue')) {
+      this.load.spritesheet('slimeBlue', 'assets/enemies/slime_blue.png', { frameWidth: 32, frameHeight: 32 });
+    }
+  }
+
+  create() {
+    this.physics.world.gravity.y = 1800;
+    this.applyTextureFiltering();
+    this.createParallaxBackground();
+    this.createGround();
+    this.createAnimations();
+    this.createSlimeAnimations();
+    this.createPlayer();
+    this.createCamera();
+    this.createUI();
+    this.createHealthBar();
+    this.createItemReceiveUI();
+    this.createAudio();
+    this.createMenu();
+    this.createDialogueUI();
+    this.createSlimes();
+
+    this.player.setPosition(this.startX, this.startY);
+
+    this.introOverlay = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 1)
+      .setScrollFactor(0).setDepth(200);
+    this.tweens.add({
+      targets: this.introOverlay, alpha: 0, duration: 2000, ease: 'Linear',
+      onComplete: () => this.introOverlay.setVisible(false),
+    });
+    this.introComplete = true;
+
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.menuKey   = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
+    this.enterKey  = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
+    this.spaceKey  = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.escapeKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+    this.backspaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.BACKSPACE);
+    this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+  }
+
+  // ── Override to disable forest-only systems ───────────────────────────────
+  createNPC() {}
+  createHutWanderer() {}
+  createFarmWorker() {}
+  createDog() {}
+  updateNPCBehavior() {}
+  updateHutWanderer() {}
+  updateFarmWorker() {}
+  updateDog() {}
+  beginOnionPatchInteraction() {}
+  updateScriptedNpcMovement() { return false; }
+  shouldUseSceneAtmosphere() { return false; }
+  createProps() {}
+
+  createSlimeAnimations() {
+    if (!this.anims.exists('slime-idle')) {
+      this.anims.create({
+        key: 'slime-idle',
+        frames: this.anims.generateFrameNumbers('slimeBlue', { start: 0, end: 4 }),
+        frameRate: 6, repeat: -1,
+      });
+    }
+    if (!this.anims.exists('slime-jump')) {
+      this.anims.create({
+        key: 'slime-jump',
+        frames: this.anims.generateFrameNumbers('slimeBlue', { start: 8, end: 15 }),
+        frameRate: 10, repeat: 0,
+      });
+    }
+    if (!this.anims.exists('slime-death')) {
+      this.anims.create({
+        key: 'slime-death',
+        frames: this.anims.generateFrameNumbers('slimeBlue', { start: 16, end: 20 }),
+        frameRate: 8, repeat: 0,
+      });
+    }
+    this.setTextureFilter(['slimeBlue'], Phaser.Textures.FilterMode.NEAREST);
+  }
+
+  createSlimes() {
+    this.slimes = [];
+    const spawnPoints = [800, 1400, 2100, 2800, 3500, 4200];
+    spawnPoints.forEach((x) => {
+      const slime = this.physics.add.sprite(x, 760, 'slimeBlue', 0);
+      slime.setScale(3.0).setDepth(9);
+      slime.body.setSize(22, 18).setOffset(5, 14);
+      slime.body.setMaxVelocity(250, 1200).setDragX(800);
+      this.physics.add.collider(slime, this.ground);
+      slime.hp = 2;
+      slime.maxHp = 2;
+      slime.minX = Math.max(100, x - 500);
+      slime.maxX = Math.min(WORLD_WIDTH - 100, x + 500);
+      slime.facing = 'right';
+      slime.state = 'idle';     // idle | chasing | jumping | dying
+      slime.jumpCooldown = 0;
+      slime.hitCooldown = 0;    // invincibility frames
+      slime.patrolDir = Math.random() < 0.5 ? 1 : -1;
+      slime.patrolTimer = this.time.now + Phaser.Math.Between(1000, 3000);
+      slime.alive = true;
+      slime.anims.play('slime-idle', true);
+      // Small health bar above slime
+      const barBg = this.add.rectangle(0, 0, 30, 4, 0x333333).setDepth(11);
+      const barFg = this.add.rectangle(0, 0, 30, 4, 0x44ff44).setDepth(12);
+      slime.hpBarBg = barBg;
+      slime.hpBarFg = barFg;
+      this.slimes.push(slime);
+    });
+
+    // Player takes damage on overlap with any slime
+    this.slimes.forEach((slime) => {
+      this.physics.add.overlap(this.player, slime, () => {
+        if (!slime.alive || this.playerHealth <= 0) return;
+        const now = this.time.now;
+        if (now < (this._playerHitCooldown || 0)) return;
+        this._playerHitCooldown = now + 800;
+        this.playerHealth = Math.max(0, this.playerHealth - 1);
+        this.updateHealthBar();
+        // Flash player red
+        this.tweens.add({ targets: this.player, alpha: 0.3, duration: 80, yoyo: true, repeat: 2 });
+        if (this.playerHealth <= 0) this.onPlayerDeath();
+      });
+    });
+  }
+
+  createHealthBar() {
+    const barX = 24;
+    const barY = 24;
+    const barW = 200;
+    const barH = 18;
+    this.healthBarBg = this.add.rectangle(barX, barY, barW, barH, 0x1a0a0a, 0.85)
+      .setOrigin(0, 0).setScrollFactor(0).setDepth(220);
+    this.healthBarFg = this.add.rectangle(barX + 2, barY + 2, barW - 4, barH - 4, 0xdd3333)
+      .setOrigin(0, 0).setScrollFactor(0).setDepth(221);
+    this.healthBarMax = barW - 4;
+    this.healthBarLabel = this.add.text(barX + barW + 8, barY + 1, `${this.playerHealth} / ${this.playerMaxHealth}`, {
+      fontFamily: 'Roboto Mono', fontSize: '14px', color: '#f5e2b6',
+    }).setOrigin(0, 0).setScrollFactor(0).setDepth(221);
+    // Heart icon text
+    this.add.text(barX - 2, barY - 14, 'HP', {
+      fontFamily: 'Roboto Mono', fontSize: '12px', color: '#dd3333',
+    }).setOrigin(0, 0).setScrollFactor(0).setDepth(221);
+  }
+
+  updateHealthBar() {
+    if (!this.healthBarFg) return;
+    const pct = this.playerHealth / this.playerMaxHealth;
+    this.healthBarFg.setDisplaySize(Math.max(0, this.healthBarMax * pct), 14);
+    this.healthBarLabel.setText(`${this.playerHealth} / ${this.playerMaxHealth}`);
+  }
+
+  onPlayerDeath() {
+    this.introComplete = false;
+    this.player.setTint(0xff0000);
+    this.time.delayedCall(1200, () => {
+      // Respawn with full HP
+      this.playerHealth = this.playerMaxHealth;
+      this.updateHealthBar();
+      this.player.clearTint();
+      this.player.setPosition(this.startX, this.startY);
+      this.introComplete = true;
+    });
+  }
+
+  damageSlime(slime) {
+    if (!slime.alive) return;
+    const now = this.time.now;
+    if (now < (slime.hitCooldown || 0)) return;
+    slime.hitCooldown = now + 400;
+    slime.hp -= 1;
+    this.tweens.add({ targets: slime, alpha: 0.2, duration: 80, yoyo: true, repeat: 1 });
+    this.updateSlimeHpBar(slime);
+    if (slime.hp <= 0) this.killSlime(slime);
+  }
+
+  killSlime(slime) {
+    slime.alive = false;
+    slime.state = 'dying';
+    slime.body.setVelocity(0, 0);
+    slime.body.setEnable(false);
+    slime.hpBarBg?.destroy();
+    slime.hpBarFg?.destroy();
+    slime.anims.play('slime-death', true);
+    slime.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => slime.destroy());
+  }
+
+  updateSlimeHpBar(slime) {
+    if (!slime.hpBarFg) return;
+    const pct = Math.max(0, slime.hp / slime.maxHp);
+    slime.hpBarFg.setDisplaySize(30 * pct, 4);
+  }
+
+  updateSlimes() {
+    if (!this.slimes) return;
+    const now = this.time.now;
+    this.slimes.forEach((slime) => {
+      if (!slime.alive || slime.state === 'dying') return;
+      const dist = Phaser.Math.Distance.Between(slime.x, slime.y, this.player.x, this.player.y);
+      const onGround = slime.body.blocked.down;
+
+      // Update hp bar position
+      if (slime.hpBarBg) {
+        slime.hpBarBg.setPosition(slime.x - 15, slime.y - 48);
+        slime.hpBarFg.setPosition(slime.x - 15, slime.y - 48);
+      }
+
+      if (slime.state === 'jumping') {
+        // In flight — wait to land
+        if (onGround && now > slime.jumpCooldown + 300) {
+          slime.state = 'idle';
+          slime.jumpCooldown = now + Phaser.Math.Between(1200, 2500);
+          slime.anims.play('slime-idle', true);
+        }
+        return;
+      }
+
+      // Chase if player is close
+      if (dist < 350) {
+        slime.state = 'chasing';
+        slime.facing = slime.x < this.player.x ? 'right' : 'left';
+        slime.setFlipX(slime.facing === 'left');
+        slime.body.setVelocityX((slime.facing === 'right' ? 1 : -1) * 80);
+
+        // Jump at player when close and on ground
+        if (dist < 180 && onGround && now > slime.jumpCooldown) {
+          slime.state = 'jumping';
+          slime.jumpCooldown = now + 2000;
+          slime.anims.play('slime-jump', true);
+          const dirX = (slime.facing === 'right' ? 1 : -1) * 220;
+          slime.body.setVelocity(dirX, -520);
+        } else {
+          if (slime.anims.currentAnim?.key !== 'slime-idle') slime.anims.play('slime-idle', true);
+        }
+      } else {
+        // Idle patrol
+        slime.state = 'idle';
+        if (now > slime.patrolTimer) {
+          slime.patrolDir *= -1;
+          slime.patrolTimer = now + Phaser.Math.Between(1500, 4000);
+        }
+        if (slime.x <= slime.minX) slime.patrolDir = 1;
+        if (slime.x >= slime.maxX) slime.patrolDir = -1;
+        slime.body.setVelocityX(slime.patrolDir * 35);
+        slime.setFlipX(slime.patrolDir < 0);
+        if (slime.anims.currentAnim?.key !== 'slime-idle') slime.anims.play('slime-idle', true);
+      }
+    });
+  }
+
+  createCamera() {
+    this.physics.world.setBounds(0, 0, WORLD_WIDTH, GAME_HEIGHT);
+    this.cameras.main.setBounds(0, 0, WORLD_WIDTH, GAME_HEIGHT);
+    this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
+    this.cameras.main.setDeadzone(264, 144);
+  }
+
+  handleSceneBoundaries(velocityX, onGround) {
+    if (this.isMenuOpen || this.isDialogueOpen || this.isSceneTransitioning) return;
+    if (!onGround) return;
+    if (velocityX < 0 && this.player.body.blocked.left) {
+      this.transitionToScene('CityScene', CITY_WORLD_WIDTH - 72, this.player.y);
+    }
+  }
+
+  // Hook player attack to damage nearby slimes
+  startAttack() {
+    super.startAttack();
+    if (!this.slimes) return;
+    this.slimes.forEach((slime) => {
+      if (!slime.alive) return;
+      const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, slime.x, slime.y);
+      if (dist < 160) this.damageSlime(slime);
+    });
+  }
+
+  getMusicConfig() { return { key: 'forestTheme', volume: 0.35 }; }
+
+  update() {
+    this.updateSlimes();
+
+    if (this.itemReceiveContainer?.visible) {
+      this.itemReceiveContainer.setPosition(this.player.x, this.player.y - 116);
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.menuKey)) {
+      if (this.isMenuOpen) this.closeMenu(); else this.openMenu();
+    }
+
+    if (this.isMenuOpen) { this.handleMenuNavigation(); return; }
+
+    const upJustPressed = Phaser.Input.Keyboard.JustDown(this.cursors.up);
+    const body = this.player.body;
+    const onGround = body.blocked.down || body.touching.down;
+    let velocityX = 0;
+
+    if (this.cursors.left.isDown)  { velocityX = -260; this.facing = 'left'; }
+    else if (this.cursors.right.isDown) { velocityX = 260; this.facing = 'right'; }
+
+    this.player.setVelocityX(velocityX);
+    if (upJustPressed && onGround) { this.player.setVelocityY(-760); this.jumpSfx?.play(); }
+    if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) this.startAttack();
+
+    const animPrefix = this.facing === 'left' ? 'left' : 'right';
+    const heroConfig = HEROES[this.heroKey];
+    if (heroConfig?.usesFlipX) this.player.setFlipX(this.facing === 'right');
+
+    if (this.isAttacking) {
+      // hold
+    } else if (!onGround) {
+      this.player.anims.play(`${this.heroKey}-jump-${animPrefix}`, true);
+    } else if (velocityX !== 0) {
+      this.player.anims.play(`${this.heroKey}-walk-${animPrefix}`, true);
+    } else {
+      this.player.anims.play(`${this.heroKey}-idle-${animPrefix}`, true);
+    }
+
+    this.player.setDepth(10);
+    this.handleSceneBoundaries(velocityX, onGround);
+
+    if (this.parallaxLayers?.[0]) this.parallaxLayers[0].tilePositionX -= 0.1;
   }
 }
 
@@ -4005,7 +4464,7 @@ const config = {
       debug: false,
     },
   },
-  scene: [StartScene, HeroSelectScene, PrototypeScene, CityScene, HutInteriorScene],
+  scene: [StartScene, HeroSelectScene, PrototypeScene, CityScene, WildernessScene, HutInteriorScene],
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
