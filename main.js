@@ -2,7 +2,7 @@ const GAME_WIDTH = 1920;
 const GAME_HEIGHT = 1080;
 const GROUND_TILE = 160;
 const WORLD_WIDTH = 5120;
-const CITY_WORLD_WIDTH = Math.round(WORLD_WIDTH * 1.76);
+const CITY_WORLD_WIDTH = 4800;
 const GROUND_Y = 888;
 const FRAME_W = 64;
 const FRAME_H = 64;
@@ -11,6 +11,7 @@ const PROP_BASELINE_OFFSET_Y = -24;
 const WAGON_BASELINE_Y = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
 const HUT_BASELINE_Y = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
 const ONION_PATCH_BASELINE_Y = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
+const TOWN_NAME = 'Millhaven';
 
 const HEROES = {
   caelan: {
@@ -86,12 +87,9 @@ const WAYFARERS_SALVE_ITEM = {
 };
 
 const DEFAULT_STORY_FLAGS = {
-  onionsReplacementGiven: false,
   chefOnionsDelivered: false,
-  mirellePaymentResolved: false,
-  mirellePaidInFull: false,
-  mirellePaymentAmount: 0,
-  nextOnionDeliveryUnlocked: false,
+  mirelleQuestComplete: false,
+  goldGivenToMirelle: null, // null | true | false
 };
 
 function lpcFrameList(sheet, row, start, end) {
@@ -533,6 +531,7 @@ class PrototypeScene extends Phaser.Scene {
     this.dialogueChoiceIndex = 0;
     this.questState = 'notOffered';
     this.playerGold = 0;
+    this.playerReputation = 4; // 1–7, starts neutral
     this.storyFlags = { ...DEFAULT_STORY_FLAGS };
     this.scriptedNpcTargetX = null;
     this.scriptedNpcCallback = null;
@@ -546,6 +545,7 @@ class PrototypeScene extends Phaser.Scene {
     this.inventoryItems = Array.isArray(data?.inventoryItems) ? data.inventoryItems.map((item) => ({ ...item })) : [];
     this.equipmentItems = Array.isArray(data?.equipmentItems) ? data.equipmentItems.map((item) => ({ ...item })) : [];
     this.playerGold = Number.isFinite(data?.playerGold) ? data.playerGold : 0;
+    this.playerReputation = Number.isFinite(data?.playerReputation) ? data.playerReputation : 4;
     this.questState = data?.questState || 'notOffered';
     this.storyFlags = { ...DEFAULT_STORY_FLAGS, ...(data?.storyFlags || {}) };
     this.isSceneTransitioning = false;
@@ -596,6 +596,10 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('decorGrassSmall',   'assets/props/decor_grass_small.png');
     this.load.image('decorPumpkinSmall', 'assets/props/decor_pumpkin_small.png');
     this.load.image('decorPumpkinLarge', 'assets/props/decor_pumpkin_large.png');
+    this.load.image('decorBarrelLarge',  'assets/props/decor_barrel_large.png');
+    this.load.image('decorBarrelSmall',  'assets/props/decor_barrel_small.png');
+    this.load.image('decorCrate',        'assets/props/decor_crate.png');
+    this.load.spritesheet('dogWalk', 'assets/npcs/dog/sheet.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('furnace', 'assets/props/furnace_animated.png', { frameWidth: 64, frameHeight: 64 });
     this.load.image('menuOnions', 'assets/ui/onions.png');
     this.load.image('wayfarersSalve', 'assets/ui/wayfarers_salve.png');
@@ -690,6 +694,8 @@ class PrototypeScene extends Phaser.Scene {
       });
     }
 
+    this.createDog();
+
     this.cursors = this.input.keyboard.createCursorKeys();
     this.menuKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
     this.enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
@@ -697,6 +703,83 @@ class PrototypeScene extends Phaser.Scene {
     this.escapeKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
     this.backspaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.BACKSPACE);
     this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+  }
+
+  createDog() {
+    // Spawn the dog near the tent
+    this.dog = this.physics.add.sprite(750, 768, 'dogWalk', 0);
+    this.dog.setScale(3.1);
+    this.dog.setDepth(9);
+    this.dog.setFlipX(true);
+    this.dog.body.setSize(20, 18);
+    this.dog.body.setOffset(6, 14);
+    this.dog.body.setMaxVelocity(180, 1200);
+    this.dog.body.setDragX(1400);
+    this.physics.add.collider(this.dog, this.ground);
+
+    // Dog AI state
+    this.dog.minX = 350;
+    this.dog.maxX = 1400;
+    this.dog.speed = 65;
+    this.dog.facing = 'right';
+    this.dog.resting = false;
+    this.dog.restUntil = 0;
+    this.dog.nextDecisionAt = this.time.now + Phaser.Math.Between(2000, 4000);
+    this.dog.anims.play('dog-walk', true);
+  }
+
+  updateDog() {
+    if (!this.dog || this.isDialogueOpen || this.isMenuOpen) return;
+    const dog = this.dog;
+    const now = this.time.now;
+
+    // Check if near player or an NPC — if so, occasionally run toward them
+    const distToPlayer = Phaser.Math.Distance.Between(dog.x, dog.y, this.player.x, this.player.y);
+    const npcTargetX = this.npc ? this.npc.x : null;
+    const distToNpc = npcTargetX ? Phaser.Math.Distance.Between(dog.x, dog.y, npcTargetX, dog.y) : 9999;
+
+    if (dog.resting) {
+      if (now >= dog.restUntil) {
+        dog.resting = false;
+        dog.nextDecisionAt = now + Phaser.Math.Between(3000, 7000);
+      }
+      dog.setVelocityX(0);
+      dog.anims.stop();
+      dog.setFrame(0);
+      return;
+    }
+
+    // Periodically decide direction or rest
+    if (now >= dog.nextDecisionAt) {
+      const roll = Math.random();
+      if (roll < 0.25) {
+        // Rest a while
+        dog.resting = true;
+        dog.restUntil = now + Phaser.Math.Between(3000, 8000);
+        return;
+      } else if (roll < 0.45 && distToPlayer > 120 && distToPlayer < 600) {
+        // Run toward player
+        dog.facing = dog.x < this.player.x ? 'right' : 'left';
+      } else if (roll < 0.55 && distToNpc < 800) {
+        // Wander toward NPC
+        dog.facing = dog.x < npcTargetX ? 'right' : 'left';
+      } else {
+        dog.facing = Math.random() < 0.5 ? 'right' : 'left';
+      }
+      dog.nextDecisionAt = now + Phaser.Math.Between(3000, 7000);
+    }
+
+    // Bounce at patrol bounds
+    if (dog.x <= dog.minX + 4) dog.facing = 'right';
+    if (dog.x >= dog.maxX - 4) dog.facing = 'left';
+
+    const dir = dog.facing === 'right' ? 1 : -1;
+    const speed = distToPlayer < 300 && !dog.resting ? dog.speed * 1.4 : dog.speed;
+    dog.setVelocityX(dir * speed);
+    dog.setFlipX(dog.facing === 'right');
+
+    const animKey = speed > dog.speed ? 'dog-run' : 'dog-walk';
+    if (dog.anims.currentAnim?.key !== animKey) dog.anims.play(animKey, true);
   }
 
   createParallaxBackground() {
@@ -808,6 +891,7 @@ class PrototypeScene extends Phaser.Scene {
       'cityGround1', 'cityGround2', 'cityGround3', 'parchment', 'forestHut',
       'brokenWagon', 'onionPatch', 'largeTent', 'furnace', 'menuOnions', 'wayfarersSalve',
       'decorSmallTent', 'decorCauldron', 'decorWoodLogs', 'decorGrassLarge', 'decorGrassSmall', 'decorPumpkinSmall', 'decorPumpkinLarge',
+      'decorBarrelLarge', 'decorBarrelSmall', 'decorCrate', 'dogWalk',
       'cityHouse1', 'cityHouse2', 'cityHouse3', 'cityBlacksmithShop', 'cityTavern',
       'cityMagicShop', 'cityArchway', 'cityWall1', 'cityWall2', 'cityWall3',
       'forestLady-idle', 'forestLady-walk',
@@ -849,6 +933,22 @@ class PrototypeScene extends Phaser.Scene {
         key: 'furnace-anim',
         frames: this.anims.generateFrameNumbers('furnace', { start: 0, end: 5 }),
         frameRate: 8,
+        repeat: -1,
+      });
+    }
+    if (!this.anims.exists('dog-walk')) {
+      this.anims.create({
+        key: 'dog-walk',
+        frames: this.anims.generateFrameNumbers('dogWalk', { start: 0, end: 5 }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+    if (!this.anims.exists('dog-run')) {
+      this.anims.create({
+        key: 'dog-run',
+        frames: this.anims.generateFrameNumbers('dogWalk', { start: 6, end: 11 }),
+        frameRate: 12,
         repeat: -1,
       });
     }
@@ -1480,6 +1580,19 @@ class PrototypeScene extends Phaser.Scene {
     return true;
   }
 
+  changeReputation(delta) {
+    this.playerReputation = Phaser.Math.Clamp((this.playerReputation || 4) + delta, 1, 7);
+  }
+
+  getRepGroup() {
+    const r = this.playerReputation || 4;
+    if (r <= 2) return 'hostile';
+    if (r === 3) return 'cold';
+    if (r === 4) return 'neutral';
+    if (r <= 6) return 'friendly';
+    return 'reverent';
+  }
+
   refreshGoldDisplay() {
     if (!this.goldCounterText) return;
     this.goldCounterText.setText(`Gold: ${this.playerGold}`);
@@ -1865,6 +1978,7 @@ class PrototypeScene extends Phaser.Scene {
         inventoryItems: this.inventoryItems,
         equipmentItems: this.equipmentItems,
         playerGold: this.playerGold,
+        playerReputation: this.playerReputation,
         questState: this.questState,
         storyFlags: this.storyFlags,
       });
@@ -1987,18 +2101,28 @@ class PrototypeScene extends Phaser.Scene {
     }
   }
 
-  openDialogue(sequence = 'intro') {
+  openDialogue(sequence = 'mirelle') {
     if (this.isDialogueOpen || this.isMenuOpen) return;
     this.activeDialogueSequence = sequence;
     this.isDialogueOpen = true;
     this.dialogueOverlay.setVisible(true);
     this.physics.world.pause();
     this.player.setVelocity(0, 0);
-    this.npc.setVelocityX(0);
-    if (this.wanderer) { this.wanderer.setVelocityX(0); this.wanderer.anims.pause(); }
     this.player.anims.play(`${this.heroKey}-idle-${this.facing}`, true);
-    this.npc.anims.play('forestLady-idle', true);
-    this.npc.setFlipX(this.npcFacing === 'right');
+    if (this.wanderer) { this.wanderer.setVelocityX(0); this.wanderer.anims.pause(); }
+    if (this.dog) { this.dog.setVelocityX(0); }
+    if (sequence === 'mirelle' && this.npc) {
+      this.npc.setVelocityX(0);
+      this.npc.anims.play('forestLady-idle', true);
+      this.npc.setFlipX(this.npcFacing === 'right');
+      if (this.npcPortrait) {
+        this.npcPortrait.setTexture('forestLady-idle').setFrame(0);
+      }
+    } else if (sequence === 'aldric' && this.wanderer) {
+      if (this.npcPortrait) {
+        this.npcPortrait.setTexture(`${HUT_WANDERER.key}-idle`).setFrame(0);
+      }
+    }
     this.portraitSceneBg?.setVisible(true);
     this.npcPortrait?.setVisible(true);
     this.syncDialoguePortraitBackground();
@@ -2019,128 +2143,108 @@ class PrototypeScene extends Phaser.Scene {
     this.flushQueuedItemReceivePopups();
   }
 
-  startDialogueSequence(sequence = 'intro') {
+  startDialogueSequence(sequence = 'mirelle') {
     this.dialogueChoiceIndex = 0;
 
-    if (sequence === 'onionQuest') {
-      if (this.questState === 'accepted' && this.hasInventoryItem('Onions')) {
-        this.dialogueState = 'questAcceptedReminder';
+    // ── Aldric (hut wanderer) ───────────────────────────────────────────────
+    if (sequence === 'aldric') {
+      const lines = {
+        1: 'I know what people are saying about you. Best keep moving.',
+        2: "Something about you doesn't sit right. I'd rather be left alone.",
+        3: 'Morning. Not really in the mood for conversation.',
+        4: 'Just keeping an eye on the road. Quiet so far — suits me fine.',
+        5: 'Good day! All quiet on this stretch. Glad to see a friendly face.',
+        6: 'Always good to see you around here. The woods feel safer when you\'re about.',
+        7: 'Hah! They ought to name this road after you, Caelan.',
+      };
+      const rep = this.playerReputation || 4;
+      this.dialogueState = 'aldricGreet';
+      this.showDialogueLine({
+        speaker: HUT_WANDERER.name,
+        speakerType: 'npc',
+        text: lines[rep],
+        choices: rep <= 2 ? ['...'] : ['Good to see you too.'],
+      });
+      return;
+    }
+
+    // ── Mirelle ─────────────────────────────────────────────────────────────
+    if (sequence === 'mirelle') {
+      const rep = this.playerReputation || 4;
+
+      // Hostile — rep 1 refuses to speak
+      if (rep === 1) {
+        this.dialogueState = 'mirelleHostile';
         this.showDialogueLine({
           speaker: FOREST_LADY.name,
           speakerType: 'npc',
-          text: 'Those onions should still be fresh enough, dear heart. Padrig at the tavern will be delighted to have them if you are still bound for the city.',
-          choices: ['I will deliver them.', 'Not today.'],
+          text: "I want nothing from you right now, Caelan. You've brought nothing but trouble lately. Come back when things have settled.",
+          choices: ['...Understood.'],
         });
         return;
       }
 
-      if (this.questState === 'nextDeliveryAccepted' && this.hasInventoryItem('Onions')) {
-        this.dialogueState = 'mirelleNextDeliveryReminder';
+      // After quest complete — just acknowledgement
+      if (this.storyFlags.mirelleQuestComplete) {
+        const afterLines = {
+          2: 'I still have doubts about you, Caelan. But you did deliver those onions.',
+          3: "You did your job. That's all I ask.",
+          4: 'Thank you again for delivering the onions, Caelan. You did right by me.',
+          5: 'The farm is in good hands with you here, Caelan. Truly.',
+          6: 'Every day I am grateful to have you looking after this place.',
+          7: "There is no one I'd trust more with this farm. You're a good man.",
+        };
+        this.dialogueState = 'mirelleAfterQuest';
         this.showDialogueLine({
           speaker: FOREST_LADY.name,
           speakerType: 'npc',
-          text: 'That fresh bundle is for Elira Fen, dear heart. When her door is built and her table is waiting, I know you will carry it kindly.',
-          choices: ['I still have the onions for Elira Fen.'],
-        });
-        return;
-      }
-
-      if (this.questState === 'paymentPending' && !this.storyFlags.mirellePaymentResolved) {
-        this.dialogueState = 'mirellePaymentChoice';
-        this.showDialogueLine({
-          speaker: FOREST_LADY.name,
-          speakerType: 'npc',
-          text: 'Oh, you came back. Did Padrig send the onion money along with his thanks?',
-          choices: ['Give Mirelle the full 5 gold.', 'Say Padrig only paid 1 gold.'],
-        });
-        return;
-      }
-
-      if (this.questState === 'paidInFull') {
-        this.dialogueState = 'mirelleNextDelivery';
-        this.showDialogueLine({
-          speaker: FOREST_LADY.name,
-          speakerType: 'npc',
-          text: 'You are an honest soul, and I will remember it. When next I have a good bundle ready, would you carry one to Elira Fen by the east road? She always saves a place for my onions at her table.',
-          choices: ['I would be glad to help when the time comes.'],
-        });
-        return;
-      }
-
-      if (this.questState === 'paymentResolved') {
-        this.dialogueState = 'mirelleAfterPayment';
-        this.showDialogueLine({
-          speaker: FOREST_LADY.name,
-          speakerType: 'npc',
-          text: 'Thank you again for helping an old woman mind her little patch. The road feels friendlier when there is kindness on it.',
+          text: afterLines[rep] || afterLines[4],
           choices: ['Take care, Mirelle.'],
         });
         return;
       }
 
-      if (this.questState === 'delivered') {
-        this.dialogueState = 'mirelleAwaitingPayment';
+      // Awaiting payment return (player has been to city and got 5 gold)
+      if (this.questState === 'paymentPending') {
+        this.dialogueState = 'mirellePaymentChoice';
         this.showDialogueLine({
           speaker: FOREST_LADY.name,
           speakerType: 'npc',
-          text: 'Back already? If Padrig has not paid you yet, do not fret. He is warm-hearted, but the man lives with half his thoughts in a stewpot.',
-          choices: ['I will see him again soon.'],
+          text: 'Caelan! Did Padrig have the payment ready?',
+          choices: ['Here are your 5 gold, Mirelle.', "I'm afraid he couldn't pay today."],
         });
         return;
       }
 
-      if (this.questState === 'onionsEaten') {
-        if (!this.storyFlags.onionsReplacementGiven) {
-          this.dialogueState = 'questReplacementOffer';
-          this.showDialogueLine({
-            speaker: FOREST_LADY.name,
-            speakerType: 'npc',
-            text: 'Oh... you ate them? Well, I cannot pretend that does not sting a little, but no good comes from sending you off empty-handed. I can spare one more bundle, if you truly mean to deliver it this time.',
-            choices: ['Could I have another bunch of onions?', 'No, I should not ask that of you.'],
-          });
-        } else {
-          this.dialogueState = 'questNoMoreOnions';
-          this.showDialogueLine({
-            speaker: FOREST_LADY.name,
-            speakerType: 'npc',
-            text: 'I have already trusted you with all I can spare, dear. I must keep the rest for market and for my own table.',
-            choices: ['I understand.'],
-          });
-        }
-        return;
-      }
-
-      if (this.questState === 'declined') {
-        this.dialogueState = 'questReoffer';
+      // Quest accepted, onions in inventory — reminder
+      if (this.questState === 'accepted' && this.hasInventoryItem('Onions')) {
+        this.dialogueState = 'mirelleReminder';
         this.showDialogueLine({
           speaker: FOREST_LADY.name,
           speakerType: 'npc',
-          text: 'It is no great trouble if you cannot, but I would enjoy the company of knowing someone kind is carrying my onions into town. Have you changed your mind?',
-          choices: ['I can take the onions.', 'I still cannot help.'],
+          text: 'You still have the onions — Padrig is waiting at the tavern in Millhaven. He pays 5 gold on delivery.',
+          choices: ["I'll bring them soon."],
         });
         return;
       }
 
-      this.dialogueState = 'onionOffer';
+      // Quest offer — rep 2-7 (rep 2 is reluctant but still offers)
+      const greetings = {
+        2: "Caelan. I'm not entirely sure where we stand right now, but I still have work to be done. I have a bundle of onions for Padrig at the tavern in Millhaven — he pays 5 gold on delivery. Will you take them?",
+        3: 'Caelan. I could use your help. Padrig at the Millhaven tavern is expecting a bundle of onions — he pays 5 gold. Would you take them over?',
+        4: 'Caelan, just who I needed. I have a fresh bundle of onions ready for Padrig the chef at the tavern in Millhaven. He pays 5 gold on delivery. Would you bring them over?',
+        5: 'Caelan, good timing! I have onions ready for Padrig in Millhaven — 5 gold on delivery. Could you run them over?',
+        6: "You're a good man, Caelan. I have a bundle of onions for Padrig at the Millhaven tavern — he always pays well, 5 gold. Would you mind bringing them?",
+        7: "Caelan! No one I'd rather trust with this. Padrig at the Millhaven tavern is expecting a bundle of onions — 5 gold on delivery. Will you take them?",
+      };
+      this.dialogueState = 'mirelleOffer';
       this.showDialogueLine({
         speaker: FOREST_LADY.name,
         speakerType: 'npc',
-        text: 'These are my onions, sweet and strong and just the thing for a proper tavern pot. I sell them to Padrig in the city, but I am running behind today. Would you carry a bundle to him for me?',
-        choices: ['I will take them to the tavern owner.', 'I cannot help right now.'],
+        text: greetings[rep] || greetings[4],
+        choices: ["Sure, I'll bring them.", 'Not just now, Mirelle.'],
       });
       return;
-    }
-
-    this.dialogueState = 'intro';
-    this.showDialogueLine({
-      speaker: FOREST_LADY.name,
-      speakerType: 'npc',
-      text: 'What are you up to out here, traveler?',
-      choices: [
-        'My wagon broke down on the road to the city.',
-        'I was on my way to pick up supplies for my village.',
-      ],
-    });
   }
 
   showDialogueLine(line) {
@@ -2152,9 +2256,7 @@ class PrototypeScene extends Phaser.Scene {
     this.typewriterText = line.text;
     this.typewriterIndex = 0;
     this.isTyping = true;
-    if (line.speakerType === 'npc') {
-      this.npcPortrait.setTexture('forestLady-idle').setFrame(0);
-    }
+    // Portrait texture is already set in openDialogue for each sequence
     this.talkPortrait(line.speakerType === 'npc');
 
     this.typewriterEvent?.remove(false);
@@ -2197,22 +2299,16 @@ class PrototypeScene extends Phaser.Scene {
 
   talkPortrait(active) {
     this.stopTalkingPortrait();
-    if (!active) {
-      this.npcPortrait.setTexture('forestLady-idle').setFrame(0);
-      return;
-    }
+    if (!active || !this.npcPortrait) return;
     if (!this.writingSound.isPlaying) this.writingSound.play();
-    const talkFrames = [
-      { texture: 'forestLady-idle', frame: 0 },
-      { texture: 'forestLady-idle', frame: 1 },
-    ];
+    // Use whatever texture is currently on the portrait
+    const tex = this.npcPortrait.texture.key;
     let talkIndex = 0;
     this.portraitTalkEvent = this.time.addEvent({
       delay: 120,
       loop: true,
       callback: () => {
-        const next = talkFrames[talkIndex % talkFrames.length];
-        this.npcPortrait.setTexture(next.texture).setFrame(next.frame);
+        this.npcPortrait.setTexture(tex).setFrame(talkIndex % 2);
         talkIndex += 1;
       },
     });
@@ -2221,7 +2317,7 @@ class PrototypeScene extends Phaser.Scene {
   stopTalkingPortrait() {
     this.portraitTalkEvent?.remove(false);
     this.portraitTalkEvent = null;
-    this.npcPortrait.setTexture('forestLady-idle').setFrame(0);
+    if (this.npcPortrait) this.npcPortrait.setFrame(0);
     if (this.writingSound?.isPlaying) this.writingSound.stop();
   }
 
@@ -2264,120 +2360,88 @@ class PrototypeScene extends Phaser.Scene {
     this.clearDialogueOptions();
     this.dialogueAwaitingChoice = false;
 
-    if (this.dialogueState === 'intro') {
-      this.dialogueState = 'npcReply';
-      const reply = selectedText === 'I was on my way to pick up supplies for my village.'
-        ? 'Then you are in luck. The city gate is very nearby, and the supply road runs straight through it.'
-        : 'A broken wagon on the city road is bad luck, but the gate is very nearby. You will have help soon enough.';
-      this.showDialogueLine({
-        speaker: FOREST_LADY.name,
-        speakerType: 'npc',
-        text: reply,
-        choices: ['Thank you.', 'I should get moving.'],
-      });
-    } else if (this.dialogueState === 'npcReply') {
+    // ── Aldric ──────────────────────────────────────────────────────────────
+    if (this.dialogueState === 'aldricGreet') {
       this.closeDialogue();
-    } else if (this.dialogueState === 'onionOffer' || this.dialogueState === 'questReoffer') {
-      if (selectedText === 'I will take them to the tavern owner.' || selectedText === 'I can take the onions.') {
+      return;
+    }
+
+    // ── Mirelle: hostile / after-quest / reminder ────────────────────────────
+    if (['mirelleHostile', 'mirelleAfterQuest', 'mirelleReminder'].includes(this.dialogueState)) {
+      this.closeDialogue();
+      return;
+    }
+
+    // ── Mirelle: quest offer ─────────────────────────────────────────────────
+    if (this.dialogueState === 'mirelleOffer') {
+      if (selectedText === "Sure, I'll bring them.") {
         this.questState = 'accepted';
-        if (!this.hasInventoryItem('Onions')) this.addInventoryItem({ name: 'Onions', texture: 'menuOnions', actions: ['Eat'] });
-        this.dialogueState = 'questAccepted';
+        if (!this.hasInventoryItem('Onions')) {
+          this.addInventoryItem({ name: 'Onions', texture: 'menuOnions', actions: ['Use'] });
+        }
+        this.dialogueState = 'mirelleQuestAccepted';
         this.showDialogueLine({
           speaker: FOREST_LADY.name,
           speakerType: 'npc',
-          text: 'Bless you, dear. Take this bundle to Padrig at the tavern in the city. He will know they are mine the moment he smells them.',
-          choices: ['I will deliver the onions.'],
+          text: 'Thank you, Caelan. Padrig is at the tavern in Millhaven — he will know they are mine. Make sure he pays the full 5 gold.',
+          choices: ["I'll head there now."],
         });
       } else {
         this.questState = 'declined';
-        this.dialogueState = 'questDeclined';
+        this.dialogueState = 'mirelleQuestDeclined';
         this.showDialogueLine({
           speaker: FOREST_LADY.name,
           speakerType: 'npc',
-          text: 'Very well, then. If your road bends this way again and you have a little time to spare, come speak with me.',
-          choices: ['Understood.'],
+          text: "All right. Come find me when you have a moment — the onions won't keep forever.",
+          choices: ['Will do.'],
         });
       }
-    } else if (this.dialogueState === 'questReplacementOffer') {
-      if (selectedText === 'Could I have another bunch of onions?') {
-        this.storyFlags.onionsReplacementGiven = true;
-        this.questState = 'accepted';
-        if (!this.hasInventoryItem('Onions')) this.addInventoryItem({ name: 'Onions', texture: 'menuOnions', actions: ['Eat'] });
-        this.dialogueState = 'questReplacementGiven';
-        this.showDialogueLine({
-          speaker: FOREST_LADY.name,
-          speakerType: 'npc',
-          text: 'Here you are. Please take better care of this bunch than you did the last, hmm? My old heart would rather not be disappointed twice in one afternoon.',
-          choices: ['I will take them straight to Padrig.'],
-        });
-      } else {
-        this.dialogueState = 'questReplacementDeclined';
-        this.showDialogueLine({
-          speaker: FOREST_LADY.name,
-          speakerType: 'npc',
-          text: 'That is probably for the best. No harm in honesty, dear.',
-          choices: ['Take care, Mirelle.'],
-        });
-      }
-    } else if (this.dialogueState === 'mirellePaymentChoice') {
-      if (selectedText === 'Give Mirelle the full 5 gold.') {
+      return;
+    }
+
+    // ── Mirelle: payment return ──────────────────────────────────────────────
+    if (this.dialogueState === 'mirellePaymentChoice') {
+      if (selectedText === 'Here are your 5 gold, Mirelle.') {
         if (this.spendGold(5)) {
-          this.storyFlags.mirellePaymentResolved = true;
-          this.storyFlags.mirellePaidInFull = true;
-          this.storyFlags.mirellePaymentAmount = 5;
-          this.storyFlags.nextOnionDeliveryUnlocked = true;
-          if (!this.hasInventoryItem('Onions')) this.addInventoryItem({ name: 'Onions', texture: 'menuOnions', actions: ['Eat'] });
-          this.questState = 'nextDeliveryAccepted';
-          this.dialogueState = 'mirellePaidInFull';
+          this.changeReputation(1);
+          this.storyFlags.mirelleQuestComplete = true;
+          this.storyFlags.goldGivenToMirelle = true;
+          this.questState = 'complete';
+          this.dialogueState = 'mirelleGoldGiven';
           this.showDialogueLine({
             speaker: FOREST_LADY.name,
             speakerType: 'npc',
-            text: 'Five gold? Oh, that is more than fair. Thank you, truly. And thank you for bringing me every coin of it. Here now, I have another fresh bundle ready. When the time comes, would you carry these onions to Elira Fen for me? She has a fondness for onion tarts and a gentleness that reminds me of spring rain.',
-            choices: ['I would be glad to help.'],
+            text: 'Every coin — thank you, Caelan. Honest as ever. I am glad to have you looking after this place.',
+            choices: ['Glad to help, Mirelle.'],
           });
         } else {
           this.dialogueState = 'mirelleNoGold';
           this.showDialogueLine({
             speaker: FOREST_LADY.name,
             speakerType: 'npc',
-            text: 'Oh? It sounds as though the road has already parted you from the payment. Never mind. These things happen.',
-            choices: ['I am sorry.'],
+            text: 'It sounds like the road may have parted you from it. Come back when you have it sorted.',
+            choices: ['I will.'],
           });
         }
       } else {
-        this.spendGold(1);
-        this.storyFlags.mirellePaymentResolved = true;
-        this.storyFlags.mirellePaidInFull = false;
-        this.storyFlags.mirellePaymentAmount = 1;
-        this.questState = 'paymentResolved';
-        this.dialogueState = 'mirellePaidOne';
+        // Lie — keep the gold
+        this.changeReputation(-1);
+        this.storyFlags.mirelleQuestComplete = true;
+        this.storyFlags.goldGivenToMirelle = false;
+        this.questState = 'complete';
+        this.dialogueState = 'mirelleLied';
         this.showDialogueLine({
           speaker: FOREST_LADY.name,
           speakerType: 'npc',
-          text: 'Only one? Oh... well, if that is what Padrig could spare, then I suppose I must make peace with it. That is disappointing to hear. I had thought better of him.',
-          choices: ['I am sorry to be the bearer of it.'],
+          text: "...I see. Well. I'll manage without it. Thank you for making the trip at least.",
+          choices: ['...'],
         });
       }
-    } else if ([
-      'questAccepted',
-      'questDeclined',
-      'questAcceptedReminder',
-      'questReplacementGiven',
-      'questReplacementDeclined',
-      'questNoMoreOnions',
-      'mirelleAwaitingPayment',
-      'mirellePaidInFull',
-      'mirellePaidOne',
-      'mirelleNoGold',
-      'mirelleAfterPayment',
-      'mirelleNextDelivery',
-      'mirelleNextDeliveryReminder'
-    ].includes(this.dialogueState)) {
-      if (this.dialogueState === 'mirellePaidOne') {
-        this.questState = 'paymentResolved';
-      }
-      this.closeDialogue();
+      return;
     }
+
+    // ── All closing states ───────────────────────────────────────────────────
+    this.closeDialogue();
   }
 
   updateNPCBehavior() {
@@ -2428,13 +2492,7 @@ class PrototypeScene extends Phaser.Scene {
   update() {
     this.updateNPCBehavior();
     this.updateHutWanderer();
-
-    const onionDistance = this.onionPatch ? Phaser.Math.Distance.Between(this.player.x, this.player.y, this.onionPatch.x, this.onionPatch.y - 40) : 9999;
-    const nearOnionPatch = onionDistance < 180;
-    this.onionPatchTooltip?.setVisible(nearOnionPatch && !this.isDialogueOpen && !this.isMenuOpen && this.scriptedNpcTargetX === null);
-    if (nearOnionPatch) {
-      this.onionPatchTooltip.setPosition(this.onionPatch.x, this.onionPatch.y - 80);
-    }
+    this.updateDog();
 
     const nearHutDoor = this.hutDoorZone ? this.physics.overlap(this.player, this.hutDoorZone) : false;
     this.hutTooltip?.setVisible(nearHutDoor && !this.isDialogueOpen && !this.isMenuOpen && this.scriptedNpcTargetX === null);
@@ -2497,12 +2555,15 @@ class PrototypeScene extends Phaser.Scene {
       this.enterHut();
       return;
     }
-    if (nearOnionPatch && interactPressed) {
-      this.beginOnionPatchInteraction();
+    if (nearNpc && interactPressed) {
+      this.openDialogue('mirelle');
       return;
     }
-    if (nearNpc && interactPressed) {
-      this.openDialogue('intro');
+    const nearWanderer = this.wanderer
+      ? Phaser.Math.Distance.Between(this.player.x, this.player.y, this.wanderer.x, this.wanderer.y) < 150
+      : false;
+    if (nearWanderer && interactPressed) {
+      this.openDialogue('aldric');
       return;
     }
 
@@ -2571,10 +2632,9 @@ class CityScene extends PrototypeScene {
   init(data) {
     super.init(data);
     this.sceneWorldWidth = CITY_WORLD_WIDTH;
-    this.startX = data?.startX ?? 120;
+    this.startX = data?.startX ?? 180;
     this.startY = data?.startY ?? 768;
     this.cityNpcStates = {
-      city2GiftGiven: this.hasInventoryItem(WAYFARERS_SALVE_ITEM.name),
       chefOnionsDelivered: !!this.storyFlags.chefOnionsDelivered,
     };
     this.activeCityNpc = null;
@@ -2621,8 +2681,8 @@ class CityScene extends PrototypeScene {
     let previousKey = null;
     const wallHeight = GROUND_TILE + 24;
     const wallY = GROUND_Y - GROUND_TILE + 22 - 24;
-    const wallGapCenterX = CITY_WORLD_WIDTH / 2;
-    const wallGapWidth = 190;
+    const wallGapCenterX = 380; // align gap with archway entrance
+    const wallGapWidth = 200;
     const gapLeft = wallGapCenterX - (wallGapWidth / 2);
     const gapRight = wallGapCenterX + (wallGapWidth / 2);
 
@@ -2650,15 +2710,15 @@ class CityScene extends PrototypeScene {
     this.cityBuildings = this.add.group();
 
     const baseY = BLACK_TILE_GROUND_Y - 12;
-    const centerX = CITY_WORLD_WIDTH / 2;
+    // Town entrance (archway) at x=380, then buildings ~580px apart
     const placements = [
-      { key: 'cityHouse3',        x: centerX - 3500 },
-      { key: 'cityBlacksmithShop', x: centerX - 2350 },
-      { key: 'cityTavern',        x: centerX - 1280 },
-      { key: 'cityArchway',       x: centerX        },
-      { key: 'cityHouse1',        x: centerX + 1080 },
-      { key: 'cityMagicShop',     x: centerX + 2380 },
-      { key: 'cityHouse2',        x: centerX + 3740 },
+      { key: 'cityArchway',        x:  380 },
+      { key: 'cityBlacksmithShop', x:  960 },
+      { key: 'cityHouse3',         x: 1540 },
+      { key: 'cityTavern',         x: 2120 },
+      { key: 'cityHouse1',         x: 2700 },
+      { key: 'cityMagicShop',      x: 3280 },
+      { key: 'cityHouse2',         x: 3860 },
     ];
 
     this.cityBuildingMap = {};
@@ -2673,44 +2733,45 @@ class CityScene extends PrototypeScene {
 
   createCityNPCs() {
     this.cityNpcGroup = this.physics.add.group();
+    // Buildings: archway=380, blacksmith=960, house3=1540, tavern=2120, house1=2700, magicShop=3280, house2=3860
     this.cityNpcConfigs = [
       {
-        id: 'city3',
+        id: 'city1', // Bram Alder — near entrance / blacksmith area
+        npcKey: CITY_NPCS.city1.key,
+        x: 900,
+        minX: 550,
+        maxX: 1380,
+        speed: 48,
+        pauseDuration: 4500,
+        tooltip: CITY_NPCS.city1.name,
+      },
+      {
+        id: 'city3', // Teren Vale — middle of town
         npcKey: CITY_NPCS.city3.key,
-        x: CITY_WORLD_WIDTH / 2 - 260,
-        minX: 420,
-        maxX: CITY_WORLD_WIDTH - 420,
-        speed: 52,
+        x: 2000,
+        minX: 1600,
+        maxX: 2560,
+        speed: 50,
         pauseDuration: 5000,
         tooltip: CITY_NPCS.city3.name,
       },
       {
-        id: 'city1',
-        npcKey: CITY_NPCS.city1.key,
-        x: CITY_WORLD_WIDTH / 2 - 1900,
-        minX: 620,
-        maxX: (CITY_WORLD_WIDTH / 2) - 380,
-        speed: 48,
-        pauseDuration: 5000,
-        tooltip: CITY_NPCS.city1.name,
-      },
-      {
-        id: 'city2',
+        id: 'city2', // Ysra Thorn — far side of town
         npcKey: CITY_NPCS.city2.key,
-        x: CITY_WORLD_WIDTH / 2 + 1750,
-        minX: (CITY_WORLD_WIDTH / 2) + 380,
-        maxX: CITY_WORLD_WIDTH - 620,
-        speed: 48,
-        pauseDuration: 5000,
+        x: 3100,
+        minX: 2750,
+        maxX: 3700,
+        speed: 46,
+        pauseDuration: 5500,
         tooltip: CITY_NPCS.city2.name,
       },
       {
         id: 'tavernChef',
         npcKey: CITY_NPCS.tavernChef.key,
-        x: this.cityBuildingMap.cityTavern.x + 100,
-        minX: this.cityBuildingMap.cityTavern.x - 180,
-        maxX: this.cityBuildingMap.cityTavern.x + 180,
-        speed: 42,
+        x: this.cityBuildingMap.cityTavern.x + 120,
+        minX: this.cityBuildingMap.cityTavern.x - 160,
+        maxX: this.cityBuildingMap.cityTavern.x + 200,
+        speed: 40,
         pauseDuration: 5000,
         tooltip: `${CITY_NPCS.tavernChef.name} (Chef)`,
       },
@@ -2913,14 +2974,32 @@ class CityScene extends PrototypeScene {
   createNPC() {}
 
   createProps() {
-    const centerX = CITY_WORLD_WIDTH / 2;
     const baseY = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
-    // Animated furnace in front of blacksmith shop (offset to its right side)
-    this.furnaceSprite = this.add.sprite(centerX - 2350 + 340, baseY, 'furnace', 0)
-      .setOrigin(0.5, 1)
-      .setScale(3.0)
-      .setDepth(9);
+    const s = 3.1;
+
+    // Furnace at blacksmith (x=960), offset right
+    this.furnaceSprite = this.add.sprite(960 + 280, baseY, 'furnace', 0)
+      .setOrigin(0.5, 1).setScale(3.0).setDepth(9);
     this.furnaceSprite.play('furnace-anim');
+
+    // Barrels near blacksmith entrance
+    this.add.image(960 - 220, baseY, 'decorBarrelLarge').setOrigin(0.5, 1).setScale(s).setDepth(7);
+    this.add.image(960 - 260, baseY, 'decorBarrelSmall').setOrigin(0.5, 1).setScale(s).setDepth(7);
+
+    // Crates near house3 (x=1540)
+    this.add.image(1540 + 200, baseY, 'decorCrate').setOrigin(0.5, 1).setScale(s).setDepth(7);
+    this.add.image(1540 + 240, baseY, 'decorBarrelSmall').setOrigin(0.5, 1).setScale(s).setDepth(7);
+
+    // Barrels outside tavern (x=2120)
+    this.add.image(2120 - 240, baseY, 'decorBarrelLarge').setOrigin(0.5, 1).setScale(s).setDepth(7);
+    this.add.image(2120 + 230, baseY, 'decorCrate').setOrigin(0.5, 1).setScale(s).setDepth(7);
+
+    // Crates near magic shop (x=3280)
+    this.add.image(3280 - 210, baseY, 'decorBarrelSmall').setOrigin(0.5, 1).setScale(s).setDepth(7);
+    this.add.image(3280 + 220, baseY, 'decorCrate').setOrigin(0.5, 1).setScale(s).setDepth(7);
+
+    // Barrels near far house (x=3860)
+    this.add.image(3860 - 220, baseY, 'decorBarrelLarge').setOrigin(0.5, 1).setScale(s).setDepth(7);
   }
 
   beginOnionPatchInteraction() {}
@@ -2975,60 +3054,160 @@ class CityScene extends PrototypeScene {
 
   startDialogueSequence(npcId) {
     this.dialogueChoiceIndex = 0;
+    const rep = this.playerReputation || 4;
 
+    // Helper: pick dialog by exact rep score
+    const repLine = (map) => map[rep] || map[4];
+
+    // ── Bram Alder (city1) — merchant near entrance ────────────────────────
     if (npcId === 'city1') {
-      this.dialogueState = 'city1Intro';
+      if (rep <= 2) {
+        this.dialogueState = 'city1End';
+        this.showDialogueLine({
+          speaker: CITY_NPCS.city1.name,
+          text: repLine({
+            1: "You've got a reputation, stranger. I'd rather not be seen talking to you. Move along.",
+            2: 'I know your type. Don\'t cause trouble in Millhaven.',
+          }),
+          choices: ['...'],
+        });
+        return;
+      }
+      this.dialogueState = 'city1Greet';
       this.showDialogueLine({
         speaker: CITY_NPCS.city1.name,
-        text: 'A fine morning for it, is it not? Everyone in the city has been summoned to the castle square. The king is meant to speak before long.',
-        choices: ['What is happening at the castle?', 'Thanks. I should keep moving.'],
+        text: repLine({
+          3: 'New face in Millhaven. What brings you through?',
+          4: `Welcome to ${TOWN_NAME}. Quiet place, the way folk here like it. Most are farmers and traders.`,
+          5: `Ah, a traveler! ${TOWN_NAME} isn't much, but it's honest. Looking for anything in particular?`,
+          6: `Good to see a respectable face! ${TOWN_NAME}'s been busy with harvest coming in.`,
+          7: `By the saints — Caelan himself in ${TOWN_NAME}! Folk speak well of you around here.`,
+        }),
+        choices: ['Just passing through.'],
       });
       return;
     }
 
+    // ── Ysra Thorn (city2) — herbalist, knows the roads ───────────────────
     if (npcId === 'city2') {
-      if (this.cityNpcStates.city2GiftGiven || this.hasInventoryItem(WAYFARERS_SALVE_ITEM.name)) {
-        this.dialogueState = 'city2AfterGift';
+      if (rep <= 2) {
+        this.dialogueState = 'city2End';
         this.showDialogueLine({
           speaker: CITY_NPCS.city2.name,
-          text: 'You are still set on going east? Then keep your wits sharp and your eyes sharper. The road past the city does not forgive the careless.',
-          choices: ['I will be careful.'],
+          text: repLine({
+            1: "I don't deal with people of poor character. Away with you.",
+            2: "I've no patience for troublemakers. Keep walking.",
+          }),
+          choices: ['...'],
+        });
+        return;
+      }
+      this.dialogueState = 'city2Greet';
+      this.showDialogueLine({
+        speaker: CITY_NPCS.city2.name,
+        text: repLine({
+          3: 'The roads north of the mill get dangerous. Not that it\'s my business to warn you.',
+          4: 'Passable roads for now, but I\'d keep an eye on the north track past the mill. Strange marks in the mud lately.',
+          5: 'Glad you\'re passing through. Something\'s been prowling the north fields. You look like you can handle yourself.',
+          6: 'Take care on the north road — strange tracks near the mill. Good to have someone capable around.',
+          7: 'You know these roads better than most by now. Still — the north track has been unsettled. Watch yourself.',
+        }),
+        choices: ['I appreciate the warning.'],
+      });
+      return;
+    }
+
+    // ── Teren Vale (city3) — craftsman, gruff ─────────────────────────────
+    if (npcId === 'city3') {
+      if (rep <= 2) {
+        this.dialogueState = 'city3End';
+        this.showDialogueLine({
+          speaker: CITY_NPCS.city3.name,
+          text: repLine({
+            1: 'Get away from me.',
+            2: "I've nothing to say to someone like you.",
+          }),
+          choices: ['...'],
+        });
+        return;
+      }
+      this.dialogueState = 'city3Greet';
+      this.showDialogueLine({
+        speaker: CITY_NPCS.city3.name,
+        text: repLine({
+          3: "Not much of a talker today. Is something the matter?",
+          4: `${TOWN_NAME}'s been here longer than the king's tax collectors, and it'll outlast them too. Things are quiet, for now.`,
+          5: 'Good to see a new face that doesn\'t look like trouble! Harvest was decent, mill\'s running again.',
+          6: 'Always glad when decent folk pass through. Trade\'s picked up since the mill wheel got fixed.',
+          7: `They ought to put your name on the town gate, friend. ${TOWN_NAME}'s better for having you around.`,
+        }),
+        choices: ['Good to know.'],
+      });
+      return;
+    }
+
+    // ── Padrig (tavernChef) ────────────────────────────────────────────────
+    if (npcId === 'tavernChef') {
+      // If player has onions — quest delivery
+      if (this.hasInventoryItem('Onions')) {
+        const chefOnionLines = {
+          1: "Those Mirelle's onions? Fine. Here's the 5 gold. Now get out of my kitchen.",
+          2: "Mirelle's onions. Here — take the 5 gold. Tell her I'm grateful.",
+          3: "Mirelle's onions? Good. Here, take the 5 gold for her.",
+          4: "Mirelle's onions! Best in the valley. Here's the 5 gold as promised — make sure she gets it.",
+          5: "You brought Mirelle's onions! Wonderful. Here are 5 gold — give them to her with my thanks.",
+          6: "Mirelle's onions, fresh as ever! My kitchen will thank you. Here's 5 gold — tell her she's a treasure.",
+          7: "Caelan with Mirelle's onions — my kitchen smells like heaven already. Here's 5 gold, not a coin short!",
+        };
+        this.removeInventoryItem('Onions');
+        this.cityNpcStates.chefOnionsDelivered = true;
+        this.storyFlags.chefOnionsDelivered = true;
+        this.questState = 'paymentPending';
+        this.addGold(5);
+        this.dialogueState = 'chefThanks';
+        this.showDialogueLine({
+          speaker: CITY_NPCS.tavernChef.name,
+          text: chefOnionLines[rep] || chefOnionLines[4],
+          choices: ["I'll get this to Mirelle."],
         });
         return;
       }
 
-      this.dialogueState = 'city2Warning';
-      this.showDialogueLine({
-        speaker: CITY_NPCS.city2.name,
-        text: 'East of the city the roads turn mean. Beasts prowl the scrubland, and worse things watch from ruined places. Turn back while the walls are still behind you.',
-        choices: ['I have to go east anyway.', 'You may be right.'],
-      });
-      return;
-    }
-
-    if (npcId === 'city3') {
-      this.dialogueState = 'city3Worried';
-      this.showDialogueLine({
-        speaker: CITY_NPCS.city3.name,
-        text: 'Have you seen anyone come through here carrying a little brass birdcage? No... of course not. It vanished this morning, and what was inside it matters more than I can say. Will you help me look?',
-        choices: ['I will keep an eye out.', 'Not just now.'],
-      });
-      return;
-    }
-
-    if (npcId === 'tavernChef') {
-      const choices = ['Maybe in a little while.'];
-      if (this.hasInventoryItem('Onions')) {
-        choices.unshift("I have Mirelle's onions for you.");
+      // After already delivered
+      if (this.storyFlags.chefOnionsDelivered) {
+        const afterLines = {
+          1: "You again. Kitchen's not open to troublemakers.",
+          2: "You're back. Don't cause problems in here.",
+          3: 'The stew's on if you need it. Don\'t linger.',
+          4: "The kitchen still smells better for Mirelle's onions. Tell her I haven't forgotten.",
+          5: "Good to see you again! Stew's hot and the bread just came out.",
+          6: "Welcome back! I've got a table saved. The lamb stew is particularly good today.",
+          7: "Caelan! I was hoping you'd stop by. Drinks are on me — sit down!",
+        };
+        this.dialogueState = 'chefEnd';
+        this.showDialogueLine({
+          speaker: CITY_NPCS.tavernChef.name,
+          text: afterLines[rep] || afterLines[4],
+          choices: ['Thanks, Padrig.'],
+        });
+        return;
       }
+
+      // Standard greeting
+      const greetLines = {
+        1: "I run a respectable establishment. I'll have to ask you to leave.",
+        2: "I've heard things. The kitchen's not a place for trouble.",
+        3: "What'll it be? Make it quick.",
+        4: `Welcome to the ${TOWN_NAME} Tavern! Best stew in the valley, if I say so myself.`,
+        5: 'Come in, come in! Fire\'s going and the stew\'s on. What can I get you?',
+        6: 'Wonderful to see you! Fresh lamb stew today. Sit yourself down.',
+        7: 'Caelan! The man himself! I\'ll tell the whole town — come in, drinks on me!',
+      };
       this.dialogueState = 'chefGreeting';
-      const text = this.storyFlags.chefOnionsDelivered
-        ? "There you are again! The kitchen still smells better for Mirelle's onions. If you see her, tell her I have not forgotten her kindness."
-        : 'You there! Come warm yourself inside. I have stew on the fire, bread in the oven, and enough cheer for half the city.';
       this.showDialogueLine({
         speaker: CITY_NPCS.tavernChef.name,
-        text,
-        choices,
+        text: greetLines[rep] || greetLines[4],
+        choices: ['Maybe another time.'],
       });
     }
   }
@@ -3145,100 +3324,10 @@ class CityScene extends PrototypeScene {
 
   chooseDialogueOption() {
     if (!this.dialogueAwaitingChoice) return;
-    const selectedText = this.currentDialogueLine.choices[this.dialogueChoiceIndex];
     this.clearDialogueOptions();
     this.dialogueAwaitingChoice = false;
-
-    if (this.dialogueState === 'city1Intro') {
-      if (selectedText === 'What is happening at the castle?') {
-        this.dialogueState = 'city1Castle';
-        this.showDialogueLine({
-          speaker: CITY_NPCS.city1.name,
-          text: 'No one seems to know for certain, but the bells were rung before dawn and every household heard the call. It must be important.',
-          choices: ['I should head that way.'],
-        });
-      } else {
-        this.closeDialogue();
-      }
-      return;
-    }
-
-    if (this.dialogueState === 'city1Castle') {
-      this.closeDialogue();
-      return;
-    }
-
-    if (this.dialogueState === 'city2Warning') {
-      if (selectedText === 'I have to go east anyway.') {
-        this.cityNpcStates.city2GiftGiven = true;
-        this.addInventoryItem({ ...WAYFARERS_SALVE_ITEM });
-        this.dialogueState = 'city2Gift';
-        this.showDialogueLine({
-          speaker: CITY_NPCS.city2.name,
-          text: 'Stubborn, then. Fine. Take this and keep it close. It is only a simple salve, but it may buy you a little time if the road turns against you.',
-          choices: ['Thank you. I will take it.'],
-        });
-      } else {
-        this.dialogueState = 'city2Stay';
-        this.showDialogueLine({
-          speaker: CITY_NPCS.city2.name,
-          text: 'For once, a traveler with sense. Stay within the city walls until you truly know what waits beyond them.',
-          choices: ['Understood.'],
-        });
-      }
-      return;
-    }
-
-    if (['city2Gift', 'city2Stay', 'city2AfterGift'].includes(this.dialogueState)) {
-      this.closeDialogue();
-      return;
-    }
-
-    if (this.dialogueState === 'city3Worried') {
-      this.dialogueState = 'city3End';
-      const response = selectedText === 'I will keep an eye out.'
-        ? 'Thank you. If you find any trace of it, please come back and tell me at once.'
-        : 'I understand. Still, if anything unusual catches your eye, remember what I asked.';
-      this.showDialogueLine({
-        speaker: CITY_NPCS.city3.name,
-        text: response,
-        choices: ['All right.'],
-      });
-      return;
-    }
-
-    if (this.dialogueState === 'city3End') {
-      this.closeDialogue();
-      return;
-    }
-
-    if (this.dialogueState === 'chefGreeting') {
-      if (selectedText === "I have Mirelle's onions for you.") {
-        this.removeInventoryItem('Onions');
-        this.cityNpcStates.chefOnionsDelivered = true;
-        this.storyFlags.chefOnionsDelivered = true;
-        this.questState = 'paymentPending';
-        this.addGold(5);
-        this.dialogueState = 'chefThanks';
-        this.showDialogueLine({
-          speaker: CITY_NPCS.tavernChef.name,
-          text: "Mirelle's onions? Bless the pan and the cutting board. These are my favorite in all the valley. You have done me a grand kindness. Here are 5 gold for Mirelle, exactly as promised.",
-          choices: ['I will take the payment to Mirelle.'],
-        });
-      } else {
-        this.dialogueState = 'chefInvite';
-        this.showDialogueLine({
-          speaker: CITY_NPCS.tavernChef.name,
-          text: 'Then come by when your boots are tired. I will have a hot plate ready and a mug to match it.',
-          choices: ['I will remember that.'],
-        });
-      }
-      return;
-    }
-
-    if (['chefThanks', 'chefInvite'].includes(this.dialogueState)) {
-      this.closeDialogue();
-    }
+    // All city NPC dialogues end on choice — just close
+    this.closeDialogue();
   }
 
   openMenu() {
