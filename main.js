@@ -720,66 +720,72 @@ class PrototypeScene extends Phaser.Scene {
     // Dog AI state
     this.dog.minX = 350;
     this.dog.maxX = 1400;
-    this.dog.speed = 65;
+    this.dog.speed = 62;
     this.dog.facing = 'right';
     this.dog.resting = false;
     this.dog.restUntil = 0;
-    this.dog.nextDecisionAt = this.time.now + Phaser.Math.Between(2000, 4000);
+    this.dog.nextDecisionAt = this.time.now + Phaser.Math.Between(1000, 3000);
+    this.dog.setFlipX(false); // dog sprite faces right natively
     this.dog.anims.play('dog-walk', true);
   }
 
   updateDog() {
-    if (!this.dog || this.isDialogueOpen || this.isMenuOpen) return;
+    if (!this.dog) return;
     const dog = this.dog;
     const now = this.time.now;
 
-    // Check if near player or an NPC — if so, occasionally run toward them
-    const distToPlayer = Phaser.Math.Distance.Between(dog.x, dog.y, this.player.x, this.player.y);
-    const npcTargetX = this.npc ? this.npc.x : null;
-    const distToNpc = npcTargetX ? Phaser.Math.Distance.Between(dog.x, dog.y, npcTargetX, dog.y) : 9999;
-
-    if (dog.resting) {
-      if (now >= dog.restUntil) {
-        dog.resting = false;
-        dog.nextDecisionAt = now + Phaser.Math.Between(3000, 7000);
-      }
+    if (this.isDialogueOpen || this.isMenuOpen) {
       dog.setVelocityX(0);
-      dog.anims.stop();
-      dog.setFrame(0);
+      if (dog.anims.isPlaying) dog.anims.stop();
       return;
     }
 
-    // Periodically decide direction or rest
+    // ── Resting state ────────────────────────────────────────────────────────
+    if (dog.resting) {
+      dog.setVelocityX(0);
+      // Stop animation once on entry, don't touch it again until we leave rest
+      if (dog.anims.isPlaying) dog.anims.stop();
+      if (now >= dog.restUntil) {
+        dog.resting = false;
+        dog.nextDecisionAt = now + Phaser.Math.Between(1500, 3500);
+      }
+      return;
+    }
+
+    // ── Decision time ────────────────────────────────────────────────────────
     if (now >= dog.nextDecisionAt) {
       const roll = Math.random();
-      if (roll < 0.25) {
-        // Rest a while
+      if (roll < 0.28) {
+        // Decide to rest
         dog.resting = true;
-        dog.restUntil = now + Phaser.Math.Between(3000, 8000);
+        dog.restUntil = now + Phaser.Math.Between(2000, 5000);
         return;
-      } else if (roll < 0.45 && distToPlayer > 120 && distToPlayer < 600) {
-        // Run toward player
+      }
+      // Pick a direction — bias toward nearby player or NPC
+      const distToPlayer = Phaser.Math.Distance.Between(dog.x, dog.y, this.player.x, this.player.y);
+      const npcX = this.npc?.x ?? null;
+      if (roll < 0.50 && distToPlayer > 80 && distToPlayer < 550) {
         dog.facing = dog.x < this.player.x ? 'right' : 'left';
-      } else if (roll < 0.55 && distToNpc < 800) {
-        // Wander toward NPC
-        dog.facing = dog.x < npcTargetX ? 'right' : 'left';
+      } else if (roll < 0.62 && npcX && Math.abs(dog.x - npcX) < 700) {
+        dog.facing = dog.x < npcX ? 'right' : 'left';
       } else {
         dog.facing = Math.random() < 0.5 ? 'right' : 'left';
       }
-      dog.nextDecisionAt = now + Phaser.Math.Between(3000, 7000);
+      dog.nextDecisionAt = now + Phaser.Math.Between(2500, 6000);
     }
 
-    // Bounce at patrol bounds
-    if (dog.x <= dog.minX + 4) dog.facing = 'right';
-    if (dog.x >= dog.maxX - 4) dog.facing = 'left';
+    // ── Patrol bounds ────────────────────────────────────────────────────────
+    if (dog.x <= dog.minX + 8) dog.facing = 'right';
+    if (dog.x >= dog.maxX - 8) dog.facing = 'left';
 
     const dir = dog.facing === 'right' ? 1 : -1;
-    const speed = distToPlayer < 300 && !dog.resting ? dog.speed * 1.4 : dog.speed;
-    dog.setVelocityX(dir * speed);
-    dog.setFlipX(dog.facing === 'right');
+    dog.setVelocityX(dir * dog.speed);
+    // Dog sprite faces RIGHT natively — flip only when going left
+    dog.setFlipX(dog.facing === 'left');
 
-    const animKey = speed > dog.speed ? 'dog-run' : 'dog-walk';
-    if (dog.anims.currentAnim?.key !== animKey) dog.anims.play(animKey, true);
+    if (!dog.anims.isPlaying || dog.anims.currentAnim?.key !== 'dog-walk') {
+      dog.anims.play('dog-walk', true);
+    }
   }
 
   createParallaxBackground() {
@@ -1042,6 +1048,14 @@ class PrototypeScene extends Phaser.Scene {
 
     this.wanderer.anims.play(`${HUT_WANDERER.key}-idle`, true);
     this.wanderer.setFlipX(true); // sprite faces left by default; flip to face right on spawn
+
+    // Tooltip
+    this.wandererTooltip = this.add.container(0, 0).setDepth(30).setVisible(false);
+    const wTooltipBg = this.add.rectangle(0, 0, 120, 30, 0x1c1209, 0.82).setStrokeStyle(2, 0xdab56a, 0.95);
+    const wTooltipText = this.add.text(0, 0, HUT_WANDERER.name, {
+      fontFamily: 'Roboto Mono', fontSize: '16px', color: '#f7edd6',
+    }).setOrigin(0.5);
+    this.wandererTooltip.add([wTooltipBg, wTooltipText]);
   }
 
   updateHutWanderer() {
@@ -2483,10 +2497,18 @@ class PrototypeScene extends Phaser.Scene {
     }
 
     const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.npc.x, this.npc.y);
-    const canInteract = distance < 150;
+    const canInteract = distance < 150 && !this.isDialogueOpen && !this.isMenuOpen;
     this.npcTooltip.setVisible(canInteract);
     if (canInteract) {
       this.npcTooltip.setPosition(this.npc.x, this.npc.y - 96);
+    }
+
+    // Aldric tooltip
+    if (this.wanderer && this.wandererTooltip) {
+      const wDist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.wanderer.x, this.wanderer.y);
+      const wNear = wDist < 150 && !this.isDialogueOpen && !this.isMenuOpen;
+      this.wandererTooltip.setVisible(wNear);
+      if (wNear) this.wandererTooltip.setPosition(this.wanderer.x, this.wanderer.y - 96);
     }
   }
 
@@ -2983,24 +3005,27 @@ class CityScene extends PrototypeScene {
       .setOrigin(0.5, 1).setScale(3.0).setDepth(9);
     this.furnaceSprite.play('furnace-anim');
 
+    // Props at depth 9: in front of buildings (8), behind player (10)
+    const pd = 9;
+
     // Barrels near blacksmith entrance
-    this.add.image(960 - 220, baseY, 'decorBarrelLarge').setOrigin(0.5, 1).setScale(s).setDepth(7);
-    this.add.image(960 - 260, baseY, 'decorBarrelSmall').setOrigin(0.5, 1).setScale(s).setDepth(7);
+    this.add.image(960 - 220, baseY, 'decorBarrelLarge').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    this.add.image(960 - 260, baseY, 'decorBarrelSmall').setOrigin(0.5, 1).setScale(s).setDepth(pd);
 
     // Crates near house3 (x=1540)
-    this.add.image(1540 + 200, baseY, 'decorCrate').setOrigin(0.5, 1).setScale(s).setDepth(7);
-    this.add.image(1540 + 240, baseY, 'decorBarrelSmall').setOrigin(0.5, 1).setScale(s).setDepth(7);
+    this.add.image(1540 + 200, baseY, 'decorCrate').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    this.add.image(1540 + 240, baseY, 'decorBarrelSmall').setOrigin(0.5, 1).setScale(s).setDepth(pd);
 
     // Barrels outside tavern (x=2120)
-    this.add.image(2120 - 240, baseY, 'decorBarrelLarge').setOrigin(0.5, 1).setScale(s).setDepth(7);
-    this.add.image(2120 + 230, baseY, 'decorCrate').setOrigin(0.5, 1).setScale(s).setDepth(7);
+    this.add.image(2120 - 240, baseY, 'decorBarrelLarge').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    this.add.image(2120 + 230, baseY, 'decorCrate').setOrigin(0.5, 1).setScale(s).setDepth(pd);
 
     // Crates near magic shop (x=3280)
-    this.add.image(3280 - 210, baseY, 'decorBarrelSmall').setOrigin(0.5, 1).setScale(s).setDepth(7);
-    this.add.image(3280 + 220, baseY, 'decorCrate').setOrigin(0.5, 1).setScale(s).setDepth(7);
+    this.add.image(3280 - 210, baseY, 'decorBarrelSmall').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    this.add.image(3280 + 220, baseY, 'decorCrate').setOrigin(0.5, 1).setScale(s).setDepth(pd);
 
     // Barrels near far house (x=3860)
-    this.add.image(3860 - 220, baseY, 'decorBarrelLarge').setOrigin(0.5, 1).setScale(s).setDepth(7);
+    this.add.image(3860 - 220, baseY, 'decorBarrelLarge').setOrigin(0.5, 1).setScale(s).setDepth(pd);
   }
 
   beginOnionPatchInteraction() {}
