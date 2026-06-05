@@ -612,8 +612,15 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('decorBarrelLarge',  'assets/props/decor_barrel_large.png');
     this.load.image('decorBarrelSmall',  'assets/props/decor_barrel_small.png');
     this.load.image('decorCrate',        'assets/props/decor_crate.png');
+    this.load.image('decorCrateSmall',   'assets/props/decor_crate_small.png');
+    this.load.image('decorCrateLarge',   'assets/props/decor_crate_large.png');
+    this.load.image('decorBarrelRound',  'assets/props/decor_barrel_round.png');
+    this.load.image('decorBarrelsDuo',   'assets/props/decor_barrels_duo.png');
+    this.load.image('decorStool',        'assets/props/decor_stool.png');
+    this.load.image('decorPottery',      'assets/props/decor_pottery.png');
     this.load.spritesheet('dogWalk', 'assets/npcs/dog/sheet.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('furnace', 'assets/props/furnace_animated.png', { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet('cookingArea', 'assets/props/cooking_area.png', { frameWidth: 64, frameHeight: 64 });
     this.load.image('menuOnions', 'assets/ui/onions.png');
     this.load.image('wayfarersSalve', 'assets/ui/wayfarers_salve.png');
     this.load.audio('forestTheme', 'assets/audio/celadune_forest.mp3');
@@ -749,6 +756,15 @@ class PrototypeScene extends Phaser.Scene {
     if (!this.dog) return;
     const dog = this.dog;
     const now = this.time.now;
+
+    // Flee state — run off screen after being attacked
+    if (dog.fleeing) {
+      const dir = dog.fleeDirection === 'right' ? 1 : -1;
+      dog.setVelocityX(dir * 320);
+      dog.setFlipX(dog.fleeDirection === 'left');
+      if (!dog.anims.isPlaying || dog.anims.currentAnim?.key !== 'dog-run') dog.anims.play('dog-run', true);
+      return;
+    }
 
     if (this.isDialogueOpen || this.isMenuOpen) {
       dog.setVelocityX(0);
@@ -913,7 +929,9 @@ class PrototypeScene extends Phaser.Scene {
       'cityGround1', 'cityGround2', 'cityGround3', 'parchment', 'forestHut',
       'brokenWagon', 'onionPatch', 'largeTent', 'furnace', 'menuOnions', 'wayfarersSalve',
       'decorSmallTent', 'decorCauldron', 'decorWoodLogs', 'decorGrassLarge', 'decorGrassSmall', 'decorPumpkinSmall', 'decorPumpkinLarge',
-      'decorBarrelLarge', 'decorBarrelSmall', 'decorCrate', 'dogWalk',
+      'decorBarrelLarge', 'decorBarrelSmall', 'decorCrate',
+      'decorCrateSmall', 'decorCrateLarge', 'decorBarrelRound', 'decorBarrelsDuo', 'decorStool', 'decorPottery',
+      'dogWalk', 'cookingArea',
       'cityHouse1', 'cityHouse2', 'cityHouse3', 'cityBlacksmithShop', 'cityTavern',
       'cityMagicShop', 'cityArchway', 'cityWall1', 'cityWall2', 'cityWall3',
       'forestLady-idle', 'forestLady-walk',
@@ -960,6 +978,14 @@ class PrototypeScene extends Phaser.Scene {
         repeat: -1,
       });
     }
+    if (!this.anims.exists('cooking-area-anim')) {
+      this.anims.create({
+        key: 'cooking-area-anim',
+        frames: this.anims.generateFrameNumbers('cookingArea', { start: 0, end: 11 }),
+        frameRate: 8,
+        repeat: -1,
+      });
+    }
     if (!this.anims.exists('dog-walk')) {
       this.anims.create({
         key: 'dog-walk',
@@ -1001,7 +1027,7 @@ class PrototypeScene extends Phaser.Scene {
   startAttack() {
     if (this.isAttacking) return;
     const hero = HEROES[this.heroKey];
-    if (!hero?.usesFlipX) return; // only heroes with the warrior sprite set have attack animations
+    if (!hero?.usesFlipX) return;
     this.isAttacking = true;
     this.attackSfx?.play();
     const dir = this.facing === 'right' ? 'right' : 'left';
@@ -1009,6 +1035,16 @@ class PrototypeScene extends Phaser.Scene {
     this.player.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
       this.isAttacking = false;
     });
+
+    // If the dog is nearby when attacking, it flees and player loses 1 rep
+    if (this.dog && !this.dog.fleeing) {
+      const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.dog.x, this.dog.y);
+      if (dist < 200) {
+        this.dog.fleeing = true;
+        this.dog.fleeDirection = this.dog.x < this.player.x ? 'left' : 'right';
+        this.changeReputation(-1);
+      }
+    }
   }
 
   createNPC() {
@@ -1239,11 +1275,11 @@ class PrototypeScene extends Phaser.Scene {
       .setOrigin(0.5, 1).setScale(0.32).setDepth(this.propDepth);
     this.add.image(3260, ONION_PATCH_BASELINE_Y, 'onionPatch')
       .setOrigin(0.5, 1).setScale(0.26).setDepth(this.propDepth);
-    // Grass stalks mixed in between crops for variety
+    // Grass stalks mixed in between crops — same scale as pumpkin patch grass
     this.add.image(3060, ONION_PATCH_BASELINE_Y, 'decorGrassSmall')
-      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(2.2).setDepth(this.propDepth);
     this.add.image(3200, ONION_PATCH_BASELINE_Y, 'decorGrassLarge')
-      .setOrigin(0.5, 1).setScale(2.8).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(2.2).setDepth(this.propDepth);
 
     this.onionPatchTooltip = this.add.container(0, 0).setDepth(30).setVisible(false);
     const onionTooltipBg = this.add.rectangle(0, 0, 132, 30, 0x1c1209, 0.82).setStrokeStyle(2, 0xdab56a, 0.95);
@@ -1907,9 +1943,9 @@ class PrototypeScene extends Phaser.Scene {
     this.portraitMask = this.portraitMaskGraphics.createGeometryMask();
     this.portraitSceneBg.setMask(this.portraitMask);
 
-    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 60, 'forestLady-idle', 0)
+    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 290, 'forestLady-idle', 0)
       .setOrigin(0.5, 1)
-      .setScale(9.0)
+      .setScale(8.0)
       .setFlipX(true)
       .setMask(this.portraitMask)
       .setVisible(true);
@@ -2686,7 +2722,7 @@ class PrototypeScene extends Phaser.Scene {
     }
 
     const upJustPressed = Phaser.Input.Keyboard.JustDown(this.cursors.up);
-    const interactPressed = Phaser.Input.Keyboard.JustDown(this.eKey);
+    const interactPressed = Phaser.Input.Keyboard.JustDown(this.eKey) || Phaser.Input.Keyboard.JustDown(this.enterKey);
     const nearNpc = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.npc.x, this.npc.y) < 150;
     if (nearHutDoor && interactPressed) {
       this.enterHut();
@@ -2859,8 +2895,8 @@ class CityScene extends PrototypeScene {
       { key: 'cityArchway',        x:  380 },
       { key: 'cityBlacksmithShop', x:  960 },
       { key: 'cityHouse3',         x: 1540 },
-      { key: 'cityTavern',         x: 2120 },
-      { key: 'cityHouse1',         x: 2700 },
+      { key: 'cityHouse1',         x: 2120 }, // house where tavern used to be
+      { key: 'cityTavern',         x: 2700 }, // Padrig's tavern — 3rd from right
       { key: 'cityMagicShop',      x: 3280 },
       { key: 'cityHouse2',         x: 3860 },
     ];
@@ -2912,11 +2948,11 @@ class CityScene extends PrototypeScene {
       {
         id: 'tavernChef',
         npcKey: CITY_NPCS.tavernChef.key,
-        x: this.cityBuildingMap.cityTavern.x + 120,
-        minX: this.cityBuildingMap.cityTavern.x - 160,
+        x: this.cityBuildingMap.cityTavern.x,
+        minX: this.cityBuildingMap.cityTavern.x - 180,
         maxX: this.cityBuildingMap.cityTavern.x + 200,
-        speed: 40,
-        pauseDuration: 5000,
+        speed: 38,
+        pauseDuration: 6000,
         tooltip: `${CITY_NPCS.tavernChef.name} (Chef)`,
       },
       {
@@ -3045,9 +3081,9 @@ class CityScene extends PrototypeScene {
     this.portraitMask = this.portraitMaskGraphics.createGeometryMask();
     this.portraitSceneBg.setMask(this.portraitMask);
 
-    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 60, `${CITY_NPCS.city1.key}-idle`, 26)
+    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 290, `${CITY_NPCS.city1.key}-idle`, 26)
       .setOrigin(0.5, 1)
-      .setScale(9.0)
+      .setScale(8.0)
       .setFlipX(true)
       .setMask(this.portraitMask)
       .setVisible(true);
@@ -3139,34 +3175,40 @@ class CityScene extends PrototypeScene {
 
   createProps() {
     const baseY = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
-    const s = 3.1;
+    const s = 4.5; // props at 4.5x to match NPC/building scale
+    const pd = 9;  // depth 9: in front of buildings (8), behind player (10)
 
-    // Furnace at blacksmith (x=960), offset right
-    this.furnaceSprite = this.add.sprite(960 + 280, baseY, 'furnace', 0)
+    // ── Blacksmith (x=960) ──
+    // Furnace moved near blacksmith with slight right overlap
+    this.furnaceSprite = this.add.sprite(960 + 230, baseY, 'furnace', 0)
       .setOrigin(0.5, 1).setScale(3.0).setDepth(7);
     this.furnaceSprite.play('furnace-anim');
+    this.add.image(960 - 230, baseY, 'decorCrateLarge').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    this.add.image(960 - 170, baseY, 'decorBarrelRound').setOrigin(0.5, 1).setScale(s).setDepth(pd);
 
-    // Props at depth 9: in front of buildings (8), behind player (10)
-    const pd = 9;
+    // ── House3 (x=1540) ──
+    this.add.image(1540 + 220, baseY, 'decorCrateSmall').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    this.add.image(1540 - 230, baseY, 'decorBarrelsDuo').setOrigin(0.5, 1).setScale(s).setDepth(pd);
 
-    // Barrels near blacksmith entrance
-    this.add.image(960 - 220, baseY, 'decorBarrelLarge').setOrigin(0.5, 1).setScale(s).setDepth(pd);
-    this.add.image(960 - 260, baseY, 'decorBarrelSmall').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    // ── House1 (x=2120) ──
+    this.add.image(2120 + 200, baseY, 'decorPottery').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    this.add.image(2120 - 210, baseY, 'decorCrateLarge').setOrigin(0.5, 1).setScale(s).setDepth(pd);
 
-    // Crates near house3 (x=1540)
-    this.add.image(1540 + 200, baseY, 'decorCrate').setOrigin(0.5, 1).setScale(s).setDepth(pd);
-    this.add.image(1540 + 240, baseY, 'decorBarrelSmall').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    // ── Tavern (x=2700) — Padrig's place ──
+    this.add.image(2700 - 240, baseY, 'decorBarrelRound').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    this.add.image(2700 - 290, baseY, 'decorBarrelRound').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    // Cooking area to the right, slightly overlapping the tavern building
+    this.cookingAreaSprite = this.add.sprite(2700 + 260, baseY, 'cookingArea', 0)
+      .setOrigin(0.5, 1).setScale(3.5).setDepth(pd);
+    this.cookingAreaSprite.play('cooking-area-anim');
 
-    // Barrels outside tavern (x=2120)
-    this.add.image(2120 - 240, baseY, 'decorBarrelLarge').setOrigin(0.5, 1).setScale(s).setDepth(pd);
-    this.add.image(2120 + 230, baseY, 'decorCrate').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    // ── Magic shop (x=3280) ──
+    this.add.image(3280 - 220, baseY, 'decorPottery').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    this.add.image(3280 + 220, baseY, 'decorCrateSmall').setOrigin(0.5, 1).setScale(s).setDepth(pd);
 
-    // Crates near magic shop (x=3280)
-    this.add.image(3280 - 210, baseY, 'decorBarrelSmall').setOrigin(0.5, 1).setScale(s).setDepth(pd);
-    this.add.image(3280 + 220, baseY, 'decorCrate').setOrigin(0.5, 1).setScale(s).setDepth(pd);
-
-    // Barrels near far house (x=3860)
-    this.add.image(3860 - 220, baseY, 'decorBarrelLarge').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    // ── Far house (x=3860) ──
+    this.add.image(3860 - 230, baseY, 'decorBarrelsDuo').setOrigin(0.5, 1).setScale(s).setDepth(pd);
+    this.add.image(3860 + 200, baseY, 'decorStool').setOrigin(0.5, 1).setScale(s).setDepth(pd);
   }
 
   beginOnionPatchInteraction() {}
@@ -3684,7 +3726,7 @@ class CityScene extends PrototypeScene {
     }
 
     const upJustPressed = Phaser.Input.Keyboard.JustDown(this.cursors.up);
-    const interactPressed = Phaser.Input.Keyboard.JustDown(this.eKey);
+    const interactPressed = Phaser.Input.Keyboard.JustDown(this.eKey) || Phaser.Input.Keyboard.JustDown(this.enterKey);
     const nearNpc = this.getClosestCityNpc();
     if (nearNpc && interactPressed) {
       this.openDialogue(nearNpc.npcId);
