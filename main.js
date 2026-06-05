@@ -918,6 +918,7 @@ class PrototypeScene extends Phaser.Scene {
       'cityMagicShop', 'cityArchway', 'cityWall1', 'cityWall2', 'cityWall3',
       'forestLady-idle', 'forestLady-walk',
       `${HUT_WANDERER.key}-walk`, `${HUT_WANDERER.key}-idle`,
+      `${FARM_WORKER.key}-walk`, `${FARM_WORKER.key}-idle`,
       ...Object.keys(CITY_NPCS).flatMap((npcKey) => [`${CITY_NPCS[npcKey].key}-walk`, `${CITY_NPCS[npcKey].key}-idle`]),
       ...Object.values(HEROES).flatMap((hero) => {
         const base = [`${hero.key}-walk`, `${hero.key}-idle`, `${hero.key}-jump`];
@@ -1196,32 +1197,30 @@ class PrototypeScene extends Phaser.Scene {
       .setOrigin(0.5, 1)
       .setDepth(this.propDepth);
 
-    // Grass stalks to the left of the hut
+    // Grass stalks to the left of the hut (slightly smaller)
     this.add.image(1960, WAGON_BASELINE_Y, 'decorGrassLarge')
-      .setOrigin(0.5, 1)
-      .setScale(3.1)
-      .setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(2.2).setDepth(this.propDepth);
     this.add.image(1910, WAGON_BASELINE_Y, 'decorGrassSmall')
-      .setOrigin(0.5, 1)
-      .setScale(3.1)
-      .setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(2.2).setDepth(this.propDepth);
 
-    // Pumpkins to the left of the grass
+    // Pumpkins to the left of the grass — more spread out
     this.add.image(1820, WAGON_BASELINE_Y, 'decorPumpkinLarge')
-      .setOrigin(0.5, 1)
-      .setScale(3.1)
-      .setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
     this.add.image(1780, WAGON_BASELINE_Y, 'decorPumpkinSmall')
-      .setOrigin(0.5, 1)
-      .setScale(3.1)
-      .setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
+    this.add.image(1740, WAGON_BASELINE_Y, 'decorPumpkinLarge')
+      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
+    this.add.image(1700, WAGON_BASELINE_Y, 'decorPumpkinSmall')
+      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
+    this.add.image(1660, WAGON_BASELINE_Y, 'decorPumpkinLarge')
+      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
 
     this.hutDoorZone = this.add.zone(this.hut.x + 34, HUT_BASELINE_Y - 80, 150, 132).setOrigin(0.5, 0.5);
     this.physics.add.existing(this.hutDoorZone, true);
 
     this.hutTooltip = this.add.container(0, 0).setDepth(30).setVisible(false);
-    const hutTooltipBg = this.add.rectangle(0, 0, 150, 30, 0x1c1209, 0.82).setStrokeStyle(2, 0xdab56a, 0.95);
-    const hutTooltipText = this.add.text(0, 0, "Mirelle's Hut", {
+    const hutTooltipBg = this.add.rectangle(0, 0, 210, 30, 0x1c1209, 0.82).setStrokeStyle(2, 0xdab56a, 0.95);
+    const hutTooltipText = this.add.text(0, 0, "Mirelle's Farmhouse", {
       fontFamily: 'Roboto Mono',
       fontSize: '16px',
       color: '#f7edd6',
@@ -1908,9 +1907,10 @@ class PrototypeScene extends Phaser.Scene {
     this.portraitMask = this.portraitMaskGraphics.createGeometryMask();
     this.portraitSceneBg.setMask(this.portraitMask);
 
-    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 98, 'forestLady-idle', 0)
+    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 60, 'forestLady-idle', 0)
       .setOrigin(0.5, 1)
-      .setScale(6.1)
+      .setScale(9.0)
+      .setFlipX(true)
       .setMask(this.portraitMask)
       .setVisible(true);
     this.dialogueOverlay.add(this.npcPortrait);
@@ -2633,7 +2633,8 @@ class PrototypeScene extends Phaser.Scene {
     const nearHutDoor = this.hutDoorZone ? this.physics.overlap(this.player, this.hutDoorZone) : false;
     this.hutTooltip?.setVisible(nearHutDoor && !this.isDialogueOpen && !this.isMenuOpen && this.scriptedNpcTargetX === null);
     if (nearHutDoor) {
-      this.hutTooltip.setPosition(this.hut.x, this.hut.y - this.hut.displayHeight - 10);
+      // Position above the door (~200px from base), not the roofline
+      this.hutTooltip.setPosition(this.hut.x, this.hut.y - 220);
     }
 
     if (this.itemReceiveContainer?.visible) {
@@ -3044,9 +3045,10 @@ class CityScene extends PrototypeScene {
     this.portraitMask = this.portraitMaskGraphics.createGeometryMask();
     this.portraitSceneBg.setMask(this.portraitMask);
 
-    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 103, `${CITY_NPCS.city1.key}-idle`, 26)
+    this.npcPortrait = this.add.sprite(portraitX, this.dialoguePortraitRect.bottom + 60, `${CITY_NPCS.city1.key}-idle`, 26)
       .setOrigin(0.5, 1)
-      .setScale(6.1)
+      .setScale(9.0)
+      .setFlipX(true)
       .setMask(this.portraitMask)
       .setVisible(true);
     this.dialogueOverlay.add(this.npcPortrait);
