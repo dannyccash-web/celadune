@@ -197,19 +197,18 @@ function createCaelanAnimations(scene) {
     });
   });
 
-  // Rise animation: flat → mid-rise → propped up (skips dust-impact frame)
+  // Rise animation: death frames in reverse order
   ['right', 'left'].forEach((dir) => {
     const key = `${hero}-rise-${dir}`;
     if (!scene.anims.exists(key)) {
       scene.anims.create({
         key,
         frames: [
-          { key: `${hero}-death`, frame: 2 },  // flat on ground
-          { key: `${hero}-death`, frame: 2 },  // hold flat a moment
-          { key: `${hero}-death`, frame: 0 },  // propped up on hands
-          { key: `${hero}-death`, frame: 0 },  // hold propped a moment
+          { key: `${hero}-death`, frame: 2 },
+          { key: `${hero}-death`, frame: 1 },
+          { key: `${hero}-death`, frame: 0 },
         ],
-        frameRate: 2,
+        frameRate: 8,
         repeat: 0,
       });
     }
@@ -995,14 +994,17 @@ class PrototypeScene extends Phaser.Scene {
     // Small tent from Decor.png
     this.tent = this.add.image(610, WAGON_BASELINE_Y, 'decorSmallTent')
       .setOrigin(0.5, 1)
+      .setScale(3.1)
       .setDepth(this.propDepth);
 
     // Wood logs on the ground, cauldron on stand in front — both grounded
     this.add.image(730, WAGON_BASELINE_Y, 'decorWoodLogs')
       .setOrigin(0.5, 1)
+      .setScale(3.1)
       .setDepth(this.propDepth - 1);
     this.add.image(730, WAGON_BASELINE_Y, 'decorCauldron')
       .setOrigin(0.5, 1)
+      .setScale(3.1)
       .setDepth(this.propDepth);
 
     this.hut = this.add.image(2240, HUT_BASELINE_Y, 'forestHut')
@@ -1012,17 +1014,21 @@ class PrototypeScene extends Phaser.Scene {
     // Grass stalks to the left of the hut
     this.add.image(1960, WAGON_BASELINE_Y, 'decorGrassLarge')
       .setOrigin(0.5, 1)
+      .setScale(3.1)
       .setDepth(this.propDepth);
     this.add.image(1910, WAGON_BASELINE_Y, 'decorGrassSmall')
       .setOrigin(0.5, 1)
+      .setScale(3.1)
       .setDepth(this.propDepth);
 
     // Pumpkins to the left of the grass
     this.add.image(1820, WAGON_BASELINE_Y, 'decorPumpkinLarge')
       .setOrigin(0.5, 1)
+      .setScale(3.1)
       .setDepth(this.propDepth);
     this.add.image(1780, WAGON_BASELINE_Y, 'decorPumpkinSmall')
       .setOrigin(0.5, 1)
+      .setScale(3.1)
       .setDepth(this.propDepth);
 
     this.hutDoorZone = this.add.zone(this.hut.x + 34, HUT_BASELINE_Y - 80, 150, 132).setOrigin(0.5, 0.5);
