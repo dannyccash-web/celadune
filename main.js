@@ -197,18 +197,19 @@ function createCaelanAnimations(scene) {
     });
   });
 
-  // Rise animation: death frames played in reverse (lying → standing)
+  // Rise animation: flat → mid-rise → propped up (skips dust-impact frame)
   ['right', 'left'].forEach((dir) => {
     const key = `${hero}-rise-${dir}`;
     if (!scene.anims.exists(key)) {
       scene.anims.create({
         key,
         frames: [
-          { key: `${hero}-death`, frame: 2 },
-          { key: `${hero}-death`, frame: 1 },
-          { key: `${hero}-death`, frame: 0 },
+          { key: `${hero}-death`, frame: 2 },  // flat on ground
+          { key: `${hero}-death`, frame: 2 },  // hold flat a moment
+          { key: `${hero}-death`, frame: 0 },  // propped up on hands
+          { key: `${hero}-death`, frame: 0 },  // hold propped a moment
         ],
-        frameRate: 3,
+        frameRate: 2,
         repeat: 0,
       });
     }
@@ -541,7 +542,7 @@ class PrototypeScene extends Phaser.Scene {
 
   init(data) {
     this.heroKey = data?.heroKey || 'caelan';
-    this.startX = data?.startX ?? 300;
+    this.startX = data?.startX ?? 680;
     this.startY = data?.startY ?? 768;
     this.inventoryItems = Array.isArray(data?.inventoryItems) ? data.inventoryItems.map((item) => ({ ...item })) : [];
     this.equipmentItems = Array.isArray(data?.equipmentItems) ? data.equipmentItems.map((item) => ({ ...item })) : [];
@@ -994,17 +995,14 @@ class PrototypeScene extends Phaser.Scene {
     // Small tent from Decor.png
     this.tent = this.add.image(610, WAGON_BASELINE_Y, 'decorSmallTent')
       .setOrigin(0.5, 1)
-      .setScale(4.5)
       .setDepth(this.propDepth);
 
-    // Cauldron on stand + wood logs to the right of the tent
-    this.add.image(760, WAGON_BASELINE_Y, 'decorWoodLogs')
+    // Wood logs on the ground, cauldron on stand in front — both grounded
+    this.add.image(730, WAGON_BASELINE_Y, 'decorWoodLogs')
       .setOrigin(0.5, 1)
-      .setScale(4)
-      .setDepth(this.propDepth);
-    this.add.image(760, WAGON_BASELINE_Y - 36, 'decorCauldron')
+      .setDepth(this.propDepth - 1);
+    this.add.image(730, WAGON_BASELINE_Y, 'decorCauldron')
       .setOrigin(0.5, 1)
-      .setScale(4)
       .setDepth(this.propDepth);
 
     this.hut = this.add.image(2240, HUT_BASELINE_Y, 'forestHut')
@@ -1012,23 +1010,19 @@ class PrototypeScene extends Phaser.Scene {
       .setDepth(this.propDepth);
 
     // Grass stalks to the left of the hut
-    this.add.image(2050, WAGON_BASELINE_Y, 'decorGrassLarge')
+    this.add.image(1960, WAGON_BASELINE_Y, 'decorGrassLarge')
       .setOrigin(0.5, 1)
-      .setScale(4)
       .setDepth(this.propDepth);
-    this.add.image(2000, WAGON_BASELINE_Y, 'decorGrassSmall')
+    this.add.image(1910, WAGON_BASELINE_Y, 'decorGrassSmall')
       .setOrigin(0.5, 1)
-      .setScale(4)
       .setDepth(this.propDepth);
 
     // Pumpkins to the left of the grass
-    this.add.image(1900, WAGON_BASELINE_Y, 'decorPumpkinLarge')
+    this.add.image(1820, WAGON_BASELINE_Y, 'decorPumpkinLarge')
       .setOrigin(0.5, 1)
-      .setScale(4)
       .setDepth(this.propDepth);
-    this.add.image(1858, WAGON_BASELINE_Y, 'decorPumpkinSmall')
+    this.add.image(1780, WAGON_BASELINE_Y, 'decorPumpkinSmall')
       .setOrigin(0.5, 1)
-      .setScale(4)
       .setDepth(this.propDepth);
 
     this.hutDoorZone = this.add.zone(this.hut.x + 34, HUT_BASELINE_Y - 80, 150, 132).setOrigin(0.5, 0.5);
