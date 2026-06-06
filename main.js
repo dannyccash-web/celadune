@@ -915,20 +915,29 @@ class PrototypeScene extends Phaser.Scene {
         .setScale(TILE_SCALE).setOrigin(0.5, 0).setDepth(12);
       this.groundFront.add(surf);
 
-      // Fill tiles downward to bottom of screen
-      const fillRows = Math.ceil((GAME_HEIGHT - surfaceY) / TILE_PX) + 1;
+      // Fill tiles downward to bottom of screen.
+      // Use leftFill/rightFill for the exposed cliff face rows; plain fill below.
+      const fillRows       = Math.ceil((GAME_HEIGHT - surfaceY) / TILE_PX) + 1;
+      const leftCliffRows  = Math.max(0, Math.round((prevY - surfaceY) / TILE_PX));
+      const rightCliffRows = Math.max(0, Math.round((nextY - surfaceY) / TILE_PX));
+
       for (let row = 1; row <= fillRows; row++) {
-        const fillFrame = col === 0 ? T.leftFill : col === cols - 1 ? T.rightFill : T.fill;
+        let fillFrame = T.fill;
+        if (leftCliffRows > 0 && row <= leftCliffRows)       fillFrame = T.leftFill;
+        else if (rightCliffRows > 0 && row <= rightCliffRows) fillFrame = T.rightFill;
         const f = this.add.image(cx, surfaceY + TILE_PX * row, 'floorTiles2', fillFrame)
           .setScale(TILE_SCALE).setOrigin(0.5, 0).setDepth(2);
         this.groundBack.add(f);
       }
 
-      // Full-depth collider — tall enough to prevent physics tunneling at any speed
-      const colliderTop = surfaceY + 2; // 2px from tile top → minimal foot occlusion
-      const colliderH   = GAME_HEIGHT - colliderTop + 100;
-      const collider = this.add.rectangle(cx, colliderTop + colliderH / 2, TILE_PX, colliderH, 0x000000, 0);
+      // Surface collision strip — thick enough to stop tunneling, sides disabled so
+      // players can walk/jump onto ledges without hitting invisible walls.
+      const colliderH = 48;
+      const collider = this.add.rectangle(cx, surfaceY + 2 + colliderH / 2, TILE_PX, colliderH, 0x000000, 0);
       this.physics.add.existing(collider, true);
+      collider.body.checkCollision.left  = false;
+      collider.body.checkCollision.right = false;
+      collider.body.checkCollision.down  = false;
       this.ground.add(collider);
     }
 
@@ -4220,7 +4229,8 @@ class WildernessScene extends PrototypeScene {
     for (let i = 0; i < cols; i++) {
       const x = i * TILE_PX;
       const v = Math.sin(x * 0.0013) * 2.0 + Math.sin(x * 0.0022) * 1.0 + Math.sin(x * 0.0041) * 0.5;
-      raw[i] = Math.max(0, Math.min(3, Math.round(v + 1.5)));
+      // Max height = 1 tile — ensures every step is within player jump range (~160px, tile=96px)
+      raw[i] = Math.max(0, Math.min(1, Math.round(v + 0.5)));
     }
     // Smooth: max step between adjacent cols is 1 so every ledge is jumpable
     for (let pass = 0; pass < 6; pass++) {
