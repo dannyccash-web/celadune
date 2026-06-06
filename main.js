@@ -1,7 +1,7 @@
 const GAME_WIDTH = 1920;
 const GAME_HEIGHT = 1080;
 const GROUND_TILE = 160;
-const WORLD_WIDTH = 5120;
+const WORLD_WIDTH = 5184; // 54 × 96px tiles — snapped to tile boundary
 const CITY_WORLD_WIDTH = 4800;
 const GROUND_Y = 888;
 const FRAME_W = 64;
@@ -888,7 +888,7 @@ class PrototypeScene extends Phaser.Scene {
     const TILE_SCALE = PrototypeScene.TILE_SCALE;
     const T         = PrototypeScene.TILE_FRAMES[opts.tileSet || 'green'];
     const worldWidth = this.sceneWorldWidth ?? WORLD_WIDTH;
-    const cols      = Math.ceil(worldWidth / TILE_PX) + 1;
+    const cols      = Math.ceil(worldWidth / TILE_PX); // no +1 — world width is already tile-snapped
 
     this.ground      = this.physics.add.staticGroup();
     this.groundBack  = this.add.group();
@@ -905,6 +905,11 @@ class PrototypeScene extends Phaser.Scene {
       if (prevY > surfaceY && nextY >= surfaceY) topFrame = T.topL;
       else if (nextY > surfaceY && prevY >= surfaceY) topFrame = T.topR;
 
+      // Solid dark fill at depth 1 — fills any transparency gaps behind all tile images
+      const fillBgH = GAME_HEIGHT + 200 - surfaceY;
+      this.add.rectangle(cx, surfaceY, TILE_PX, fillBgH, 0x1a1208, 1)
+        .setOrigin(0.5, 0).setDepth(1);
+
       // Surface tile (top of terrain)
       const surf = this.add.image(cx, surfaceY, 'floorTiles2', topFrame)
         .setScale(TILE_SCALE).setOrigin(0.5, 0).setDepth(12);
@@ -919,8 +924,10 @@ class PrototypeScene extends Phaser.Scene {
         this.groundBack.add(f);
       }
 
-      // Collision strip at top of surface tile
-      const collider = this.add.rectangle(cx, surfaceY + 14, TILE_PX, 18, 0x000000, 0);
+      // Full-depth collider — tall enough to prevent physics tunneling at any speed
+      const colliderTop = surfaceY + 2; // 2px from tile top → minimal foot occlusion
+      const colliderH   = GAME_HEIGHT - colliderTop + 100;
+      const collider = this.add.rectangle(cx, colliderTop + colliderH / 2, TILE_PX, colliderH, 0x000000, 0);
       this.physics.add.existing(collider, true);
       this.ground.add(collider);
     }
@@ -1527,19 +1534,19 @@ class PrototypeScene extends Phaser.Scene {
   }
 
   createUI() {
-    this.hud = this.add.text(GAME_WIDTH - 18, 18, 'M  Menu', {
+    this.hud = this.add.text(GAME_WIDTH - 18, GAME_HEIGHT - 20, 'M  Menu', {
       fontFamily: 'Roboto Mono',
       fontSize: '18px',
       color: '#c8dcea',
       stroke: '#0a1218',
       strokeThickness: 4,
-    }).setOrigin(1, 0).setScrollFactor(0).setDepth(60);
+    }).setOrigin(1, 1).setScrollFactor(0).setDepth(60);
     this.createHealthBar();
   }
 
   createHealthBar() {
     const barX = 24;
-    const barY = 24;
+    const barY = GAME_HEIGHT - 46;
     const barW = 180;
     const barH = 16;
     this.healthBarBg = this.add.rectangle(barX, barY, barW, barH, 0x1a0a0a, 0.85)
