@@ -587,6 +587,7 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('ground1', 'assets/tiles/ground_tile_1.png');
     this.load.image('ground2', 'assets/tiles/ground_tile_2.png');
     this.load.image('ground3', 'assets/tiles/ground_tile_3.png');
+    this.load.spritesheet('floorTiles2', 'assets/tiles/floor_tiles2.png', { frameWidth: 32, frameHeight: 32 });
     this.load.image('cityGround1', 'assets/tiles/cobblestone_tile_1.png');
     this.load.image('cityGround2', 'assets/tiles/cobblestone_tile_2.png');
     this.load.image('cityGround3', 'assets/tiles/cobblestone_tile_3.png');
@@ -633,6 +634,7 @@ class PrototypeScene extends Phaser.Scene {
     this.load.audio('writingSfx', 'assets/sfx/writing.mp3');
     this.load.audio('attackSfx', 'assets/sfx/freesound_community-sword-sound-2-36274.mp3');
     this.load.audio('jumpSfx',   'assets/sfx/ribhavagrawal-woosh-230554.mp3');
+    this.load.audio('dogBarkSfx', 'assets/sfx/freesound_community-dog-bark2-92560.mp3');
     this.load.spritesheet('forestLady-idle', FOREST_LADY.idle, { frameWidth: 64, frameHeight: 64 });
     this.load.spritesheet('forestLady-walk', FOREST_LADY.walk, { frameWidth: 64, frameHeight: 64 });
     this.load.spritesheet(`${HUT_WANDERER.key}-walk`, HUT_WANDERER.walk, { frameWidth: HUT_WANDERER.frameW, frameHeight: HUT_WANDERER.frameH });
@@ -866,47 +868,67 @@ class PrototypeScene extends Phaser.Scene {
     this.bgScale = GAME_HEIGHT / backTex.height;
   }
 
-  createGround() {
-    this.ground = this.physics.add.staticGroup();
-    this.groundBack = this.add.group();
+  // ── Tile constants for Floor Tiles2.png (9 cols × 18 rows, 32×32 px per tile) ──
+  // Frame index = row * 9 + col
+  static get TILE_PX() { return 96; } // 32 px × scale 3
+  static get TILE_SCALE() { return 3; }
+  static get TILE_FRAMES() {
+    return {
+      green: { topL: 0,  topC: 1,  topR: 2,  fill: 10, leftFill: 9,  rightFill: 11 },
+      brown: { topL: 54, topC: 55, topR: 56, fill: 64, leftFill: 63, rightFill: 65 },
+    };
+  }
+
+  // Override in subclasses to provide per-column surface Y (for variable terrain).
+  // Default: flat ground at GROUND_Y.
+  getTerrainSurfaceY(/* tileCol */) { return GROUND_Y; }
+
+  createGround(opts = {}) {
+    const TILE_PX   = PrototypeScene.TILE_PX;
+    const TILE_SCALE = PrototypeScene.TILE_SCALE;
+    const T         = PrototypeScene.TILE_FRAMES[opts.tileSet || 'green'];
+    const worldWidth = this.sceneWorldWidth ?? WORLD_WIDTH;
+    const cols      = Math.ceil(worldWidth / TILE_PX) + 1;
+
+    this.ground      = this.physics.add.staticGroup();
+    this.groundBack  = this.add.group();
     this.groundFront = this.add.group();
 
-    const tilesAcross = Math.ceil(WORLD_WIDTH / GROUND_TILE);
-    const decorativeKeys = ['ground0', 'ground1', 'ground2', 'ground3'];
-    const rng = this.createSeededRandom(0xC0FFEE);
-    let previousKey = null;
+    for (let col = 0; col < cols; col++) {
+      const cx       = col * TILE_PX + TILE_PX / 2; // center x
+      const surfaceY = this.getTerrainSurfaceY(col);
 
-    const blackVisualOffsetY = 34;
-    const collisionStripY = GROUND_Y + 24;
-    const collisionStripHeight = 22;
+      // Determine which top-tile variant based on neighbours
+      const prevY = this.getTerrainSurfaceY(Math.max(0, col - 1));
+      const nextY = this.getTerrainSurfaceY(Math.min(cols - 1, col + 1));
+      let topFrame = T.topC;
+      if (prevY > surfaceY && nextY >= surfaceY) topFrame = T.topL;
+      else if (nextY > surfaceY && prevY >= surfaceY) topFrame = T.topR;
 
-    for (let i = 0; i < tilesAcross; i += 1) {
-      let tileKey = decorativeKeys[Math.floor(rng() * decorativeKeys.length)];
-      if (decorativeKeys.length > 1 && tileKey === previousKey) {
-        tileKey = decorativeKeys[(decorativeKeys.indexOf(tileKey) + 1 + Math.floor(rng() * (decorativeKeys.length - 1))) % decorativeKeys.length];
+      // Surface tile (top of terrain)
+      const surf = this.add.image(cx, surfaceY, 'floorTiles2', topFrame)
+        .setScale(TILE_SCALE).setOrigin(0.5, 0).setDepth(12);
+      this.groundFront.add(surf);
+
+      // Fill tiles downward to bottom of screen
+      const fillRows = Math.ceil((GAME_HEIGHT - surfaceY) / TILE_PX) + 1;
+      for (let row = 1; row <= fillRows; row++) {
+        const fillFrame = col === 0 ? T.leftFill : col === cols - 1 ? T.rightFill : T.fill;
+        const f = this.add.image(cx, surfaceY + TILE_PX * row, 'floorTiles2', fillFrame)
+          .setScale(TILE_SCALE).setOrigin(0.5, 0).setDepth(2);
+        this.groundBack.add(f);
       }
-      previousKey = tileKey;
 
-      const x = i * GROUND_TILE + GROUND_TILE / 2;
-      const visualY = GROUND_Y + GROUND_TILE / 2;
-
-      const blackBase = this.add.image(x, visualY + blackVisualOffsetY, 'blackTile')
-        .setDisplaySize(GROUND_TILE, 150)
-        .setDepth(2);
-      this.groundBack.add(blackBase);
-
-      const collider = this.add.rectangle(x, collisionStripY, GROUND_TILE, collisionStripHeight, 0x000000, 0);
+      // Collision strip at top of surface tile
+      const collider = this.add.rectangle(cx, surfaceY + 14, TILE_PX, 18, 0x000000, 0);
       this.physics.add.existing(collider, true);
       this.ground.add(collider);
-
-      const frontTile = this.add.image(x, visualY, tileKey)
-        .setDisplaySize(GROUND_TILE, GROUND_TILE)
-        .setDepth(12);
-      this.groundFront.add(frontTile);
     }
 
-    this.groundShadow = this.add.rectangle(WORLD_WIDTH / 2, GROUND_Y + 10, WORLD_WIDTH, 18, 0x13210f, 0.12)
-      .setDepth(3);
+    // Subtle shadow line at terrain edge
+    this.groundShadow = this.add.rectangle(
+      worldWidth / 2, GROUND_Y + 10, worldWidth, 12, 0x0a1506, 0.18,
+    ).setDepth(3);
   }
 
   createSeededRandom(seed) {
@@ -931,7 +953,7 @@ class PrototypeScene extends Phaser.Scene {
   applyTextureFiltering() {
     this.setTextureFilter(['forestSky', 'forestMountain', 'forestBack', 'forestMid', 'forestShort', 'forestHutInterior'], Phaser.Textures.FilterMode.LINEAR);
     this.setTextureFilter([
-      'blackTile', 'ground0', 'ground1', 'ground2', 'ground3',
+      'blackTile', 'ground0', 'ground1', 'ground2', 'ground3', 'floorTiles2',
       'cityGround1', 'cityGround2', 'cityGround3', 'parchment', 'forestHut',
       'brokenWagon', 'onionPatch', 'largeTent', 'furnace', 'menuOnions', 'wayfarersSalve',
       'decorSmallTent', 'decorCauldron', 'decorWoodLogs', 'decorGrassLarge', 'decorGrassSmall', 'decorPumpkinSmall', 'decorPumpkinLarge',
@@ -1062,6 +1084,7 @@ class PrototypeScene extends Phaser.Scene {
     if (this.dog && !this.dog.fleeing) {
       const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.dog.x, this.dog.y);
       if (dist < 200) {
+        this.dogBarkSfx?.play();
         this.dog.fleeing = true;
         this.dog.fleeDirection = this.dog.x < this.player.x ? 'left' : 'right';
         this.farmDogFled = true; // persists across scene transitions
@@ -1461,8 +1484,9 @@ class PrototypeScene extends Phaser.Scene {
     this.musicTargetVolume = musicConfig.volume;
     this.music = this.sound.add(musicConfig.key, { loop: true, volume: 0 });
     this.writingSound = this.sound.add('writingSfx', { loop: true, volume: 0.18 });
-    this.attackSfx = this.sound.add('attackSfx', { volume: 0.55 });
-    this.jumpSfx   = this.sound.add('jumpSfx',   { volume: 0.45 });
+    this.attackSfx  = this.sound.add('attackSfx',  { volume: 0.55 });
+    this.jumpSfx    = this.sound.add('jumpSfx',    { volume: 0.45 });
+    this.dogBarkSfx = this.sound.add('dogBarkSfx', { volume: 0.7 });
 
     const startMusic = () => {
       if (!this.music.isPlaying) {
@@ -2197,7 +2221,7 @@ class PrototypeScene extends Phaser.Scene {
     this.refreshMenuPage();
     this.physics.world.pause();
     this.player.anims.pause();
-    this.npc.anims.pause();
+    this.npc?.anims.pause();
     this.wanderer?.anims.pause();
   }
 
@@ -2208,7 +2232,7 @@ class PrototypeScene extends Phaser.Scene {
     this.menuOverlay.setVisible(false);
     this.physics.world.resume();
     this.player.anims.resume();
-    this.npc.anims.resume();
+    this.npc?.anims.resume();
     this.wanderer?.anims.resume();
   }
 
@@ -3195,46 +3219,7 @@ class CityScene extends PrototypeScene {
   }
 
   createGround() {
-    this.ground = this.physics.add.staticGroup();
-    this.groundBack = this.add.group();
-    this.groundFront = this.add.group();
-
-    const tilesAcross = Math.ceil(CITY_WORLD_WIDTH / GROUND_TILE);
-    const decorativeKeys = ['cityGround1', 'cityGround2', 'cityGround3'];
-    const rng = this.createSeededRandom(0xC17AD0);
-    let previousKey = null;
-
-    const blackVisualOffsetY = 34;
-    const collisionStripY = GROUND_Y + 24;
-    const collisionStripHeight = 22;
-
-    for (let i = 0; i < tilesAcross; i += 1) {
-      let tileKey = decorativeKeys[Math.floor(rng() * decorativeKeys.length)];
-      if (decorativeKeys.length > 1 && tileKey === previousKey) {
-        tileKey = decorativeKeys[(decorativeKeys.indexOf(tileKey) + 1 + Math.floor(rng() * (decorativeKeys.length - 1))) % decorativeKeys.length];
-      }
-      previousKey = tileKey;
-
-      const x = i * GROUND_TILE + GROUND_TILE / 2;
-      const visualY = GROUND_Y + GROUND_TILE / 2;
-
-      const blackBase = this.add.image(x, visualY + blackVisualOffsetY, 'blackTile')
-        .setDisplaySize(GROUND_TILE, 150)
-        .setDepth(2);
-      this.groundBack.add(blackBase);
-
-      const collider = this.add.rectangle(x, collisionStripY, GROUND_TILE, collisionStripHeight, 0x000000, 0);
-      this.physics.add.existing(collider, true);
-      this.ground.add(collider);
-
-      const frontTile = this.add.image(x, visualY, tileKey)
-        .setDisplaySize(GROUND_TILE, GROUND_TILE)
-        .setDepth(12);
-      this.groundFront.add(frontTile);
-    }
-
-    this.groundShadow = this.add.rectangle(CITY_WORLD_WIDTH / 2, GROUND_Y + 10, CITY_WORLD_WIDTH, 18, 0x13210f, 0.12)
-      .setDepth(3);
+    super.createGround({ tileSet: 'brown' });
   }
 
   createNPC() {}
@@ -3906,6 +3891,7 @@ class CityScene extends PrototypeScene {
       if (this.cityDog && !this.cityDog.fleeing) {
         const distD = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.cityDog.x, this.cityDog.y);
         if (distD < 200) {
+          this.dogBarkSfx?.play();
           this.cityDog.fleeing = true;
           this.cityDog.fleeDirection = this.cityDog.x < this.player.x ? 'left' : 'right';
           this.cityDogFled = true;
@@ -3964,9 +3950,9 @@ class WildernessScene extends PrototypeScene {
 
   preload() {
     super.preload();
-    if (!this.textures.exists('slimeBlue')) {
-      this.load.spritesheet('slimeBlue', 'assets/enemies/slime_blue.png', { frameWidth: 32, frameHeight: 32 });
-    }
+    if (!this.textures.exists('slimeBlue'))  this.load.spritesheet('slimeBlue',  'assets/enemies/slime_blue.png',  { frameWidth: 32, frameHeight: 32 });
+    if (!this.textures.exists('slimeGreen')) this.load.spritesheet('slimeGreen', 'assets/enemies/slime_green.png', { frameWidth: 32, frameHeight: 32 });
+    if (!this.textures.exists('slimeRed'))   this.load.spritesheet('slimeRed',   'assets/enemies/slime_red.png',   { frameWidth: 32, frameHeight: 32 });
   }
 
   create() {
@@ -4019,35 +4005,40 @@ class WildernessScene extends PrototypeScene {
   createProps() {}
 
   createSlimeAnimations() {
-    if (!this.anims.exists('slime-idle')) {
-      this.anims.create({
-        key: 'slime-idle',
-        frames: this.anims.generateFrameNumbers('slimeBlue', { start: 0, end: 4 }),
-        frameRate: 6, repeat: -1,
-      });
-    }
-    if (!this.anims.exists('slime-jump')) {
-      this.anims.create({
-        key: 'slime-jump',
-        frames: this.anims.generateFrameNumbers('slimeBlue', { start: 8, end: 15 }),
-        frameRate: 10, repeat: 0,
-      });
-    }
-    if (!this.anims.exists('slime-death')) {
-      this.anims.create({
-        key: 'slime-death',
-        frames: this.anims.generateFrameNumbers('slimeBlue', { start: 16, end: 20 }),
-        frameRate: 8, repeat: 0,
-      });
-    }
-    this.setTextureFilter(['slimeBlue'], Phaser.Textures.FilterMode.NEAREST);
+    // Each colour variant shares the same frame layout — rows: 0=idle(0-4), 1=jump(8-15), 2=death(16-20)
+    const variants = [
+      { key: 'slimeBlue',  prefix: 'blue'  },
+      { key: 'slimeGreen', prefix: 'green' },
+      { key: 'slimeRed',   prefix: 'red'   },
+    ];
+    variants.forEach(({ key, prefix }) => {
+      if (!this.anims.exists(`slime-${prefix}-idle`)) {
+        this.anims.create({ key: `slime-${prefix}-idle`,  frames: this.anims.generateFrameNumbers(key, { start: 0,  end: 4  }), frameRate: 6,  repeat: -1 });
+      }
+      if (!this.anims.exists(`slime-${prefix}-jump`)) {
+        this.anims.create({ key: `slime-${prefix}-jump`,  frames: this.anims.generateFrameNumbers(key, { start: 8,  end: 15 }), frameRate: 10, repeat: 0  });
+      }
+      if (!this.anims.exists(`slime-${prefix}-death`)) {
+        this.anims.create({ key: `slime-${prefix}-death`, frames: this.anims.generateFrameNumbers(key, { start: 16, end: 20 }), frameRate: 8,  repeat: 0  });
+      }
+    });
+    this.setTextureFilter(['slimeBlue', 'slimeGreen', 'slimeRed'], Phaser.Textures.FilterMode.NEAREST);
   }
 
   createSlimes() {
     this.slimes = [];
+    const TILE_PX = PrototypeScene.TILE_PX;
+    const slimeVariants = [
+      { tex: 'slimeBlue',  prefix: 'blue',  barColor: 0x44aaff },
+      { tex: 'slimeGreen', prefix: 'green', barColor: 0x44ff44 },
+      { tex: 'slimeRed',   prefix: 'red',   barColor: 0xff4444 },
+    ];
     const spawnPoints = [800, 1400, 2100, 2800, 3500, 4200];
-    spawnPoints.forEach((x) => {
-      const slime = this.physics.add.sprite(x, 760, 'slimeBlue', 0);
+    spawnPoints.forEach((x, i) => {
+      const variant    = slimeVariants[i % slimeVariants.length];
+      const surfaceY   = this.getTerrainSurfaceY(Math.floor(x / TILE_PX));
+      const spawnY     = surfaceY - 48; // place above terrain surface
+      const slime = this.physics.add.sprite(x, spawnY, variant.tex, 0);
       slime.setScale(3.0).setDepth(9);
       slime.body.setSize(22, 18).setOffset(5, 14);
       slime.body.setMaxVelocity(250, 1200).setDragX(800);
@@ -4063,10 +4054,11 @@ class WildernessScene extends PrototypeScene {
       slime.patrolDir = Math.random() < 0.5 ? 1 : -1;
       slime.patrolTimer = this.time.now + Phaser.Math.Between(1000, 3000);
       slime.alive = true;
-      slime.anims.play('slime-idle', true);
+      slime.slimePrefix = variant.prefix;
+      slime.anims.play(`slime-${variant.prefix}-idle`, true);
       // Small health bar above slime
       const barBg = this.add.rectangle(0, 0, 30, 4, 0x333333).setDepth(11);
-      const barFg = this.add.rectangle(0, 0, 30, 4, 0x44ff44).setDepth(12);
+      const barFg = this.add.rectangle(0, 0, 30, 4, variant.barColor).setDepth(12);
       slime.hpBarBg = barBg;
       slime.hpBarFg = barFg;
       this.slimes.push(slime);
@@ -4119,7 +4111,7 @@ class WildernessScene extends PrototypeScene {
     slime.body.setEnable(false);
     slime.hpBarBg?.destroy();
     slime.hpBarFg?.destroy();
-    slime.anims.play('slime-death', true);
+    slime.anims.play(`slime-${slime.slimePrefix}-death`, true);
     slime.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => slime.destroy());
   }
 
@@ -4148,11 +4140,12 @@ class WildernessScene extends PrototypeScene {
         if (onGround && now > slime.jumpCooldown + 300) {
           slime.state = 'idle';
           slime.jumpCooldown = now + Phaser.Math.Between(1200, 2500);
-          slime.anims.play('slime-idle', true);
+          slime.anims.play(`slime-${slime.slimePrefix}-idle`, true);
         }
         return;
       }
 
+      const idleKey = `slime-${slime.slimePrefix}-idle`;
       // Chase if player is close
       if (dist < 350) {
         slime.state = 'chasing';
@@ -4164,11 +4157,11 @@ class WildernessScene extends PrototypeScene {
         if (dist < 180 && onGround && now > slime.jumpCooldown) {
           slime.state = 'jumping';
           slime.jumpCooldown = now + 2000;
-          slime.anims.play('slime-jump', true);
+          slime.anims.play(`slime-${slime.slimePrefix}-jump`, true);
           const dirX = (slime.facing === 'right' ? 1 : -1) * 220;
           slime.body.setVelocity(dirX, -520);
         } else {
-          if (slime.anims.currentAnim?.key !== 'slime-idle') slime.anims.play('slime-idle', true);
+          if (slime.anims.currentAnim?.key !== idleKey) slime.anims.play(idleKey, true);
         }
       } else {
         // Idle patrol
@@ -4181,7 +4174,7 @@ class WildernessScene extends PrototypeScene {
         if (slime.x >= slime.maxX) slime.patrolDir = -1;
         slime.body.setVelocityX(slime.patrolDir * 35);
         slime.setFlipX(slime.patrolDir < 0);
-        if (slime.anims.currentAnim?.key !== 'slime-idle') slime.anims.play('slime-idle', true);
+        if (slime.anims.currentAnim?.key !== idleKey) slime.anims.play(idleKey, true);
       }
     });
   }
@@ -4210,6 +4203,66 @@ class WildernessScene extends PrototypeScene {
       const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, slime.x, slime.y);
       if (dist < 160) this.damageSlime(slime);
     });
+  }
+
+  // ── Heightmap terrain ────────────────────────────────────────────────────
+  computeTerrainHeightmap() {
+    const TILE_PX = PrototypeScene.TILE_PX;
+    const cols = Math.ceil(WORLD_WIDTH / TILE_PX) + 4;
+    const raw = new Array(cols);
+    for (let i = 0; i < cols; i++) {
+      const x = i * TILE_PX;
+      const v = Math.sin(x * 0.0013) * 2.0 + Math.sin(x * 0.0022) * 1.0 + Math.sin(x * 0.0041) * 0.5;
+      raw[i] = Math.max(0, Math.min(3, Math.round(v + 1.5)));
+    }
+    // Smooth: max step between adjacent cols is 1 so every ledge is jumpable
+    for (let pass = 0; pass < 6; pass++) {
+      for (let i = 1; i < cols; i++) {
+        if (raw[i] > raw[i - 1] + 1) raw[i] = raw[i - 1] + 1;
+      }
+      for (let i = cols - 2; i >= 0; i--) {
+        if (raw[i] > raw[i + 1] + 1) raw[i] = raw[i + 1] + 1;
+      }
+    }
+    // Keep first and last few columns flat so scene edges are clean
+    for (let i = 0; i < 3; i++) raw[i] = 0;
+    for (let i = cols - 3; i < cols; i++) raw[i] = 0;
+    this.terrainHeightmap = raw;
+  }
+
+  getTerrainSurfaceY(tileCol) {
+    if (!this.terrainHeightmap) this.computeTerrainHeightmap();
+    const TILE_PX = PrototypeScene.TILE_PX;
+    const h = this.terrainHeightmap[Math.max(0, Math.min(tileCol, this.terrainHeightmap.length - 1))] || 0;
+    return GROUND_Y - h * TILE_PX;
+  }
+
+  createGround() {
+    this.computeTerrainHeightmap();
+    super.createGround({ tileSet: 'green' });
+  }
+
+  // ── Menu: no this.npc in WildernessScene ─────────────────────────────────
+  openMenu() {
+    if (this.isMenuOpen || this.isDialogueOpen) return;
+    this.isMenuOpen = true;
+    this.menuMode = 'categories';
+    this.menuSectionIndex = 0;
+    this.menuItemIndex = 0;
+    this.menuActionIndex = 0;
+    this.menuOverlay.setVisible(true);
+    this.refreshMenuPage();
+    this.physics.world.pause();
+    this.player.anims.pause();
+  }
+
+  closeMenu() {
+    if (!this.isMenuOpen) return;
+    this.isMenuOpen = false;
+    this.menuMode = 'categories';
+    this.menuOverlay.setVisible(false);
+    this.physics.world.resume();
+    this.player.anims.resume();
   }
 
   getMusicConfig() { return { key: 'forestTheme', volume: 0.35 }; }
