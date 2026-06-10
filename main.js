@@ -4111,11 +4111,31 @@ class WildernessScene extends PrototypeScene {
         if (!slime.alive || this.playerHealth <= 0) return;
         const now = this.time.now;
         if (now < (this._playerHitCooldown || 0)) return;
-        this._playerHitCooldown = now + 800;
+        this._playerHitCooldown = now + 1000; // 1s i-frames
         this.playerHealth = Math.max(0, this.playerHealth - 1);
         this.updateHealthBar();
-        // Flash player red
-        this.tweens.add({ targets: this.player, alpha: 0.3, duration: 80, yoyo: true, repeat: 2 });
+
+        // Knockback: push player away from slime with small upward pop
+        const kbDir = this.player.x >= slime.x ? 1 : -1;
+        this.player.setVelocityX(kbDir * 300);
+        this.player.setVelocityY(-240);
+
+        // White hit flash on the impact frame
+        this.player.setTint(0xffffff);
+        this.time.delayedCall(90, () => this.player.clearTint());
+
+        // Hit stop: freeze physics for ~3 frames so the hit feels weighty
+        this.physics.world.pause();
+        this.time.delayedCall(55, () => this.physics.world.resume());
+
+        // I-frame blink for the full invulnerability window
+        this.tweens.killTweensOf(this.player);
+        this.player.setAlpha(1);
+        this.tweens.add({
+          targets: this.player, alpha: 0.15, duration: 90,
+          repeat: 10, yoyo: true, onComplete: () => this.player.setAlpha(1),
+        });
+
         if (this.playerHealth <= 0) this.onPlayerDeath();
       });
     });
@@ -4123,9 +4143,12 @@ class WildernessScene extends PrototypeScene {
 
   onPlayerDeath() {
     this.introComplete = false;
-    this.player.setTint(0xff0000);
+    this.tweens.killTweensOf(this.player);
+    this.player.setAlpha(1);
+    this._playerHitCooldown = 0;
+    this.player.setTint(0xff4444);
+    this.player.setVelocity(0, 0);
     this.time.delayedCall(1200, () => {
-      // Respawn with full HP
       this.playerHealth = this.playerMaxHealth;
       this.updateHealthBar();
       this.player.clearTint();
@@ -4140,7 +4163,20 @@ class WildernessScene extends PrototypeScene {
     if (now < (slime.hitCooldown || 0)) return;
     slime.hitCooldown = now + 400;
     slime.hp -= 1;
-    this.tweens.add({ targets: slime, alpha: 0.2, duration: 80, yoyo: true, repeat: 1 });
+
+    // Knockback: push slime away from player with upward pop
+    const kbDir = slime.x >= this.player.x ? 1 : -1;
+    slime.body.setVelocityX(kbDir * 280);
+    slime.body.setVelocityY(-200);
+
+    // White hit flash
+    slime.setTint(0xffffff);
+    this.time.delayedCall(90, () => { if (slime?.active) slime.clearTint(); });
+
+    // Hit stop
+    this.physics.world.pause();
+    this.time.delayedCall(55, () => this.physics.world.resume());
+
     this.updateSlimeHpBar(slime);
     if (slime.hp <= 0) this.killSlime(slime);
   }
