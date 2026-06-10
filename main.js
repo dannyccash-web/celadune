@@ -930,8 +930,8 @@ class PrototypeScene extends Phaser.Scene {
         this.groundBack.add(f);
       }
 
-      // Surface collision strip — thick enough to stop tunneling, sides disabled so
-      // players can walk/jump onto ledges without hitting invisible walls.
+      // Surface collision strip — thick enough to stop tunneling, sides/down disabled
+      // so entities can walk/jump onto higher ledges without hitting invisible walls.
       const colliderH = 48;
       const collider = this.add.rectangle(cx, surfaceY + 2 + colliderH / 2, TILE_PX, colliderH, 0x000000, 0);
       this.physics.add.existing(collider, true);
@@ -939,6 +939,31 @@ class PrototypeScene extends Phaser.Scene {
       collider.body.checkCollision.right = false;
       collider.body.checkCollision.down  = false;
       this.ground.add(collider);
+
+      // Cliff wall colliders — solid vertical walls at terrain step boundaries.
+      // These prevent entities from walking INTO cliff faces at ground level while
+      // still allowing them to jump over (wall top = surfaceY so anything above clears it).
+      // Skip world-edge columns where world bounds already block movement.
+      if (col > 0 && prevY > surfaceY) {
+        // Left cliff face: this column is higher than the one to its left
+        const wallH = (prevY - surfaceY) + colliderH;
+        const wallX = col * TILE_PX; // boundary between col-1 and col
+        const wall = this.add.rectangle(wallX, surfaceY + wallH / 2, 8, wallH, 0x000000, 0);
+        this.physics.add.existing(wall, true);
+        wall.body.checkCollision.up   = false;
+        wall.body.checkCollision.down = false;
+        this.ground.add(wall);
+      }
+      if (col < cols - 1 && nextY > surfaceY) {
+        // Right cliff face: this column is higher than the one to its right
+        const wallH = (nextY - surfaceY) + colliderH;
+        const wallX = (col + 1) * TILE_PX; // boundary between col and col+1
+        const wall = this.add.rectangle(wallX, surfaceY + wallH / 2, 8, wallH, 0x000000, 0);
+        this.physics.add.existing(wall, true);
+        wall.body.checkCollision.up   = false;
+        wall.body.checkCollision.down = false;
+        this.ground.add(wall);
+      }
     }
 
     // Subtle shadow line at terrain edge
@@ -2159,7 +2184,7 @@ class PrototypeScene extends Phaser.Scene {
     if (this.isDialogueOpen || this.isMenuOpen || this.isTransitioningToInterior) return;
     this.isTransitioningToInterior = true;
     this.player.setVelocity(0, 0);
-    this.npc.setVelocityX(0);
+    this.npc?.setVelocityX(0);
     this.hutTooltip?.setVisible(false);
     this.onionPatchTooltip?.setVisible(false);
     this.npcTooltip?.setVisible(false);
