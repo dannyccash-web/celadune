@@ -4003,6 +4003,7 @@ class WildernessScene extends PrototypeScene {
     this.createGround();
     this.createAnimations();
     this.createSlimeAnimations();
+    this.createHitParticleTexture();
     this.createPlayer();
     this.createCamera();
     this.createUI();
@@ -4136,6 +4137,12 @@ class WildernessScene extends PrototypeScene {
           repeat: 10, yoyo: true, onComplete: () => this.player.setAlpha(1),
         });
 
+        // Screen shake — stronger since player is taking damage
+        this.cameras.main.shake(200, 0.007);
+
+        // Hit particles in red/orange at player's torso
+        this.spawnHitParticles(this.player.x, this.player.y - 32, [0xff4422, 0xff9900, 0xffffff], 10);
+
         if (this.playerHealth <= 0) this.onPlayerDeath();
       });
     });
@@ -4157,6 +4164,29 @@ class WildernessScene extends PrototypeScene {
     });
   }
 
+  createHitParticleTexture() {
+    if (this.textures.exists('hitParticle')) return;
+    const g = this.make.graphics({ add: false });
+    g.fillStyle(0xffffff);
+    g.fillCircle(5, 5, 5);
+    g.generateTexture('hitParticle', 10, 10);
+    g.destroy();
+  }
+
+  spawnHitParticles(x, y, tints, count = 8) {
+    const emitter = this.add.particles(x, y, 'hitParticle', {
+      speed:    { min: 70, max: 220 },
+      angle:    { min: 0, max: 360 },
+      scale:    { start: 1.4, end: 0 },
+      lifespan: 320,
+      tint:     tints,
+      depth:    15,
+      emitting: false,
+    });
+    emitter.explode(count);
+    this.time.delayedCall(500, () => emitter.destroy());
+  }
+
   damageSlime(slime) {
     if (!slime.alive) return;
     const now = this.time.now;
@@ -4176,6 +4206,14 @@ class WildernessScene extends PrototypeScene {
     // Hit stop
     this.physics.world.pause();
     this.time.delayedCall(55, () => this.physics.world.resume());
+
+    // Screen shake — subtle (player is the aggressor)
+    this.cameras.main.shake(100, 0.003);
+
+    // Hit particles in the slime's color + white sparks
+    const slimeColors = { blue: 0x55aaff, green: 0x44ee66, red: 0xff5533 };
+    const col = slimeColors[slime.slimePrefix] || 0xffffff;
+    this.spawnHitParticles(slime.x, slime.y - 20, [col, col, 0xffffff], 8);
 
     this.updateSlimeHpBar(slime);
     if (slime.hp <= 0) this.killSlime(slime);
