@@ -3377,10 +3377,10 @@ class CityScene extends PrototypeScene {
 
     // ── Trees between buildings — depth 6.5: in front of wall (6), behind buildings (7) ──
     const treeBY = BLACK_TILE_GROUND_Y; // trees sit on the ground
-    this.add.image(1250, treeBY, 'propTree1').setOrigin(0.5, 1).setScale(3.2).setDepth(6.5);
-    this.add.image(1850, treeBY, 'propTree2').setOrigin(0.5, 1).setScale(3.0).setDepth(6.5);
-    this.add.image(2960, treeBY, 'propTree1').setOrigin(0.5, 1).setScale(3.4).setDepth(6.5);
-    this.add.image(3570, treeBY, 'propTree2').setOrigin(0.5, 1).setScale(3.1).setDepth(6.5);
+    this.add.image(1250, treeBY, 'propTree1').setOrigin(0.5, 1).setScale(2.6).setDepth(6.5);
+    this.add.image(1850, treeBY, 'propTree2').setOrigin(0.5, 1).setScale(2.6).setDepth(6.5);
+    this.add.image(2960, treeBY, 'propTree1').setOrigin(0.5, 1).setScale(2.75).setDepth(6.5);
+    this.add.image(3570, treeBY, 'propTree2').setOrigin(0.5, 1).setScale(2.7).setDepth(6.5);
 
     // ── Bushes at either end of town ──
     this.add.image(60, BLACK_TILE_GROUND_Y, 'propBushCluster').setOrigin(0.5, 1).setScale(3.0).setDepth(pd);
