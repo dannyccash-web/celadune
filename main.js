@@ -1348,7 +1348,7 @@ class PrototypeScene extends Phaser.Scene {
 
     // Scarecrow — just left of the pumpkin patch
     this.add.image(1590, WAGON_BASELINE_Y, 'propScarecrow')
-      .setOrigin(0.5, 1).setScale(2.8).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(2.0).setDepth(this.propDepth);
 
     // More pumpkins scattered further left of the scarecrow
     this.add.image(1510, WAGON_BASELINE_Y, 'decorPumpkinLarge')
