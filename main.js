@@ -1348,7 +1348,7 @@ class PrototypeScene extends Phaser.Scene {
 
     // Scarecrow — just left of the pumpkin patch
     this.add.image(1590, WAGON_BASELINE_Y, 'propScarecrow')
-      .setOrigin(0.5, 1).setScale(3.4).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(2.8).setDepth(this.propDepth);
 
     // More pumpkins scattered further left of the scarecrow
     this.add.image(1510, WAGON_BASELINE_Y, 'decorPumpkinLarge')
@@ -3383,8 +3383,8 @@ class CityScene extends PrototypeScene {
     this.add.image(3570, treeBY, 'propTree2').setOrigin(0.5, 1).setScale(3.1).setDepth(6.5);
 
     // ── Bushes at either end of town ──
-    this.add.image(310, BLACK_TILE_GROUND_Y, 'propBushCluster').setOrigin(0.5, 1).setScale(3.0).setDepth(pd);
-    this.add.image(380, BLACK_TILE_GROUND_Y, 'propBush').setOrigin(0.5, 1).setScale(2.8).setDepth(pd);
+    this.add.image(60, BLACK_TILE_GROUND_Y, 'propBushCluster').setOrigin(0.5, 1).setScale(3.0).setDepth(pd);
+    this.add.image(140, BLACK_TILE_GROUND_Y, 'propBush').setOrigin(0.5, 1).setScale(2.8).setDepth(pd);
     this.add.image(CITY_WORLD_WIDTH - 320, BLACK_TILE_GROUND_Y, 'propBushCluster').setOrigin(0.5, 1).setScale(3.0).setDepth(pd);
     this.add.image(CITY_WORLD_WIDTH - 240, BLACK_TILE_GROUND_Y, 'propBush').setOrigin(0.5, 1).setScale(2.8).setDepth(pd);
   }
