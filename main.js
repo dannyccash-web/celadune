@@ -1393,10 +1393,10 @@ class PrototypeScene extends Phaser.Scene {
       .setOrigin(0.5, 1).setScale(2.0).setDepth(this.propDepth);
     this.add.image(3530, WAGON_BASELINE_Y, 'propSunflowers')
       .setOrigin(0.5, 1).setScale(1.8).setDepth(this.propDepth);
-    this.add.image(3640, WAGON_BASELINE_Y, 'propBushLarge')
-      .setOrigin(0.5, 1).setScale(5.0).setDepth(this.propDepth);
-    this.add.image(3760, WAGON_BASELINE_Y, 'propBushSmall')
-      .setOrigin(0.5, 1).setScale(5.5).setDepth(this.propDepth);
+    this.add.image(3700, WAGON_BASELINE_Y, 'propBushLarge')
+      .setOrigin(0.5, 1).setScale(2.5).setDepth(this.propDepth);
+    this.add.image(3820, WAGON_BASELINE_Y, 'propBushSmall')
+      .setOrigin(0.5, 1).setScale(2.5).setDepth(this.propDepth);
 
     this.onionPatchTooltip = this.add.container(0, 0).setDepth(30).setVisible(false);
     const onionTooltipBg = this.add.rectangle(0, 0, 132, 30, 0x1c1209, 0.82).setStrokeStyle(2, 0xdab56a, 0.95);
@@ -3366,12 +3366,12 @@ class CityScene extends PrototypeScene {
     this.add.image(3860 - 220, baseY, 'decorBarrelsDuo').setOrigin(0.5, 1).setScale(s).setDepth(pd);
     this.add.image(3860 + 200, baseY, 'decorCrateLarge').setOrigin(0.5, 1).setScale(s).setDepth(pd);
 
-    // ── Trees between buildings — depth 8: in front of buildings, fully visible ──
+    // ── Trees between buildings — depth 6.5: behind buildings (7), in front of wall (6) ──
     const treeBY = BLACK_TILE_GROUND_Y;
-    this.add.image(1250, treeBY, 'propTree1').setOrigin(0.5, 1).setScale(2.6).setDepth(8);
-    this.add.image(1850, treeBY, 'propTree2').setOrigin(0.5, 1).setScale(2.6).setDepth(8);
-    this.add.image(2960, treeBY, 'propTree1').setOrigin(0.5, 1).setScale(2.75).setDepth(8);
-    this.add.image(3570, treeBY, 'propTree2').setOrigin(0.5, 1).setScale(2.7).setDepth(8);
+    this.add.image(1250, treeBY, 'propTree1').setOrigin(0.5, 1).setScale(2.6).setDepth(6.5);
+    this.add.image(1850, treeBY, 'propTree2').setOrigin(0.5, 1).setScale(2.6).setDepth(6.5);
+    this.add.image(2960, treeBY, 'propTree1').setOrigin(0.5, 1).setScale(2.75).setDepth(6.5);
+    this.add.image(3570, treeBY, 'propTree2').setOrigin(0.5, 1).setScale(2.7).setDepth(6.5);
 
     // ── Statue between House1 and House3 ──
     this.add.image(2410, baseY, 'propStatue').setOrigin(0.5, 1).setScale(3.5).setDepth(pd);
@@ -3380,10 +3380,10 @@ class CityScene extends PrototypeScene {
     this.add.image(670, baseY, 'propTableApples').setOrigin(0.5, 1).setScale(3.5).setDepth(pd);
 
     // ── Bushes at either end of town ──
-    this.add.image(60, BLACK_TILE_GROUND_Y, 'propBushLarge').setOrigin(0.5, 1).setScale(4.5).setDepth(pd);
-    this.add.image(150, BLACK_TILE_GROUND_Y, 'propBushSmall').setOrigin(0.5, 1).setScale(4.5).setDepth(pd);
-    this.add.image(CITY_WORLD_WIDTH - 320, BLACK_TILE_GROUND_Y, 'propBushLarge').setOrigin(0.5, 1).setScale(4.5).setDepth(pd);
-    this.add.image(CITY_WORLD_WIDTH - 230, BLACK_TILE_GROUND_Y, 'propBushSmall').setOrigin(0.5, 1).setScale(4.5).setDepth(pd);
+    this.add.image(60, BLACK_TILE_GROUND_Y, 'propBushLarge').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
+    this.add.image(150, BLACK_TILE_GROUND_Y, 'propBushSmall').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
+    this.add.image(CITY_WORLD_WIDTH - 320, BLACK_TILE_GROUND_Y, 'propBushLarge').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
+    this.add.image(CITY_WORLD_WIDTH - 230, BLACK_TILE_GROUND_Y, 'propBushSmall').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
   }
 
   createCityDog() {
