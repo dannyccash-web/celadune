@@ -4700,24 +4700,43 @@ class HutInteriorScene extends Phaser.Scene {
       .setOrigin(0.5, 1)
       .setDepth(5);
 
-    // ── Physics boundary bodies (colliders added in spawnPlayer) ───────────
-    // Floor: top edge at y=GY, player's feet rest here
-    this.floorBody = this.add.rectangle(GAME_WIDTH / 2, GY, GAME_WIDTH, 32, 0x000000, 0)
-      .setOrigin(0.5, 0);
-    this.physics.add.existing(this.floorBody, true);
+    // ── Room physics boundaries (exact same pattern as exterior ground) ────
+    // All added to one staticGroup so the single collider call covers everything.
+    const H  = 48;  // collider thickness — same as exterior
+    this.ground = this.physics.add.staticGroup();
 
-    // Ceiling: bottom edge at y=roofY+ROOF_H, blocks upward jumps
-    this.ceilBody = this.add.rectangle(GAME_WIDTH / 2, roofY + ROOF_H, GAME_WIDTH, 32, 0x000000, 0)
-      .setOrigin(0.5, 1);
-    this.physics.add.existing(this.ceilBody, true);
+    const addStatic = (x, y, w, h, noL, noR, noU, noD) => {
+      const r = this.add.rectangle(x, y, w, h, 0x000000, 0);
+      this.physics.add.existing(r, true);
+      if (noL) r.body.checkCollision.left  = false;
+      if (noR) r.body.checkCollision.right = false;
+      if (noU) r.body.checkCollision.up    = false;
+      if (noD) r.body.checkCollision.down  = false;
+      this.ground.add(r);
+    };
+
+    // Floor — centre body just below surface, matching exterior formula
+    addStatic(GAME_WIDTH / 2, GY + 2 + H / 2, GAME_WIDTH, H,  true, true, false, true);
+
+    // Ceiling — centre body just above bottom of roof row
+    const ceilSurface = roofY + ROOF_H;
+    addStatic(GAME_WIDTH / 2, ceilSurface - 2 - H / 2, GAME_WIDTH, H,  true, true, true, false);
+
+    // Left wall — room left edge
+    addStatic(RX - 4, GAME_HEIGHT / 2, 8, GAME_HEIGHT,  false, true, true, true);
+
+    // Right wall — room right edge
+    addStatic(RX + ROOM_W + 4, GAME_HEIGHT / 2, 8, GAME_HEIGHT,  true, false, true, true);
   }
 
   spawnPlayer() {
     const hero    = HEROES[this.heroKey];
     const offsetX = hero?.usesFlipX ? 41 : 22;
-    // Spawn just inside the door (door is at doorCenterX=432, left wall of room)
-    const spawnX  = this.doorCenterX + 60;  // 492 — one step right of door
-    this.player = this.physics.add.sprite(spawnX, this.IGY - 10, `${this.heroKey}-idle`, hero?.initFrame ?? 0);
+    // Spawn ABOVE the floor — same approach as exterior (y=768 with ground at y=888)
+    // Physics gravity settles the player onto the floor naturally
+    const spawnX  = this.doorCenterX + 60;  // 492 — just inside door
+    const spawnY  = this.IGY - 120;          // 768 — well above floor
+    this.player = this.physics.add.sprite(spawnX, spawnY, `${this.heroKey}-idle`, hero?.initFrame ?? 0);
     this.player.setScale(3.1);
     this.player.setCollideWorldBounds(true);
     this.player.setDepth(10);
@@ -4726,9 +4745,8 @@ class HutInteriorScene extends Phaser.Scene {
     this.player.body.setMaxVelocity(350, 1200);
     this.player.body.setDragX(1800);
     this.player.body.setBounce(0);
-    // Floor + ceiling colliders (left/right walls handled by world bounds)
-    this.physics.add.collider(this.player, this.floorBody);
-    this.physics.add.collider(this.player, this.ceilBody);
+    // One collider covers floor, ceiling, and both walls (all in this.ground group)
+    this.physics.add.collider(this.player, this.ground);
   }
 
   createHealthBar() {
