@@ -4700,21 +4700,23 @@ class HutInteriorScene extends Phaser.Scene {
       .setOrigin(0.5, 1)
       .setDepth(5);
 
-    // ── Physics ground at GROUND_Y (same as all exterior scenes) ──────────
-    this.ground = this.physics.add.staticGroup();
-    const gRect = this.add.rectangle(GAME_WIDTH / 2, GY + 24, GAME_WIDTH, 48, 0x000000, 0);
-    this.physics.add.existing(gRect, true);
-    gRect.body.checkCollision.left  = false;
-    gRect.body.checkCollision.right = false;
-    gRect.body.checkCollision.down  = false;
-    this.ground.add(gRect);
+    // ── Physics boundary bodies (colliders added in spawnPlayer) ───────────
+    // Floor: top edge at y=GY, player's feet rest here
+    this.floorBody = this.add.rectangle(GAME_WIDTH / 2, GY, GAME_WIDTH, 32, 0x000000, 0)
+      .setOrigin(0.5, 0);
+    this.physics.add.existing(this.floorBody, true);
+
+    // Ceiling: bottom edge at y=roofY+ROOF_H, blocks upward jumps
+    this.ceilBody = this.add.rectangle(GAME_WIDTH / 2, roofY + ROOF_H, GAME_WIDTH, 32, 0x000000, 0)
+      .setOrigin(0.5, 1);
+    this.physics.add.existing(this.ceilBody, true);
   }
 
   spawnPlayer() {
     const hero    = HEROES[this.heroKey];
     const offsetX = hero?.usesFlipX ? 41 : 22;
-    // Spawn just inside the door — second tile in, at ground level
-    const spawnX  = this.roomX + 220;
+    // Spawn just inside the door (door is at doorCenterX=432, left wall of room)
+    const spawnX  = this.doorCenterX + 60;  // 492 — one step right of door
     this.player = this.physics.add.sprite(spawnX, this.IGY - 10, `${this.heroKey}-idle`, hero?.initFrame ?? 0);
     this.player.setScale(3.1);
     this.player.setCollideWorldBounds(true);
@@ -4724,7 +4726,9 @@ class HutInteriorScene extends Phaser.Scene {
     this.player.body.setMaxVelocity(350, 1200);
     this.player.body.setDragX(1800);
     this.player.body.setBounce(0);
-    this.physics.add.collider(this.player, this.ground);
+    // Floor + ceiling colliders (left/right walls handled by world bounds)
+    this.physics.add.collider(this.player, this.floorBody);
+    this.physics.add.collider(this.player, this.ceilBody);
   }
 
   createHealthBar() {
