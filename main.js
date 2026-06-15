@@ -2222,8 +2222,10 @@ class PrototypeScene extends Phaser.Scene {
     this.onionPatchTooltip?.setVisible(false);
     this.npcTooltip?.setVisible(false);
     this.scene.launch('HutInteriorScene', {
-      heroKey: this.heroKey,
-      returnSceneKey: this.scene.key,
+      heroKey:         this.heroKey,
+      returnSceneKey:  this.scene.key,
+      interiorName:    "Mirelle's Farmhouse",
+      playerHealth:    this.playerHealth,
       returnPosition: {
         x: this.hutDoorZone.x,
         y: this.player.y,
@@ -4539,9 +4541,9 @@ class WildernessScene extends PrototypeScene {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HutInteriorScene — side-scrolling interior of Mirelle's farmhouse
-// Tile sheet: assets/tiles/House Inside Tiles 32x32 v2.png (14 cols × 13 rows)
-// Frame index = row * 14 + col
+// HutInteriorScene — interior of Mirelle's farmhouse
+// Interior generator: roof → 1 plain wall row → 2 wall rows (windows) →
+//   wall_base → alternating floor tiles; door bottom-left; Enter to exit.
 // ─────────────────────────────────────────────────────────────────────────────
 class HutInteriorScene extends Phaser.Scene {
   constructor() {
@@ -4549,101 +4551,126 @@ class HutInteriorScene extends Phaser.Scene {
   }
 
   init(data) {
-    this.heroKey        = data?.heroKey        || 'caelan';
-    this.returnSceneKey = data?.returnSceneKey  || 'PrototypeScene';
-    this.returnPosition = data?.returnPosition  || { x: 2240, y: 800 };
-    this.facing         = 'right';
+    this.heroKey         = data?.heroKey        || 'caelan';
+    this.returnSceneKey  = data?.returnSceneKey  || 'PrototypeScene';
+    this.returnPosition  = data?.returnPosition  || { x: 2240, y: 800 };
+    this.interiorName    = data?.interiorName    || "Mirelle's Farmhouse";
+    this.playerHealth    = Number.isFinite(data?.playerHealth) ? data.playerHealth : 10;
+    this.playerMaxHealth = 10;
+    this.facing          = 'right';
+    this.isAttacking     = false;
   }
 
   preload() {
-    if (!this.textures.exists('houseInterior')) {
-      this.load.spritesheet('houseInterior', 'assets/tiles/House Inside Tiles 32x32 v2.png', {
-        frameWidth: 32, frameHeight: 32,
-      });
-    }
+    const P = 'assets/props/interior/';
+    const load = (key, file) => {
+      if (!this.textures.exists(key)) this.load.image(key, P + file);
+    };
+    load('intFloor1',   'floor_tile_1.png');
+    load('intFloor2',   'floor_tile_2.png');
+    load('intWallBase', 'wall_base.png');
+    load('intWall',     'house_wall.png');
+    load('intRoof',     'house_roof.png');
+    load('intDoor',     'door_open.png');
+    load('intWinOpen',  'window_open.png');
+    load('intWinBlueC', 'blue_window_closed.png');
+    load('intWinBlueO', 'blue_window_open.png');
+    load('intWinRedC',  'red_window_closed.png');
+    load('intWinRedO',  'red_window_open.png');
   }
 
   create() {
+    // Interior physics ground is slightly lower than exterior (940 vs 888)
+    // giving the full wall layout room to breathe above
+    this.IGY = 940;
+
     this.physics.world.gravity.y = 1800;
     this.physics.world.setBounds(0, 0, GAME_WIDTH, GAME_HEIGHT);
     this.cameras.main.setBounds(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    this.cameras.main.setBackgroundColor('#1e150e');
+    this.cameras.main.setBackgroundColor('#2b1a0a');
+
+    // Pick one window type, used for both windows (consistent per building)
+    const WIN_TYPES = ['intWinOpen', 'intWinBlueC', 'intWinBlueO', 'intWinRedC', 'intWinRedO'];
+    this.windowType = WIN_TYPES[Math.floor(Math.random() * WIN_TYPES.length)];
 
     this.buildRoom();
     this.spawnPlayer();
+    this.createHealthBar();
     this.createExitZone();
-    this.createExitHint();
+    this.createDoorTooltip();
 
     this.cursors   = this.input.keyboard.createCursorKeys();
     this.enterKey  = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
     this.escapeKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
-    this.eKey      = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+    this.spaceKey  = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
+    try { this.attackSfx = this.sound.add('attackSfx', { volume: 0.55 }); }
+    catch(e) { this.attackSfx = null; }
   }
 
   buildRoom() {
-    const TS   = 3;        // sprite scale
-    const T    = 32 * TS;  // 96 px per displayed tile
-    const COLS = Math.ceil(GAME_WIDTH / T); // 20 columns = 1920 px
+    const COLS   = 12;
+    const TILE_W = GAME_WIDTH / COLS; // 160 px
+    const GY     = this.IGY;          // 940
 
-    // buildRow: place COLS tiles starting at worldY (origin 0.5, 0)
-    // frameList[col] or frameList[last] if col overruns
-    const buildRow = (worldY, frameList, depth = 2) => {
-      for (let col = 0; col < COLS; col++) {
-        const frame = frameList[Math.min(col, frameList.length - 1)];
-        if (frame < 0) continue;
-        this.add.image(col * T + T / 2, worldY, 'houseInterior', frame)
-          .setScale(TS).setOrigin(0.5, 0).setDepth(depth);
+    // Fill one full-width row with repeating tile images
+    const fillRow = (y, key, dW, dH, depth = 2) => {
+      for (let c = 0; c < COLS; c++) {
+        this.add.image(c * TILE_W, y, key)
+          .setDisplaySize(dW, dH)
+          .setOrigin(0, 0)
+          .setDepth(depth);
       }
     };
 
-    // ── Ceiling beam (y=0 and y=96) ─────────────────────────────────────────
-    //   frames 0-6 = top row, frames 14-20 = bottom row
-    buildRow(0,   [0, 3, 2, 3, 4, 3, 2, 3, 4, 3, 2, 3, 4, 3, 2, 3, 4, 3, 3, 6]);
-    buildRow(96,  [14, 17, 16, 17, 18, 17, 16, 17, 18, 17, 16, 17, 18, 17, 16, 17, 18, 17, 17, 20]);
+    // ── Ceiling / roof (y = 0–160) ──────────────────────────────────────────
+    fillRow(0, 'intRoof', TILE_W, TILE_W);
 
-    // ── Wall (y=192–576) — exit door at cols 2-4 ────────────────────────────
-    //   Row C: plain wall top — 28=L pillar, 29=fill, 34=R pillar
-    const wFill = (l, f, r) => {
-      const row = Array(COLS).fill(f); row[0] = l; row[COLS - 1] = r; return row;
-    };
-    buildRow(192, wFill(28, 29, 34));
+    // ── Wall row 1 — plain, no windows (y = 160–320) ────────────────────────
+    fillRow(160, 'intWall', TILE_W, TILE_W);
 
-    //   Row D: arch above door — 44/45/46 at cols 2-4
-    buildRow(288, [42, 43, 44, 45, 46, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 48]);
+    // ── Wall rows 2 & 3 — windows overlaid (y = 320–640) ────────────────────
+    fillRow(320, 'intWall', TILE_W, TILE_W);
+    fillRow(480, 'intWall', TILE_W, TILE_W);
 
-    //   Row E: door panels — 58=open dark, 59=brown, 60=red at cols 2-4
-    buildRow(384, [56, 57, 58, 59, 60, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 62]);
+    // Two windows (same type), spanning rows 2+3 → 320 px tall
+    [2, 9].forEach(col => {
+      this.add.image(col * TILE_W, 320, this.windowType)
+        .setDisplaySize(TILE_W, 320)
+        .setOrigin(0, 0)
+        .setDepth(3);
+    });
 
-    //   Row F: wall base — terracotta strip 72/73/74 under door
-    buildRow(480, [70, 71, 72, 73, 74, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 76]);
+    // ── Wall base / wainscoting (y = 640–720) ───────────────────────────────
+    fillRow(640, 'intWallBase', TILE_W, 80);
 
-    // ── Floor tiles (y=576–960) ──────────────────────────────────────────────
-    const floorRow = [84, 85, 86, 87, 88, 89, 85, 86, 87, 88, 85, 86, 87, 88, 85, 86, 87, 88, 85, 90];
-    buildRow(576, floorRow);
-    buildRow(672, floorRow);
-    buildRow(768, floorRow);
-    buildRow(864, floorRow);
-    buildRow(960, floorRow);
+    // ── Floor — alternating planks from y=720 to bottom (y = 720–1120) ──────
+    for (let fy = 720; fy < GAME_HEIGHT + 40; fy += 40) {
+      const key = Math.floor((fy - 720) / 40) % 2 === 0 ? 'intFloor1' : 'intFloor2';
+      fillRow(fy, key, TILE_W, 40);
+    }
 
-    // ── Physics ground — surface at GROUND_Y (888) ──────────────────────────
+    // ── Exit door at bottom-left ─────────────────────────────────────────────
+    // Height 300 px: spans wainscoting (640–720) + 220 px into floor area
+    this.add.image(TILE_W / 2, GY, 'intDoor')
+      .setDisplaySize(TILE_W, 300)
+      .setOrigin(0.5, 1)
+      .setDepth(5);
+
+    // ── Physics ground collider at IGY ───────────────────────────────────────
     this.ground = this.physics.add.staticGroup();
-    const colliderH = 48;
-    const groundRect = this.add.rectangle(
-      GAME_WIDTH / 2, GROUND_Y + 2 + colliderH / 2,
-      GAME_WIDTH, colliderH, 0x000000, 0
-    );
-    this.physics.add.existing(groundRect, true);
-    groundRect.body.checkCollision.left  = false;
-    groundRect.body.checkCollision.right = false;
-    groundRect.body.checkCollision.down  = false;
-    this.ground.add(groundRect);
+    const gRect = this.add.rectangle(GAME_WIDTH / 2, GY + 24, GAME_WIDTH, 48, 0x000000, 0);
+    this.physics.add.existing(gRect, true);
+    gRect.body.checkCollision.left  = false;
+    gRect.body.checkCollision.right = false;
+    gRect.body.checkCollision.down  = false;
+    this.ground.add(gRect);
   }
 
   spawnPlayer() {
     const hero    = HEROES[this.heroKey];
     const offsetX = hero?.usesFlipX ? 41 : 22;
-    // Spawn just inside the door at left side (x≈336), y=800 puts feet at ground (888)
-    this.player = this.physics.add.sprite(336, 800, `${this.heroKey}-idle`, hero?.initFrame ?? 0);
+    this.player = this.physics.add.sprite(300, this.IGY - 10, `${this.heroKey}-idle`, hero?.initFrame ?? 0);
     this.player.setScale(3.1);
     this.player.setCollideWorldBounds(true);
     this.player.setDepth(10);
@@ -4655,63 +4682,110 @@ class HutInteriorScene extends Phaser.Scene {
     this.physics.add.collider(this.player, this.ground);
   }
 
+  createHealthBar() {
+    const barX = 24, barY = GAME_HEIGHT - 46, barW = 180, barH = 16;
+    this.healthBarBg = this.add.rectangle(barX, barY, barW, barH, 0x1a0a0a, 0.85)
+      .setOrigin(0, 0).setScrollFactor(0).setDepth(220);
+    this.healthBarFg = this.add.rectangle(barX + 2, barY + 2, barW - 4, barH - 4, 0xdd3333)
+      .setOrigin(0, 0).setScrollFactor(0).setDepth(221);
+    this.healthBarMax = barW - 4;
+    this.healthBarLabel = this.add.text(barX + barW + 8, barY + 1, `${this.playerHealth} / 10`, {
+      fontFamily: 'Roboto Mono', fontSize: '13px', color: '#f5e2b6',
+    }).setOrigin(0, 0).setScrollFactor(0).setDepth(221);
+    this.add.text(barX, barY - 15, 'HP', {
+      fontFamily: 'Roboto Mono', fontSize: '12px', color: '#dd3333',
+    }).setOrigin(0, 0).setScrollFactor(0).setDepth(221);
+    this.updateHealthBar();
+  }
+
+  updateHealthBar() {
+    if (!this.healthBarFg) return;
+    const pct = (this.playerHealth ?? 10) / (this.playerMaxHealth ?? 10);
+    this.healthBarFg.setDisplaySize(Math.max(0, this.healthBarMax * pct), 12);
+    this.healthBarLabel.setText(`${this.playerHealth} / ${this.playerMaxHealth}`);
+  }
+
   createExitZone() {
-    // Zone covers the doorway area: cols 0-4 (x=0 to 480), at player height
-    this.exitZone = this.add.zone(240, GROUND_Y - 100, 480, 220);
+    // Covers left 2 columns around the door
+    this.exitZone = this.add.zone(160, this.IGY - 150, 320, 300);
     this.physics.add.existing(this.exitZone, true);
   }
 
-  createExitHint() {
-    this.exitHint = this.add.container(0, 0).setDepth(25).setVisible(false);
-    const bg   = this.add.rectangle(0, 0, 196, 30, 0x1c1209, 0.88).setStrokeStyle(2, 0xdab56a, 0.95);
-    const text = this.add.text(0, 0, '[E]  Exit farmhouse', {
-      fontFamily: 'Roboto Mono', fontSize: '14px', color: '#f7edd6',
+  createDoorTooltip() {
+    this.doorTooltip = this.add.container(0, 0).setDepth(30).setVisible(false);
+    const bg   = this.add.rectangle(0, 0, 230, 54, 0x1c1209, 0.90).setStrokeStyle(2, 0xdab56a, 0.95);
+    const name = this.add.text(0, -11, this.interiorName, {
+      fontFamily: 'Roboto Mono', fontSize: '15px', color: '#f7edd6', fontStyle: 'bold',
     }).setOrigin(0.5);
-    this.exitHint.add([bg, text]);
+    const hint = this.add.text(0, 12, '[↵ Enter]  Exit', {
+      fontFamily: 'Roboto Mono', fontSize: '12px', color: '#c9b48a',
+    }).setOrigin(0.5);
+    this.doorTooltip.add([bg, name, hint]);
   }
 
-  exitToForest() {
+  startAttack() {
+    if (this.isAttacking) return;
+    const hero = HEROES[this.heroKey];
+    if (!hero?.usesFlipX) return;
+    this.isAttacking = true;
+    this.attackSfx?.play();
+    const dir = this.facing === 'right' ? 'right' : 'left';
+    this.player.anims.play(`${this.heroKey}-special_attack-${dir}`, true);
+    this.player.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+      this.isAttacking = false;
+    });
+  }
+
+  exitToReturnScene() {
     const returnScene = this.scene.get(this.returnSceneKey);
     this.scene.stop();
     returnScene.returnFromHut(this.returnPosition);
   }
 
   update() {
-    const body      = this.player.body;
-    const onGround  = body.blocked.down || body.touching.down;
-    const upPressed = Phaser.Input.Keyboard.JustDown(this.cursors.up);
+    const body     = this.player.body;
+    const onGround = body.blocked.down || body.touching.down;
 
-    // Horizontal movement
+    // Movement
     let velX = 0;
-    if (this.cursors.left.isDown)  { velX = -260; this.facing = 'left'; }
-    else if (this.cursors.right.isDown) { velX = 260; this.facing = 'right'; }
-    this.player.setVelocityX(velX);
+    if (this.cursors.left.isDown)       { velX = -260; this.facing = 'left'; }
+    else if (this.cursors.right.isDown) { velX = 260;  this.facing = 'right'; }
+    if (!this.isAttacking) this.player.setVelocityX(velX);
 
     // Jump
-    if (upPressed && onGround) this.player.setVelocityY(-760);
+    if (Phaser.Input.Keyboard.JustDown(this.cursors.up) && onGround) {
+      this.player.setVelocityY(-760);
+    }
 
-    // Animations (reuse outdoor animation keys created by PrototypeScene)
+    // Attack
+    if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) this.startAttack();
+
+    // Animations (uses keys already registered by PrototypeScene)
     const hero    = HEROES[this.heroKey];
-    const dir     = this.facing === 'left' ? 'left' : 'right';
+    const animDir = this.facing === 'left' ? 'left' : 'right';
     if (hero?.usesFlipX) this.player.setFlipX(this.facing === 'right');
-    if (Math.abs(velX) > 5) {
-      this.player.anims.play(`${this.heroKey}-walk-${dir}`, true);
+    if (this.isAttacking) {
+      // hold attack until complete
+    } else if (!onGround) {
+      this.player.anims.play(`${this.heroKey}-jump-${animDir}`, true);
+      if (this.player.body.velocity.y > -20) this.player.anims.pause(this.player.anims.currentFrame);
+    } else if (Math.abs(velX) > 5) {
+      this.player.anims.play(`${this.heroKey}-walk-${animDir}`, true);
     } else {
-      this.player.anims.play(`${this.heroKey}-idle-${dir}`, true);
+      this.player.anims.play(`${this.heroKey}-idle-${animDir}`, true);
     }
     this.player.setDepth(10);
 
-    // Exit door interaction
+    // Door / exit interaction
     const nearDoor = this.physics.overlap(this.player, this.exitZone);
-    this.exitHint.setVisible(nearDoor);
+    this.doorTooltip.setVisible(nearDoor);
     if (nearDoor) {
-      this.exitHint.setPosition(this.player.x, this.player.y - 120);
+      this.doorTooltip.setPosition(this.player.x, this.player.y - 130);
       if (
-        Phaser.Input.Keyboard.JustDown(this.eKey) ||
         Phaser.Input.Keyboard.JustDown(this.enterKey) ||
         Phaser.Input.Keyboard.JustDown(this.escapeKey)
       ) {
-        this.exitToForest();
+        this.exitToReturnScene();
       }
     }
   }
