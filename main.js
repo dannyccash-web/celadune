@@ -4580,9 +4580,8 @@ class HutInteriorScene extends Phaser.Scene {
   }
 
   create() {
-    // Interior physics ground is slightly lower than exterior (940 vs 888)
-    // giving the full wall layout room to breathe above
-    this.IGY = 940;
+    // Interior ground is near the bottom of screen, just above the HUD
+    this.IGY = 1000;
 
     this.physics.world.gravity.y = 1800;
     this.physics.world.setBounds(0, 0, GAME_WIDTH, GAME_HEIGHT);
@@ -4609,55 +4608,79 @@ class HutInteriorScene extends Phaser.Scene {
   }
 
   buildRoom() {
-    const COLS   = 12;
-    const TILE_W = GAME_WIDTH / COLS; // 160 px
-    const GY     = this.IGY;          // 940
+    // ── Tile constants (4× scale) ────────────────────────────────────────────
+    // Roof native 32×32  → displayed 128×128
+    // Wall native 30×30  → displayed 128×128  (tiny stretch, looks fine)
+    // WallBase 16×16     → displayed 128×64
+    // Floor native 32×8  → displayed 128×32
+    // Window native 32×64 → displayed 128×256 (spans 2 wall rows)
+    // Door native 32×46  → displayed 128×184
+    // 15 columns × 128 px = 1920 px exactly
+    const TILE_W  = 128;
+    const COLS    = 15;
+    const ROOF_H  = 128;
+    const WALL_H  = 128;
+    const BASE_H  = 64;
+    const FLOOR_H = 32;
+    const WIN_H   = 256;   // spans 2 wall rows (128×2)
+    const DOOR_H  = 184;   // 4× native 46 px
+    const GY      = this.IGY; // 1000 — floor tiles start here
 
-    // Fill one full-width row with repeating tile images
-    const fillRow = (y, key, dW, dH, depth = 2) => {
+    // Room is built BOTTOM-UP from GY:
+    //   floor strip  : GY  → GY + FLOOR_H×3   (barely visible, 3 rows below physics ground)
+    //   wall_base    : GY - BASE_H   = 936
+    //   wall row 1*  : GY - BASE_H - WALL_H     = 808  (* = has windows)
+    //   wall row 2*  : GY - BASE_H - WALL_H×2   = 680
+    //   wall row 3   : GY - BASE_H - WALL_H×3   = 552  (plain, no windows)
+    //   roof         : GY - BASE_H - WALL_H×3 - ROOF_H = 424
+    //   above roof   : dark background (#2b1a0a)
+    const roofY  = GY - BASE_H - 3 * WALL_H - ROOF_H; // 424
+    const wall3Y = roofY + ROOF_H;                      // 552  plain
+    const wall2Y = wall3Y + WALL_H;                     // 680  windows
+    const wall1Y = wall2Y + WALL_H;                     // 808  windows
+    const baseY  = wall1Y + WALL_H;                     // 936  wainscoting
+
+    const fillRow = (y, key, dH, depth = 2) => {
       for (let c = 0; c < COLS; c++) {
         this.add.image(c * TILE_W, y, key)
-          .setDisplaySize(dW, dH)
+          .setDisplaySize(TILE_W, dH)
           .setOrigin(0, 0)
           .setDepth(depth);
       }
     };
 
-    // ── Ceiling / roof (y = 0–160) ──────────────────────────────────────────
-    fillRow(0, 'intRoof', TILE_W, TILE_W);
+    // ── Roof / ceiling ───────────────────────────────────────────────────────
+    fillRow(roofY,  'intRoof',     ROOF_H);
 
-    // ── Wall row 1 — plain, no windows (y = 160–320) ────────────────────────
-    fillRow(160, 'intWall', TILE_W, TILE_W);
+    // ── Wall rows ────────────────────────────────────────────────────────────
+    fillRow(wall3Y, 'intWall',     WALL_H);          // plain
+    fillRow(wall2Y, 'intWall',     WALL_H);          // windows row top
+    fillRow(wall1Y, 'intWall',     WALL_H);          // windows row bottom
 
-    // ── Wall rows 2 & 3 — windows overlaid (y = 320–640) ────────────────────
-    fillRow(320, 'intWall', TILE_W, TILE_W);
-    fillRow(480, 'intWall', TILE_W, TILE_W);
-
-    // Two windows (same type), spanning rows 2+3 → 320 px tall
-    [2, 9].forEach(col => {
-      this.add.image(col * TILE_W, 320, this.windowType)
-        .setDisplaySize(TILE_W, 320)
+    // ── Windows (same type, 2 per building, spanning both window wall rows) ─
+    [3, 11].forEach(col => {
+      this.add.image(col * TILE_W, wall2Y, this.windowType)
+        .setDisplaySize(TILE_W, WIN_H)
         .setOrigin(0, 0)
         .setDepth(3);
     });
 
-    // ── Wall base / wainscoting (y = 640–720) ───────────────────────────────
-    fillRow(640, 'intWallBase', TILE_W, 80);
+    // ── Wall base / wainscoting ───────────────────────────────────────────────
+    fillRow(baseY,  'intWallBase', BASE_H);
 
-    // ── Floor — alternating planks from y=720 to bottom (y = 720–1120) ──────
-    for (let fy = 720; fy < GAME_HEIGHT + 40; fy += 40) {
-      const key = Math.floor((fy - 720) / 40) % 2 === 0 ? 'intFloor1' : 'intFloor2';
-      fillRow(fy, key, TILE_W, 40);
+    // ── Floor strip — just above HUD (and extending a few rows below ground) ─
+    for (let i = 0; i < 4; i++) {
+      const key = i % 2 === 0 ? 'intFloor1' : 'intFloor2';
+      fillRow(GY + i * FLOOR_H, key, FLOOR_H);
     }
 
     // ── Exit door at bottom-left ─────────────────────────────────────────────
-    // Height 300 px: spans wainscoting (640–720) + 220 px into floor area
     this.add.image(TILE_W / 2, GY, 'intDoor')
-      .setDisplaySize(TILE_W, 300)
+      .setDisplaySize(TILE_W, DOOR_H)
       .setOrigin(0.5, 1)
       .setDepth(5);
 
-    // ── Physics ground collider at IGY ───────────────────────────────────────
+    // ── Physics ground collider at GY ────────────────────────────────────────
     this.ground = this.physics.add.staticGroup();
     const gRect = this.add.rectangle(GAME_WIDTH / 2, GY + 24, GAME_WIDTH, 48, 0x000000, 0);
     this.physics.add.existing(gRect, true);
@@ -4670,7 +4693,7 @@ class HutInteriorScene extends Phaser.Scene {
   spawnPlayer() {
     const hero    = HEROES[this.heroKey];
     const offsetX = hero?.usesFlipX ? 41 : 22;
-    this.player = this.physics.add.sprite(300, this.IGY - 10, `${this.heroKey}-idle`, hero?.initFrame ?? 0);
+    this.player = this.physics.add.sprite(350, this.IGY - 10, `${this.heroKey}-idle`, hero?.initFrame ?? 0);
     this.player.setScale(3.1);
     this.player.setCollideWorldBounds(true);
     this.player.setDepth(10);
@@ -4706,8 +4729,8 @@ class HutInteriorScene extends Phaser.Scene {
   }
 
   createExitZone() {
-    // Covers left 2 columns around the door
-    this.exitZone = this.add.zone(160, this.IGY - 150, 320, 300);
+    // Covers the door column (128 px wide) and a bit right of it
+    this.exitZone = this.add.zone(128, this.IGY - 100, 256, 220);
     this.physics.add.existing(this.exitZone, true);
   }
 
