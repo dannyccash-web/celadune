@@ -4542,21 +4542,18 @@ class WildernessScene extends PrototypeScene {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BUILDING INTERIOR SYSTEM
-// Pre-defined building configs — one per interior, like NPC/building configs.
-// No random generation at runtime; interiors are deterministic.
+// Pre-defined building configs — deterministic, one per interior.
 //
-// Layout (TILE=64px, 2× native 32px):
-//   20 cols × 7 rows centred on 1920×1080:
-//     Row 0       roof       y=316
-//     Rows 1–4   wall       y=380–572
-//     Row 5       wall_base  y=636
-//     Row 6       floor      y=700  ← physics ground surface
-//   RX=320, RY=316; room = 1280×448 px
-//   Windows: 64×128, centred in wall rows 1–4 at winY=444
-//   Door: col 0, 64×128, covers rows 5–6
+// Room layout — all tiles at 2× native px:
+//   Tile column width: 64px (2× native 32px)
+//   Row heights at 2×: roof=64, wall=64, wallbase=32, floor=16
+//   20 cols × (64+4×64+32+16) = 1280×368 px, centred on 1920×1080
+//   RX=320, RY=356
+//   Ceiling surface (CEIL_Y) = 420
+//   Ground surface (GY)      = 708
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Furniture display sizes at 2× native resolution (native px × 2)
+// Furniture display sizes at 2× native resolution
 const FURN_SIZES = {
   furnCabinet:      { w: 128, h: 192 },
   furnCabinetDark:  { w: 128, h: 192 },
@@ -4583,28 +4580,25 @@ const FURN_SIZES = {
   furnChestOpen:    { w: 128, h: 128 },
 };
 
-// Mirelle's farmhouse interior — passed via scene.launch interiorConfig
+// Mirelle's farmhouse interior config
 const MIRELLE_FARMHOUSE = {
   key:        'mirelle_farmhouse',
   name:       "Mirelle's Farmhouse",
-  windowType: 'intWinBlueO',    // blue open window
+  windowType: 'intWinBlueO',
   windowCols: [5, 10, 15],
   furniture: [
-    // ceiling items — hang down from CEIL_Y=380
     { key: 'furnChandelier',  placement: 'ceiling', col:  7 },
     { key: 'furnCurtainGold', placement: 'ceiling', col:  4 },
-    // ground items — sit on floor surface GY=700
     { key: 'furnSofaRed',     placement: 'ground',  col:  8 },
     { key: 'furnCabinet',     placement: 'ground',  col: 17 },
-    // wall items — centred vertically in wall area at wallMidY=508
     { key: 'furnPicture',     placement: 'wall',    col: 12 },
   ],
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HutInteriorScene — side-scrolling room interior (launched over PrototypeScene)
-// ALL mechanics (movement speed, jump height, attack, animations, HUD) are
-// identical to PrototypeScene.  Nothing changes for the player inside a building.
+// HutInteriorScene
+// All game mechanics (movement, jump, attack, animations, HUD) are identical
+// to PrototypeScene.  Entering a building changes nothing for the player.
 // ─────────────────────────────────────────────────────────────────────────────
 class HutInteriorScene extends Phaser.Scene {
   constructor() { super('HutInteriorScene'); }
@@ -4628,7 +4622,6 @@ class HutInteriorScene extends Phaser.Scene {
     const load = (key, path) => {
       if (!this.textures.exists(key)) this.load.image(key, path);
     };
-    // Structural tiles
     load('intFloor1',    P + 'floor_tile_1.png');
     load('intFloor2',    P + 'floor_tile_2.png');
     load('intWallBase',  P + 'wall_base.png');
@@ -4640,7 +4633,6 @@ class HutInteriorScene extends Phaser.Scene {
     load('intWinBlueO',  P + 'blue_window_open.png');
     load('intWinRedC',   P + 'red_window_closed.png');
     load('intWinRedO',   P + 'red_window_open.png');
-    // Furniture library (all loaded up-front; textures.exists() prevents re-loads)
     load('furnCabinet',      F + 'cabinet_wood.png');
     load('furnCabinetDark',  F + 'cabinet_dark.png');
     load('furnArmoire',      F + 'armoire.png');
@@ -4667,27 +4659,32 @@ class HutInteriorScene extends Phaser.Scene {
   }
 
   create() {
-    // Room layout constants
-    const TILE   = 64;                           // 2× native 32px
-    const COLS   = 20;
-    const ROWS   = 7;                            // roof + 4 wall + wallbase + floor
-    const ROOM_W = COLS * TILE;                  // 1280
-    const ROOM_H = ROWS * TILE;                  // 448
-    const RX     = (GAME_WIDTH  - ROOM_W) / 2;  // 320
-    const RY     = (GAME_HEIGHT - ROOM_H) / 2;  // 316
-    const GY     = RY + (ROWS - 1) * TILE;      // 700  — floor row top / physics ground
-    const CEIL_Y = RY + TILE;                    // 380  — ceiling surface (bottom of roof row)
+    // ── Room layout constants (all at 2× native pixel dimensions) ────────────
+    const TILE    = 64;   // column width = 2× native 32px
+    const COLS    = 20;
+    const ROOM_W  = COLS * TILE;                         // 1280
+    const ROOF_H  = 64;   // house_roof.png  32×32 → 64×64
+    const WALL_H  = 64;   // house_wall.png  30×30 → 64×64  (slight stretch)
+    const WBASE_H = 32;   // wall_base.png   16×16 → 64×32  natural 2× height
+    const FLOOR_H = 16;   // floor_tile.png  32×8  → 64×16  natural 2× height
+    const ROOM_H  = ROOF_H + 4 * WALL_H + WBASE_H + FLOOR_H;  // 368
+    const RX      = (GAME_WIDTH  - ROOM_W) / 2;         // 320
+    const RY      = (GAME_HEIGHT - ROOM_H) / 2;         // 356
+    const CEIL_Y  = RY + ROOF_H;                         // 420  ceiling surface
+    const WALL_BOT = CEIL_Y + 4 * WALL_H;               // 676  wallbase top
+    const GY      = WALL_BOT + WBASE_H;                 // 708  floor top / ground
 
     this.roomX       = RX;
     this.roomW       = ROOM_W;
     this.roomGY      = GY;
-    this.doorCenterX = RX + TILE / 2;           // 352  — col 0 centre
+    this.doorCenterX = RX + TILE / 2;                   // 352  col-0 centre
 
     this.physics.world.gravity.y = 1800;
     this.cameras.main.setBackgroundColor('#000000');
     this.cameras.main.setBounds(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
-    this.buildRoom(TILE, COLS, ROWS, RX, RY, GY, CEIL_Y);
+    // Pass ALL layout values to buildRoom — avoids any scope issues
+    this.buildRoom({ TILE, COLS, ROOM_W, ROOF_H, WALL_H, WBASE_H, FLOOR_H, RX, RY, CEIL_Y, WALL_BOT, GY });
     this.physics.world.setBounds(RX, 0, ROOM_W, GAME_HEIGHT);
 
     this.spawnPlayer(GY);
@@ -4706,74 +4703,70 @@ class HutInteriorScene extends Phaser.Scene {
     catch(e) { this.jumpSfx = null; }
   }
 
-  buildRoom(TILE, COLS, ROWS, RX, RY, GY, CEIL_Y) {
+  buildRoom({ TILE, COLS, ROOM_W, ROOF_H, WALL_H, WBASE_H, FLOOR_H, RX, RY, CEIL_Y, WALL_BOT, GY }) {
     const cfg = this.interiorConfig;
 
-    // Fill one full row with a tile
-    const fillRow = (rowIndex, key, depth) => {
-      const y = RY + rowIndex * TILE;
+    // Fill a row — y is the top-left y, dH is display height
+    const fillRow = (y, key, dH, depth) => {
       for (let c = 0; c < COLS; c++) {
         this.add.image(RX + c * TILE, y, key)
-          .setDisplaySize(TILE, TILE)
+          .setDisplaySize(TILE, dH)
           .setOrigin(0, 0)
           .setDepth(depth);
       }
     };
 
-    // ── Structural tiles (depth 2) ──────────────────────────────────────────
-    fillRow(0, 'intRoof',     2);  // row 0: roof/ceiling strip
-    fillRow(1, 'intWall',     2);  // rows 1–4: walls
-    fillRow(2, 'intWall',     2);
-    fillRow(3, 'intWall',     2);
-    fillRow(4, 'intWall',     2);
-    fillRow(5, 'intWallBase', 2);  // row 5: wainscoting
+    // ── Structural tiles ────────────────────────────────────────────────────
+    fillRow(RY,                      'intRoof',     ROOF_H,  2);  // roof 64px
+    fillRow(RY + ROOF_H,             'intWall',     WALL_H,  2);  // wall row 1
+    fillRow(RY + ROOF_H +   WALL_H,  'intWall',     WALL_H,  2);  // wall row 2
+    fillRow(RY + ROOF_H + 2*WALL_H,  'intWall',     WALL_H,  2);  // wall row 3
+    fillRow(RY + ROOF_H + 3*WALL_H,  'intWall',     WALL_H,  2);  // wall row 4
+    fillRow(WALL_BOT,                'intWallBase', WBASE_H, 2);  // wainscot 32px
+    // Floor: alternating tiles at natural 2× height (16px)
     for (let c = 0; c < COLS; c++) {
-      // row 6: alternating floor tiles
       this.add.image(RX + c * TILE, GY, c % 2 === 0 ? 'intFloor1' : 'intFloor2')
-        .setDisplaySize(TILE, TILE)
+        .setDisplaySize(TILE, FLOOR_H)   // 64×16 — natural 2× height
         .setOrigin(0, 0)
         .setDepth(2);
     }
 
     // ── Windows: centred vertically in the 4 wall rows ─────────────────────
-    // Wall area: CEIL_Y(380) → wallbase top (RY+5*TILE=636), height 256px
-    // Window: 64×128 (native 32×64 at 2×) → centred at winY=444
-    const WIN_H   = TILE * 2;                             // 128
-    const wallTop = CEIL_Y;                                // 380
-    const wallBot = RY + 5 * TILE;                        // 636
-    const winY    = wallTop + ((wallBot - wallTop) - WIN_H) / 2;  // 444
-    const SKY     = 0xc8dde8;
+    // Wall area height = 4 × WALL_H = 256px; window = 64×128 at 2×
+    const WIN_H = 128;
+    const winY  = CEIL_Y + (4 * WALL_H - WIN_H) / 2;  // 420 + 64 = 484
+    const SKY   = 0xc8dde8;
 
     cfg.windowCols.forEach(col => {
       const wx = RX + col * TILE;
       this.add.rectangle(wx, winY, TILE, WIN_H, SKY)
-        .setOrigin(0, 0).setDepth(1);                     // sky behind wall
+        .setOrigin(0, 0).setDepth(1);          // sky behind wall
       this.add.image(wx, winY, cfg.windowType)
         .setDisplaySize(TILE, WIN_H)
-        .setOrigin(0, 0).setDepth(4);                     // window frame in front of wall
+        .setOrigin(0, 0).setDepth(4);          // window in front of wall
     });
 
-    // ── Exit door: col 0, spans wallbase + floor rows (rows 5–6) ───────────
-    this.add.image(this.doorCenterX, RY + ROWS * TILE, 'intDoor')
-      .setDisplaySize(TILE, TILE * 2)   // 64×128
+    // ── Door: col 0, natural 2× = 64×92; bottom flush with room bottom ──────
+    const DOOR_H = 92;  // 32×46 native → 92 at 2×
+    this.add.image(this.doorCenterX, GY + FLOOR_H, 'intDoor')
+      .setDisplaySize(TILE, DOOR_H)
       .setOrigin(0.5, 1)
       .setDepth(5);
 
-    // ── Furniture (depth 6=ceiling, 7=wall, 8=ground; player=10) ───────────
-    const wallMidY = wallTop + (wallBot - wallTop) / 2;   // 508
+    // ── Furniture ──────────────────────────────────────────────────────────
+    const wallMidY = CEIL_Y + (4 * WALL_H) / 2;  // 420 + 128 = 548
 
     cfg.furniture.forEach(f => {
       const sz = FURN_SIZES[f.key];
       if (!sz) { console.warn('HutInteriorScene: unknown furniture key', f.key); return; }
-      // Left edge at col; centre shifts right by half the display width
       const cx = RX + f.col * TILE + sz.w / 2;
       let y, originY, depth;
       if (f.placement === 'ceiling') {
-        y = CEIL_Y;    originY = 0;   depth = 6;   // hang down from ceiling
+        y = CEIL_Y;   originY = 0;   depth = 6;   // hangs down from ceiling
       } else if (f.placement === 'wall') {
-        y = wallMidY;  originY = 0.5; depth = 7;   // centred on wall area
+        y = wallMidY; originY = 0.5; depth = 7;   // centred on wall height
       } else {
-        y = GY;        originY = 1;   depth = 8;   // sit on floor surface
+        y = GY;       originY = 1;   depth = 8;   // sits on floor surface
       }
       this.add.image(cx, y, f.key)
         .setDisplaySize(sz.w, sz.h)
@@ -4781,8 +4774,8 @@ class HutInteriorScene extends Phaser.Scene {
         .setDepth(depth);
     });
 
-    // ── Physics boundaries — exact exterior staticGroup pattern ────────────
-    // Formula: floor collider centre at surfaceY + 2 + H/2 (matches exterior)
+    // ── Physics — exact exterior staticGroup pattern ────────────────────────
+    // Floor collider: surfaceY + 2 + H/2  (matches exterior exactly)
     const H = 48;
     this.ground = this.physics.add.staticGroup();
 
@@ -4796,20 +4789,19 @@ class HutInteriorScene extends Phaser.Scene {
       this.ground.add(r);
     };
 
-    addStatic(GAME_WIDTH / 2, GY + 2 + H / 2,       GAME_WIDTH, H, true,  true,  false, true);   // floor
-    addStatic(GAME_WIDTH / 2, CEIL_Y - 2 - H / 2,   GAME_WIDTH, H, true,  true,  true,  false);  // ceiling
-    addStatic(RX - 4,          GAME_HEIGHT / 2, 8, GAME_HEIGHT, false, true,  true, true);        // left wall
-    addStatic(RX + ROOM_W + 4, GAME_HEIGHT / 2, 8, GAME_HEIGHT, true,  false, true, true);        // right wall
+    addStatic(GAME_WIDTH / 2, GY + 2 + H/2,      GAME_WIDTH, H, true,  true,  false, true);   // floor
+    addStatic(GAME_WIDTH / 2, CEIL_Y - 2 - H/2,  GAME_WIDTH, H, true,  true,  true,  false);  // ceiling
+    addStatic(RX - 4,          GAME_HEIGHT / 2, 8, GAME_HEIGHT, false, true,  true,  true);    // left wall
+    addStatic(RX + ROOM_W + 4, GAME_HEIGHT / 2, 8, GAME_HEIGHT, true,  false, true,  true);   // right wall
   }
 
   spawnPlayer(GY) {
     const hero    = HEROES[this.heroKey];
     const offsetX = hero?.usesFlipX ? 41 : 22;
-    // Spawn 120px above floor — gravity settles player onto ground naturally.
-    // Same Δ as exterior (exterior: y=768, GROUND_Y=888 → Δ=120).
+    // Spawn 120px above floor — same Δ as exterior (y=768 with GROUND_Y=888 → Δ=120)
     this.player = this.physics.add.sprite(
-      this.doorCenterX + 60,   // just inside the door
-      GY - 120,                // 580 — well above floor, falls naturally
+      this.doorCenterX + 60,  // just inside the door
+      GY - 120,               // 588 — falls naturally to floor
       `${this.heroKey}-idle`,
       hero?.initFrame ?? 0
     );
@@ -4889,26 +4881,22 @@ class HutInteriorScene extends Phaser.Scene {
     const moveSpeed = 260;
     let velocityX   = 0;
 
-    // Movement — identical to PrototypeScene
     if (this.cursors.left.isDown)       { velocityX = -moveSpeed; this.facing = 'left'; }
     else if (this.cursors.right.isDown) { velocityX =  moveSpeed; this.facing = 'right'; }
     if (!this.isAttacking) this.player.setVelocityX(velocityX);
 
-    // Jump — identical to PrototypeScene (velocityY -760, jumpSfx)
     if (Phaser.Input.Keyboard.JustDown(this.cursors.up) && onGround) {
       this.player.setVelocityY(-760);
       this.jumpSfx?.play();
     }
 
-    // Attack
     if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) this.startAttack();
 
-    // Animations — identical to PrototypeScene
     const hero    = HEROES[this.heroKey];
     const animDir = this.facing === 'left' ? 'left' : 'right';
     if (hero?.usesFlipX) this.player.setFlipX(this.facing === 'right');
     if (this.isAttacking) {
-      // hold until ANIMATION_COMPLETE fires
+      // hold until complete
     } else if (!onGround) {
       this.player.setScale(this.playerBaseScaleX, this.playerBaseScaleY);
       this.player.anims.play(`${this.heroKey}-jump-${animDir}`, true);
@@ -4922,7 +4910,6 @@ class HutInteriorScene extends Phaser.Scene {
     }
     this.player.setDepth(10);
 
-    // Exit via door
     const nearDoor = this.physics.overlap(this.player, this.exitZone);
     this.doorTooltip.setVisible(nearDoor);
     if (nearDoor) {
