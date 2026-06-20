@@ -1002,34 +1002,15 @@ class PrototypeScene extends Phaser.Scene {
   }
 
   applyTextureFiltering() {
-    this.setTextureFilter(['forestSky', 'forestMountain', 'forestBack', 'forestMid', 'forestShort', 'forestHutInterior'], Phaser.Textures.FilterMode.LINEAR);
-    this.setTextureFilter([
-      'blackTile', 'ground0', 'ground1', 'ground2', 'ground3', 'floorTiles2',
-      'cityGround1', 'cityGround2', 'cityGround3', 'parchment', 'forestHut',
-      'brokenWagon', 'onionPatch', 'largeTent', 'furnace', 'menuOnions', 'wayfarersSalve',
-      'decorSmallTent', 'decorCauldron', 'decorWoodLogs', 'decorGrassLarge', 'decorGrassSmall', 'decorPumpkinSmall', 'decorPumpkinLarge',
-      'decorBarrelLarge', 'decorBarrelSmall', 'decorCrate',
-      'decorCrateSmall', 'decorCrateLarge', 'decorBarrelRound', 'decorBarrelsDuo', 'decorStool', 'decorPottery',
-      'dogWalk', 'dogWalkGrey', 'cookingArea',
-      'cityHouse1', 'cityHouse2', 'cityHouse3', 'cityBlacksmithShop', 'cityTavern',
-      'cityMagicShop', 'cityArchway', 'cityBrickWall',
-      'forestLady-idle', 'forestLady-walk',
-      `${HUT_WANDERER.key}-walk`, `${HUT_WANDERER.key}-idle`,
-      `${FARM_WORKER.key}-walk`, `${FARM_WORKER.key}-idle`,
-      ...Object.keys(CITY_NPCS).flatMap((npcKey) => [`${CITY_NPCS[npcKey].key}-walk`, `${CITY_NPCS[npcKey].key}-idle`]),
-      ...Object.values(HEROES).flatMap((hero) => {
-        const base = [`${hero.key}-walk`, `${hero.key}-idle`, `${hero.key}-jump`];
-        if (hero.usesFlipX) {
-          return base.concat([
-            'run', 'walk_heavy', 'attack', 'death',
-            'idle_sword', 'walk_sword', 'run_sword', 'walk_sword_heavy',
-            'jump_sword', 'attack_sword', 'death_sword',
-            'special_attack', 'special_slash', 'combo_attack',
-          ].map((a) => `${hero.key}-${a}`));
-        }
-        return base;
-      }),
-    ], Phaser.Textures.FilterMode.NEAREST);
+    // Set NEAREST (pixel-crisp) on every loaded texture, then override backgrounds to LINEAR.
+    const linearKeys = new Set(['forestSky', 'forestMountain', 'forestBack', 'forestMid', 'forestShort', 'forestHutInterior']);
+    this.textures.each((texture) => {
+      if (texture.key === '__DEFAULT' || texture.key === '__MISSING') return;
+      const mode = linearKeys.has(texture.key)
+        ? Phaser.Textures.FilterMode.LINEAR
+        : Phaser.Textures.FilterMode.NEAREST;
+      texture.setFilter(mode);
+    });
   }
 
   shouldUseSceneAtmosphere() {
