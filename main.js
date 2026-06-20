@@ -930,9 +930,11 @@ class PrototypeScene extends Phaser.Scene {
       const rightCliffRows = Math.max(0, Math.round((nextY - surfaceY) / TILE_PX));
 
       for (let row = 1; row <= fillRows; row++) {
-        let fillFrame = T.fill;
+        // Only render cliff-face tiles — plain fill rows use the solid dark rectangle (depth 1)
+        let fillFrame = null;
         if (leftCliffRows > 0 && row <= leftCliffRows)       fillFrame = T.leftFill;
         else if (rightCliffRows > 0 && row <= rightCliffRows) fillFrame = T.rightFill;
+        if (fillFrame === null) continue;
         const f = this.add.image(cx, surfaceY + TILE_PX * row, 'floorTiles2', fillFrame)
           .setScale(TILE_SCALE).setOrigin(0.5, 0).setDepth(2);
         this.groundBack.add(f);
