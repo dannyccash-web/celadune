@@ -587,7 +587,7 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('ground1', 'assets/tiles/ground_tile_1.png');
     this.load.image('ground2', 'assets/tiles/ground_tile_2.png');
     this.load.image('ground3', 'assets/tiles/ground_tile_3.png');
-    this.load.spritesheet('floorTiles2', 'assets/tiles/floor_tiles2.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('floorTiles2', 'assets/tiles/floor_tiles2.png', { frameWidth: 96, frameHeight: 96 });
     this.load.image('cityGround1', 'assets/tiles/cobblestone_tile_1.png');
     this.load.image('cityGround2', 'assets/tiles/cobblestone_tile_2.png');
     this.load.image('cityGround3', 'assets/tiles/cobblestone_tile_3.png');
@@ -879,8 +879,8 @@ class PrototypeScene extends Phaser.Scene {
 
   // ── Tile constants for Floor Tiles2.png (9 cols × 18 rows, 32×32 px per tile) ──
   // Frame index = row * 9 + col
-  static get TILE_PX() { return 96; } // 32 px × scale 3
-  static get TILE_SCALE() { return 3; }
+  static get TILE_PX() { return 96; } // 96 px native (pre-baked)
+  static get TILE_SCALE() { return 1; }
   static get TILE_FRAMES() {
     return {
       green: { topL: 0,  topC: 1,  topR: 2,  fill: 10, leftFill: 9,  rightFill: 11 },
@@ -3062,7 +3062,7 @@ class CityScene extends PrototypeScene {
   createCityBuildings() {
     this.cityBuildings = this.add.group();
 
-    const baseY = BLACK_TILE_GROUND_Y;
+    const baseY = BLACK_TILE_GROUND_Y - 12;
     // Town entrance (archway) at x=380, then buildings ~580px apart
     const placements = [
       { key: 'cityArchway',        x:  380 },
@@ -3402,8 +3402,8 @@ class CityScene extends PrototypeScene {
     // ── Bushes at either end of town ──
     this.add.image(60, BLACK_TILE_GROUND_Y, 'propBushLarge').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
     this.add.image(150, BLACK_TILE_GROUND_Y, 'propBushSmall').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
-    this.add.image(CITY_WORLD_WIDTH - 320, BLACK_TILE_GROUND_Y, 'propBushLarge').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
-    this.add.image(CITY_WORLD_WIDTH - 230, BLACK_TILE_GROUND_Y, 'propBushSmall').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
+    this.add.image(CITY_WORLD_WIDTH - 320, BLACK_TILE_GROUND_Y, 'propBushLarge').setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
+    this.add.image(CITY_WORLD_WIDTH - 230, BLACK_TILE_GROUND_Y, 'propBushSmall').setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
   }
 
   createCityDog() {
