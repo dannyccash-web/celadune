@@ -1306,23 +1306,23 @@ class PrototypeScene extends Phaser.Scene {
 
     this.wagon = this.add.image(360, WAGON_BASELINE_Y, 'brokenWagon')
       .setOrigin(0.5, 1)
-      .setScale(0.44)
+      .setScale(1.0)
       .setDepth(this.propDepth);
 
     // Small tent from Decor.png
     this.tent = this.add.image(610, WAGON_BASELINE_Y, 'decorSmallTent')
       .setOrigin(0.5, 1)
-      .setScale(3.1)
+      .setScale(1.0)
       .setDepth(this.propDepth);
 
     // Wood logs on the ground, cauldron on stand in front — both grounded
     this.add.image(730, WAGON_BASELINE_Y, 'decorWoodLogs')
       .setOrigin(0.5, 1)
-      .setScale(3.1)
+      .setScale(1.0)
       .setDepth(this.propDepth - 1);
     this.add.image(730, WAGON_BASELINE_Y, 'decorCauldron')
       .setOrigin(0.5, 1)
-      .setScale(3.1)
+      .setScale(1.0)
       .setDepth(this.propDepth);
 
     this.hut = this.add.image(2240, HUT_BASELINE_Y, 'forestHut')
@@ -1331,33 +1331,33 @@ class PrototypeScene extends Phaser.Scene {
 
     // Grass stalks to the left of the hut (slightly smaller)
     this.add.image(1960, WAGON_BASELINE_Y, 'decorGrassLarge')
-      .setOrigin(0.5, 1).setScale(2.2).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(1910, WAGON_BASELINE_Y, 'decorGrassSmall')
-      .setOrigin(0.5, 1).setScale(2.2).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
 
     // Pumpkins to the left of the grass — more spread out
     this.add.image(1820, WAGON_BASELINE_Y, 'decorPumpkinLarge')
-      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(1780, WAGON_BASELINE_Y, 'decorPumpkinSmall')
-      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(1740, WAGON_BASELINE_Y, 'decorPumpkinLarge')
-      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(1700, WAGON_BASELINE_Y, 'decorPumpkinSmall')
-      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(1660, WAGON_BASELINE_Y, 'decorPumpkinLarge')
-      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
 
     // Scarecrow — just left of the pumpkin patch
     this.add.image(1590, WAGON_BASELINE_Y, 'propScarecrow')
-      .setOrigin(0.5, 1).setScale(3.0).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
 
     // More pumpkins scattered further left of the scarecrow
     this.add.image(1510, WAGON_BASELINE_Y, 'decorPumpkinLarge')
-      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(1460, WAGON_BASELINE_Y, 'decorPumpkinSmall')
-      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(1400, WAGON_BASELINE_Y, 'decorPumpkinLarge')
-      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
 
     this.hutDoorZone = this.add.zone(this.hut.x + 34, HUT_BASELINE_Y - 80, 150, 132).setOrigin(0.5, 0.5);
     this.physics.add.existing(this.hutDoorZone, true);
@@ -1373,31 +1373,31 @@ class PrototypeScene extends Phaser.Scene {
 
     this.onionPatch = this.add.image(2790, ONION_PATCH_BASELINE_Y, 'onionPatch')
       .setOrigin(0.5, 1)
-      .setScale(0.34)
+      .setScale(1.0)
       .setDepth(this.propDepth);
 
     // Additional crop patches to the right
     this.add.image(2990, ONION_PATCH_BASELINE_Y, 'onionPatch')
-      .setOrigin(0.5, 1).setScale(0.28).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(3130, ONION_PATCH_BASELINE_Y, 'onionPatch')
-      .setOrigin(0.5, 1).setScale(0.32).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(3260, ONION_PATCH_BASELINE_Y, 'onionPatch')
-      .setOrigin(0.5, 1).setScale(0.26).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     // Grass stalks mixed in between crops — same scale as pumpkin patch grass
     this.add.image(3060, ONION_PATCH_BASELINE_Y, 'decorGrassSmall')
-      .setOrigin(0.5, 1).setScale(2.2).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(3200, ONION_PATCH_BASELINE_Y, 'decorGrassLarge')
-      .setOrigin(0.5, 1).setScale(2.2).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
 
     // Sunflowers and bushes — right side of the farm
     this.add.image(3420, WAGON_BASELINE_Y, 'propSunflowers')
-      .setOrigin(0.5, 1).setScale(2.0).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(3530, WAGON_BASELINE_Y, 'propSunflowers')
-      .setOrigin(0.5, 1).setScale(1.8).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(3700, WAGON_BASELINE_Y, 'propBushLarge')
-      .setOrigin(0.5, 1).setScale(2.5).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(3820, WAGON_BASELINE_Y, 'propBushSmall')
-      .setOrigin(0.5, 1).setScale(2.5).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
 
     this.onionPatchTooltip = this.add.container(0, 0).setDepth(30).setVisible(false);
     const onionTooltipBg = this.add.rectangle(0, 0, 132, 30, 0x1c1209, 0.82).setStrokeStyle(2, 0xdab56a, 0.95);
@@ -3062,7 +3062,7 @@ class CityScene extends PrototypeScene {
   createCityBuildings() {
     this.cityBuildings = this.add.group();
 
-    const baseY = BLACK_TILE_GROUND_Y - 12;
+    const baseY = BLACK_TILE_GROUND_Y;
     // Town entrance (archway) at x=380, then buildings ~580px apart
     const placements = [
       { key: 'cityArchway',        x:  380 },
@@ -3351,8 +3351,8 @@ class CityScene extends PrototypeScene {
   createNPC() {}
 
   createProps() {
-    const baseY = GROUND_Y + PROP_BASELINE_OFFSET_Y;
-    const s = 3.0; // props at 3.0x
+    const baseY = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
+    const s = 1.0; // props pre-baked to display size
     const pd = 8;  // depth 8: in front of buildings (7), behind NPCs (9) and player (10)
 
     // ── Blacksmith (x=960) ──
