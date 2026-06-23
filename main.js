@@ -1360,11 +1360,11 @@ class PrototypeScene extends Phaser.Scene {
 
     // Additional crop patches to the right
     this.add.image(2990, ONION_PATCH_BASELINE_Y, 'onionPatch')
-      .setOrigin(0.5, 1).setScale(0.82).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(3130, ONION_PATCH_BASELINE_Y, 'onionPatch')
-      .setOrigin(0.5, 1).setScale(0.94).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(3260, ONION_PATCH_BASELINE_Y, 'onionPatch')
-      .setOrigin(0.5, 1).setScale(0.76).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     // Grass stalks mixed in between crops — same scale as pumpkin patch grass
     this.add.image(3060, ONION_PATCH_BASELINE_Y, 'decorGrassSmall')
       .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
@@ -1375,7 +1375,7 @@ class PrototypeScene extends Phaser.Scene {
     this.add.image(3420, WAGON_BASELINE_Y, 'propSunflowers')
       .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(3530, WAGON_BASELINE_Y, 'propSunflowers')
-      .setOrigin(0.5, 1).setScale(0.9).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(3700, WAGON_BASELINE_Y, 'propBushLarge')
       .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(3820, WAGON_BASELINE_Y, 'propBushSmall')
@@ -3355,8 +3355,8 @@ class CityScene extends PrototypeScene {
     const treeBY = BLACK_TILE_GROUND_Y;
     this.add.image(1250, treeBY, 'propTree1').setOrigin(0.5, 1).setScale(1.0).setDepth(6.5);
     this.add.image(1850, treeBY, 'propTree2').setOrigin(0.5, 1).setScale(1.0).setDepth(6.5);
-    this.add.image(2960, treeBY, 'propTree1').setOrigin(0.5, 1).setScale(1.06).setDepth(6.5);
-    this.add.image(3570, treeBY, 'propTree2').setOrigin(0.5, 1).setScale(1.04).setDepth(6.5);
+    this.add.image(2960, treeBY, 'propTree1').setOrigin(0.5, 1).setScale(1.0).setDepth(6.5);
+    this.add.image(3570, treeBY, 'propTree2').setOrigin(0.5, 1).setScale(1.0).setDepth(6.5);
 
     // ── Statue between House1 and House3 ──
     this.add.image(2410, baseY, 'propStatue').setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
