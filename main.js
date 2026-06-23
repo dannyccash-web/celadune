@@ -587,7 +587,7 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('ground1', 'assets/tiles/ground_tile_1.png');
     this.load.image('ground2', 'assets/tiles/ground_tile_2.png');
     this.load.image('ground3', 'assets/tiles/ground_tile_3.png');
-    this.load.spritesheet('floorTiles2', 'assets/tiles/floor_tiles2.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('floorTiles2', 'assets/tiles/floor_tiles2.png', { frameWidth: 96, frameHeight: 96 });
     this.load.image('cityGround1', 'assets/tiles/cobblestone_tile_1.png');
     this.load.image('cityGround2', 'assets/tiles/cobblestone_tile_2.png');
     this.load.image('cityGround3', 'assets/tiles/cobblestone_tile_3.png');
@@ -623,8 +623,8 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('decorPottery',      'assets/props/decor_pottery.png');
     this.load.spritesheet('dogWalk',     'assets/npcs/dog/sheet.png',      { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('dogWalkGrey', 'assets/npcs/dog/sheet_grey.png', { frameWidth: 32, frameHeight: 32 });
-    this.load.spritesheet('furnace', 'assets/props/furnace_animated.png', { frameWidth: 64, frameHeight: 64 });
-    this.load.spritesheet('cookingArea', 'assets/props/cooking_area.png', { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet('furnace', 'assets/props/furnace_animated.png', { frameWidth: 192, frameHeight: 192 });
+    this.load.spritesheet('cookingArea', 'assets/props/cooking_area.png', { frameWidth: 224, frameHeight: 224 });
     this.load.image('menuOnions', 'assets/ui/onions.png');
     this.load.image('wayfarersSalve', 'assets/ui/wayfarers_salve.png');
     this.load.audio('forestTheme', 'assets/audio/celadune_forest.mp3');
@@ -878,8 +878,8 @@ class PrototypeScene extends Phaser.Scene {
 
   // ── Tile constants for Floor Tiles2.png (9 cols × 18 rows, 32×32 px per tile) ──
   // Frame index = row * 9 + col
-  static get TILE_PX() { return 96; } // 32 px × scale 3
-  static get TILE_SCALE() { return 3; }
+  static get TILE_PX() { return 96; } // 96 px native (pre-baked)
+  static get TILE_SCALE() { return 1; }
   static get TILE_FRAMES() {
     return {
       green: { topL: 0,  topC: 1,  topR: 2,  fill: 10, leftFill: 9,  rightFill: 11 },
@@ -1294,17 +1294,17 @@ class PrototypeScene extends Phaser.Scene {
     // Small tent from Decor.png
     this.tent = this.add.image(610, WAGON_BASELINE_Y, 'decorSmallTent')
       .setOrigin(0.5, 1)
-      .setScale(3.1)
+      .setScale(1.0)
       .setDepth(this.propDepth);
 
     // Wood logs on the ground, cauldron on stand in front — both grounded
     this.add.image(730, WAGON_BASELINE_Y, 'decorWoodLogs')
       .setOrigin(0.5, 1)
-      .setScale(3.1)
+      .setScale(1.0)
       .setDepth(this.propDepth - 1);
     this.add.image(730, WAGON_BASELINE_Y, 'decorCauldron')
       .setOrigin(0.5, 1)
-      .setScale(3.1)
+      .setScale(1.0)
       .setDepth(this.propDepth);
 
     this.hut = this.add.image(2240, HUT_BASELINE_Y, 'forestHut')
@@ -1313,33 +1313,33 @@ class PrototypeScene extends Phaser.Scene {
 
     // Grass stalks to the left of the hut (slightly smaller)
     this.add.image(1960, WAGON_BASELINE_Y, 'decorGrassLarge')
-      .setOrigin(0.5, 1).setScale(2.2).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(1910, WAGON_BASELINE_Y, 'decorGrassSmall')
-      .setOrigin(0.5, 1).setScale(2.2).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
 
     // Pumpkins to the left of the grass — more spread out
     this.add.image(1820, WAGON_BASELINE_Y, 'decorPumpkinLarge')
-      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(1780, WAGON_BASELINE_Y, 'decorPumpkinSmall')
-      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(1740, WAGON_BASELINE_Y, 'decorPumpkinLarge')
-      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(1700, WAGON_BASELINE_Y, 'decorPumpkinSmall')
-      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(1660, WAGON_BASELINE_Y, 'decorPumpkinLarge')
-      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
 
     // Scarecrow — just left of the pumpkin patch
     this.add.image(1590, WAGON_BASELINE_Y, 'propScarecrow')
-      .setOrigin(0.5, 1).setScale(3.0).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
 
     // More pumpkins scattered further left of the scarecrow
     this.add.image(1510, WAGON_BASELINE_Y, 'decorPumpkinLarge')
-      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(1460, WAGON_BASELINE_Y, 'decorPumpkinSmall')
-      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(1400, WAGON_BASELINE_Y, 'decorPumpkinLarge')
-      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
 
     this.hutDoorZone = this.add.zone(this.hut.x + 34, HUT_BASELINE_Y - 80, 150, 132).setOrigin(0.5, 0.5);
     this.physics.add.existing(this.hutDoorZone, true);
@@ -1367,19 +1367,19 @@ class PrototypeScene extends Phaser.Scene {
       .setOrigin(0.5, 1).setScale(0.76).setDepth(this.propDepth);
     // Grass stalks mixed in between crops — same scale as pumpkin patch grass
     this.add.image(3060, ONION_PATCH_BASELINE_Y, 'decorGrassSmall')
-      .setOrigin(0.5, 1).setScale(2.2).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(3200, ONION_PATCH_BASELINE_Y, 'decorGrassLarge')
-      .setOrigin(0.5, 1).setScale(2.2).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
 
     // Sunflowers and bushes — right side of the farm
     this.add.image(3420, WAGON_BASELINE_Y, 'propSunflowers')
-      .setOrigin(0.5, 1).setScale(2.0).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(3530, WAGON_BASELINE_Y, 'propSunflowers')
-      .setOrigin(0.5, 1).setScale(1.8).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(0.9).setDepth(this.propDepth);
     this.add.image(3700, WAGON_BASELINE_Y, 'propBushLarge')
-      .setOrigin(0.5, 1).setScale(2.5).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
     this.add.image(3820, WAGON_BASELINE_Y, 'propBushSmall')
-      .setOrigin(0.5, 1).setScale(2.5).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
 
     this.onionPatchTooltip = this.add.container(0, 0).setDepth(30).setVisible(false);
     const onionTooltipBg = this.add.rectangle(0, 0, 132, 30, 0x1c1209, 0.82).setStrokeStyle(2, 0xdab56a, 0.95);
@@ -3317,12 +3317,12 @@ class CityScene extends PrototypeScene {
 
   createProps() {
     const baseY = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
-    const s = 3.0; // props at 3.0x
+    const s = 1.0; // props pre-baked to display size
     const pd = 8;  // depth 8: in front of buildings (7), behind NPCs (9) and player (10)
 
     // ── Blacksmith (x=960) ──
     this.furnaceSprite = this.add.sprite(960 + 230, baseY, 'furnace', 0)
-      .setOrigin(0.5, 1).setScale(3.0).setDepth(pd);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
     this.furnaceSprite.play('furnace-anim');
     this.add.image(960 - 220, baseY, 'decorCrateLarge').setOrigin(0.5, 1).setScale(s).setDepth(pd);
     this.add.image(960 - 160, baseY, 'decorBarrelRound').setOrigin(0.5, 1).setScale(s).setDepth(pd);
@@ -3332,7 +3332,7 @@ class CityScene extends PrototypeScene {
     this.add.image(1540 - 280, baseY, 'decorBarrelRound').setOrigin(0.5, 1).setScale(s).setDepth(pd);
     // Cooking area to the right, overlapping the tavern building edge
     this.cookingAreaSprite = this.add.sprite(1540 + 260, baseY, 'cookingArea', 0)
-      .setOrigin(0.5, 1).setScale(3.5).setDepth(pd);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
     this.cookingAreaSprite.play('cooking-area-anim');
 
     // ── House1 (x=2120) ──
@@ -3359,16 +3359,16 @@ class CityScene extends PrototypeScene {
     this.add.image(3570, treeBY, 'propTree2').setOrigin(0.5, 1).setScale(1.04).setDepth(6.5);
 
     // ── Statue between House1 and House3 ──
-    this.add.image(2410, baseY, 'propStatue').setOrigin(0.5, 1).setScale(3.5).setDepth(pd);
+    this.add.image(2410, baseY, 'propStatue').setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
 
     // ── Table with apples near city entrance ──
-    this.add.image(670, baseY, 'propTableApples').setOrigin(0.5, 1).setScale(3.5).setDepth(pd);
+    this.add.image(670, baseY, 'propTableApples').setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
 
     // ── Bushes at either end of town ──
-    this.add.image(60, BLACK_TILE_GROUND_Y, 'propBushLarge').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
-    this.add.image(150, BLACK_TILE_GROUND_Y, 'propBushSmall').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
-    this.add.image(CITY_WORLD_WIDTH - 320, BLACK_TILE_GROUND_Y, 'propBushLarge').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
-    this.add.image(CITY_WORLD_WIDTH - 230, BLACK_TILE_GROUND_Y, 'propBushSmall').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
+    this.add.image(60, BLACK_TILE_GROUND_Y, 'propBushLarge').setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
+    this.add.image(150, BLACK_TILE_GROUND_Y, 'propBushSmall').setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
+    this.add.image(CITY_WORLD_WIDTH - 320, BLACK_TILE_GROUND_Y, 'propBushLarge').setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
+    this.add.image(CITY_WORLD_WIDTH - 230, BLACK_TILE_GROUND_Y, 'propBushSmall').setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
   }
 
   createCityDog() {
