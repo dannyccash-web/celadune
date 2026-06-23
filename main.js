@@ -623,8 +623,8 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('decorPottery',      'assets/props/decor_pottery.png');
     this.load.spritesheet('dogWalk',     'assets/npcs/dog/sheet.png',      { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('dogWalkGrey', 'assets/npcs/dog/sheet_grey.png', { frameWidth: 32, frameHeight: 32 });
-    this.load.spritesheet('furnace', 'assets/props/furnace_animated.png', { frameWidth: 64, frameHeight: 64 });
-    this.load.spritesheet('cookingArea', 'assets/props/cooking_area.png', { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet('furnace', 'assets/props/furnace_animated.png', { frameWidth: 192, frameHeight: 192 });
+    this.load.spritesheet('cookingArea', 'assets/props/cooking_area.png', { frameWidth: 224, frameHeight: 224 });
     this.load.image('menuOnions', 'assets/ui/onions.png');
     this.load.image('wayfarersSalve', 'assets/ui/wayfarers_salve.png');
     this.load.audio('forestTheme', 'assets/audio/celadune_forest.mp3');
@@ -3357,7 +3357,7 @@ class CityScene extends PrototypeScene {
 
     // ── Blacksmith (x=960) ──
     this.furnaceSprite = this.add.sprite(960 + 230, baseY, 'furnace', 0)
-      .setOrigin(0.5, 1).setScale(3.0).setDepth(pd);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
     this.furnaceSprite.play('furnace-anim');
     this.add.image(960 - 220, baseY, 'decorCrateLarge').setOrigin(0.5, 1).setScale(s).setDepth(pd);
     this.add.image(960 - 160, baseY, 'decorBarrelRound').setOrigin(0.5, 1).setScale(s).setDepth(pd);
@@ -3367,7 +3367,7 @@ class CityScene extends PrototypeScene {
     this.add.image(1540 - 280, baseY, 'decorBarrelRound').setOrigin(0.5, 1).setScale(s).setDepth(pd);
     // Cooking area to the right, overlapping the tavern building edge
     this.cookingAreaSprite = this.add.sprite(1540 + 260, baseY, 'cookingArea', 0)
-      .setOrigin(0.5, 1).setScale(3.5).setDepth(pd);
+      .setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
     this.cookingAreaSprite.play('cooking-area-anim');
 
     // ── House1 (x=2120) ──
@@ -3388,20 +3388,20 @@ class CityScene extends PrototypeScene {
 
     // ── Trees between buildings — depth 6.5: behind buildings (7), in front of wall (6) ──
     const treeBY = BLACK_TILE_GROUND_Y;
-    this.add.image(1250, treeBY, 'propTree1').setOrigin(0.5, 1).setScale(2.6).setDepth(6.5);
-    this.add.image(1850, treeBY, 'propTree2').setOrigin(0.5, 1).setScale(2.6).setDepth(6.5);
-    this.add.image(2960, treeBY, 'propTree1').setOrigin(0.5, 1).setScale(2.75).setDepth(6.5);
-    this.add.image(3570, treeBY, 'propTree2').setOrigin(0.5, 1).setScale(2.7).setDepth(6.5);
+    this.add.image(1250, treeBY, 'propTree1').setOrigin(0.5, 1).setScale(1.0).setDepth(6.5);
+    this.add.image(1850, treeBY, 'propTree2').setOrigin(0.5, 1).setScale(1.0).setDepth(6.5);
+    this.add.image(2960, treeBY, 'propTree1').setOrigin(0.5, 1).setScale(1.0).setDepth(6.5);
+    this.add.image(3570, treeBY, 'propTree2').setOrigin(0.5, 1).setScale(1.0).setDepth(6.5);
 
     // ── Statue between House1 and House3 ──
-    this.add.image(2410, baseY, 'propStatue').setOrigin(0.5, 1).setScale(3.5).setDepth(pd);
+    this.add.image(2410, baseY, 'propStatue').setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
 
     // ── Table with apples near city entrance ──
-    this.add.image(670, baseY, 'propTableApples').setOrigin(0.5, 1).setScale(3.5).setDepth(pd);
+    this.add.image(670, baseY, 'propTableApples').setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
 
     // ── Bushes at either end of town ──
-    this.add.image(60, BLACK_TILE_GROUND_Y, 'propBushLarge').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
-    this.add.image(150, BLACK_TILE_GROUND_Y, 'propBushSmall').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
+    this.add.image(60, BLACK_TILE_GROUND_Y, 'propBushLarge').setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
+    this.add.image(150, BLACK_TILE_GROUND_Y, 'propBushSmall').setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
     this.add.image(CITY_WORLD_WIDTH - 320, BLACK_TILE_GROUND_Y, 'propBushLarge').setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
     this.add.image(CITY_WORLD_WIDTH - 230, BLACK_TILE_GROUND_Y, 'propBushSmall').setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
   }
