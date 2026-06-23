@@ -6,11 +6,9 @@ const CITY_WORLD_WIDTH = 4800;
 const GROUND_Y = 888;
 const FRAME_W = 64;
 const FRAME_H = 64;
-const BLACK_TILE_GROUND_Y = GROUND_Y + 39;
-const PROP_BASELINE_OFFSET_Y = -24;
-const WAGON_BASELINE_Y = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
-const HUT_BASELINE_Y = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
-const ONION_PATCH_BASELINE_Y = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
+const WAGON_BASELINE_Y = GROUND_Y;
+const HUT_BASELINE_Y = GROUND_Y;
+const ONION_PATCH_BASELINE_Y = GROUND_Y;
 const TOWN_NAME = 'Millhaven';
 
 const HEROES = {
@@ -376,7 +374,7 @@ class StartScene extends Phaser.Scene {
     if (this.transitioning) return;
     this.transitioning = true;
     this.cameras.main.fadeOut(500, 0, 0, 0);
-    this.time.delayedCall(520, () => this.scene.start('HeroSelectScene'));
+    this.time.delayedCall(520, () => this.scene.start('PrototypeScene', { heroKey: 'caelan' }));
   }
 }
 
@@ -587,7 +585,7 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('ground1', 'assets/tiles/ground_tile_1.png');
     this.load.image('ground2', 'assets/tiles/ground_tile_2.png');
     this.load.image('ground3', 'assets/tiles/ground_tile_3.png');
-    this.load.spritesheet('floorTiles2', 'assets/tiles/floor_tiles2.png', { frameWidth: 96, frameHeight: 96 });
+    this.load.spritesheet('floorTiles2', 'assets/tiles/floor_tiles2.png', { frameWidth: 32, frameHeight: 32 });
     this.load.image('cityGround1', 'assets/tiles/cobblestone_tile_1.png');
     this.load.image('cityGround2', 'assets/tiles/cobblestone_tile_2.png');
     this.load.image('cityGround3', 'assets/tiles/cobblestone_tile_3.png');
@@ -623,8 +621,8 @@ class PrototypeScene extends Phaser.Scene {
     this.load.image('decorPottery',      'assets/props/decor_pottery.png');
     this.load.spritesheet('dogWalk',     'assets/npcs/dog/sheet.png',      { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('dogWalkGrey', 'assets/npcs/dog/sheet_grey.png', { frameWidth: 32, frameHeight: 32 });
-    this.load.spritesheet('furnace', 'assets/props/furnace_animated.png', { frameWidth: 192, frameHeight: 192 });
-    this.load.spritesheet('cookingArea', 'assets/props/cooking_area.png', { frameWidth: 224, frameHeight: 224 });
+    this.load.spritesheet('furnace', 'assets/props/furnace_animated.png', { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet('cookingArea', 'assets/props/cooking_area.png', { frameWidth: 64, frameHeight: 64 });
     this.load.image('menuOnions', 'assets/ui/onions.png');
     this.load.image('wayfarersSalve', 'assets/ui/wayfarers_salve.png');
     this.load.audio('forestTheme', 'assets/audio/celadune_forest.mp3');
@@ -693,6 +691,7 @@ class PrototypeScene extends Phaser.Scene {
     if (this.shouldUseSceneAtmosphere()) this.createAtmosphere();
     this.createCamera();
     this.createUI();
+    this.createVignette();
     this.createItemReceiveUI();
     this.createAudio();
     this.createMenu();
@@ -711,7 +710,7 @@ class PrototypeScene extends Phaser.Scene {
     this.tweens.add({
       targets: this.introOverlay,
       alpha: 0,
-      duration: 3000,
+      duration: isFirstLoad ? 3500 : 500,
       ease: 'Linear',
       onComplete: () => this.introOverlay.setVisible(false),
     });
@@ -878,8 +877,8 @@ class PrototypeScene extends Phaser.Scene {
 
   // ── Tile constants for Floor Tiles2.png (9 cols × 18 rows, 32×32 px per tile) ──
   // Frame index = row * 9 + col
-  static get TILE_PX() { return 96; } // 96 px native (pre-baked)
-  static get TILE_SCALE() { return 1; }
+  static get TILE_PX() { return 96; } // 32 px × scale 3
+  static get TILE_SCALE() { return 3; }
   static get TILE_FRAMES() {
     return {
       green: { topL: 0,  topC: 1,  topR: 2,  fill: 10, leftFill: 9,  rightFill: 11 },
@@ -930,11 +929,9 @@ class PrototypeScene extends Phaser.Scene {
       const rightCliffRows = Math.max(0, Math.round((nextY - surfaceY) / TILE_PX));
 
       for (let row = 1; row <= fillRows; row++) {
-        // Only render cliff-face tiles — plain fill rows use the solid dark rectangle (depth 1)
-        let fillFrame = null;
+        let fillFrame = T.fill;
         if (leftCliffRows > 0 && row <= leftCliffRows)       fillFrame = T.leftFill;
         else if (rightCliffRows > 0 && row <= rightCliffRows) fillFrame = T.rightFill;
-        if (fillFrame === null) continue;
         const f = this.add.image(cx, surfaceY + TILE_PX * row, 'floorTiles2', fillFrame)
           .setScale(TILE_SCALE).setOrigin(0.5, 0).setDepth(2);
         this.groundBack.add(f);
@@ -1002,15 +999,34 @@ class PrototypeScene extends Phaser.Scene {
   }
 
   applyTextureFiltering() {
-    // Set NEAREST (pixel-crisp) on every loaded texture, then override backgrounds to LINEAR.
-    const linearKeys = new Set(['forestSky', 'forestMountain', 'forestBack', 'forestMid', 'forestShort', 'forestHutInterior']);
-    this.textures.each((texture) => {
-      if (texture.key === '__DEFAULT' || texture.key === '__MISSING') return;
-      const mode = linearKeys.has(texture.key)
-        ? Phaser.Textures.FilterMode.LINEAR
-        : Phaser.Textures.FilterMode.NEAREST;
-      texture.setFilter(mode);
-    });
+    this.setTextureFilter(['forestSky', 'forestMountain', 'forestBack', 'forestMid', 'forestShort', 'forestHutInterior'], Phaser.Textures.FilterMode.LINEAR);
+    this.setTextureFilter([
+      'blackTile', 'ground0', 'ground1', 'ground2', 'ground3', 'floorTiles2',
+      'cityGround1', 'cityGround2', 'cityGround3', 'parchment', 'forestHut',
+      'brokenWagon', 'onionPatch', 'largeTent', 'furnace', 'menuOnions', 'wayfarersSalve',
+      'decorSmallTent', 'decorCauldron', 'decorWoodLogs', 'decorGrassLarge', 'decorGrassSmall', 'decorPumpkinSmall', 'decorPumpkinLarge',
+      'decorBarrelLarge', 'decorBarrelSmall', 'decorCrate',
+      'decorCrateSmall', 'decorCrateLarge', 'decorBarrelRound', 'decorBarrelsDuo', 'decorStool', 'decorPottery',
+      'dogWalk', 'dogWalkGrey', 'cookingArea',
+      'cityHouse1', 'cityHouse2', 'cityHouse3', 'cityBlacksmithShop', 'cityTavern',
+      'cityMagicShop', 'cityArchway', 'cityBrickWall',
+      'forestLady-idle', 'forestLady-walk',
+      `${HUT_WANDERER.key}-walk`, `${HUT_WANDERER.key}-idle`,
+      `${FARM_WORKER.key}-walk`, `${FARM_WORKER.key}-idle`,
+      ...Object.keys(CITY_NPCS).flatMap((npcKey) => [`${CITY_NPCS[npcKey].key}-walk`, `${CITY_NPCS[npcKey].key}-idle`]),
+      ...Object.values(HEROES).flatMap((hero) => {
+        const base = [`${hero.key}-walk`, `${hero.key}-idle`, `${hero.key}-jump`];
+        if (hero.usesFlipX) {
+          return base.concat([
+            'run', 'walk_heavy', 'attack', 'death',
+            'idle_sword', 'walk_sword', 'run_sword', 'walk_sword_heavy',
+            'jump_sword', 'attack_sword', 'death_sword',
+            'special_attack', 'special_slash', 'combo_attack',
+          ].map((a) => `${hero.key}-${a}`));
+        }
+        return base;
+      }),
+    ], Phaser.Textures.FilterMode.NEAREST);
   }
 
   shouldUseSceneAtmosphere() {
@@ -1288,23 +1304,23 @@ class PrototypeScene extends Phaser.Scene {
 
     this.wagon = this.add.image(360, WAGON_BASELINE_Y, 'brokenWagon')
       .setOrigin(0.5, 1)
-      .setScale(1.0)
+      .setScale(0.44)
       .setDepth(this.propDepth);
 
     // Small tent from Decor.png
     this.tent = this.add.image(610, WAGON_BASELINE_Y, 'decorSmallTent')
       .setOrigin(0.5, 1)
-      .setScale(1.0)
+      .setScale(3.1)
       .setDepth(this.propDepth);
 
     // Wood logs on the ground, cauldron on stand in front — both grounded
     this.add.image(730, WAGON_BASELINE_Y, 'decorWoodLogs')
       .setOrigin(0.5, 1)
-      .setScale(1.0)
+      .setScale(3.1)
       .setDepth(this.propDepth - 1);
     this.add.image(730, WAGON_BASELINE_Y, 'decorCauldron')
       .setOrigin(0.5, 1)
-      .setScale(1.0)
+      .setScale(3.1)
       .setDepth(this.propDepth);
 
     this.hut = this.add.image(2240, HUT_BASELINE_Y, 'forestHut')
@@ -1313,33 +1329,33 @@ class PrototypeScene extends Phaser.Scene {
 
     // Grass stalks to the left of the hut (slightly smaller)
     this.add.image(1960, WAGON_BASELINE_Y, 'decorGrassLarge')
-      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(2.2).setDepth(this.propDepth);
     this.add.image(1910, WAGON_BASELINE_Y, 'decorGrassSmall')
-      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(2.2).setDepth(this.propDepth);
 
     // Pumpkins to the left of the grass — more spread out
     this.add.image(1820, WAGON_BASELINE_Y, 'decorPumpkinLarge')
-      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
     this.add.image(1780, WAGON_BASELINE_Y, 'decorPumpkinSmall')
-      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
     this.add.image(1740, WAGON_BASELINE_Y, 'decorPumpkinLarge')
-      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
     this.add.image(1700, WAGON_BASELINE_Y, 'decorPumpkinSmall')
-      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
     this.add.image(1660, WAGON_BASELINE_Y, 'decorPumpkinLarge')
-      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
 
     // Scarecrow — just left of the pumpkin patch
     this.add.image(1590, WAGON_BASELINE_Y, 'propScarecrow')
-      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(3.0).setDepth(this.propDepth);
 
     // More pumpkins scattered further left of the scarecrow
     this.add.image(1510, WAGON_BASELINE_Y, 'decorPumpkinLarge')
-      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
     this.add.image(1460, WAGON_BASELINE_Y, 'decorPumpkinSmall')
-      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
     this.add.image(1400, WAGON_BASELINE_Y, 'decorPumpkinLarge')
-      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(3.1).setDepth(this.propDepth);
 
     this.hutDoorZone = this.add.zone(this.hut.x + 34, HUT_BASELINE_Y - 80, 150, 132).setOrigin(0.5, 0.5);
     this.physics.add.existing(this.hutDoorZone, true);
@@ -1355,31 +1371,31 @@ class PrototypeScene extends Phaser.Scene {
 
     this.onionPatch = this.add.image(2790, ONION_PATCH_BASELINE_Y, 'onionPatch')
       .setOrigin(0.5, 1)
-      .setScale(1.0)
+      .setScale(0.34)
       .setDepth(this.propDepth);
 
     // Additional crop patches to the right
     this.add.image(2990, ONION_PATCH_BASELINE_Y, 'onionPatch')
-      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(0.28).setDepth(this.propDepth);
     this.add.image(3130, ONION_PATCH_BASELINE_Y, 'onionPatch')
-      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(0.32).setDepth(this.propDepth);
     this.add.image(3260, ONION_PATCH_BASELINE_Y, 'onionPatch')
-      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(0.26).setDepth(this.propDepth);
     // Grass stalks mixed in between crops — same scale as pumpkin patch grass
     this.add.image(3060, ONION_PATCH_BASELINE_Y, 'decorGrassSmall')
-      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(2.2).setDepth(this.propDepth);
     this.add.image(3200, ONION_PATCH_BASELINE_Y, 'decorGrassLarge')
-      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(2.2).setDepth(this.propDepth);
 
     // Sunflowers and bushes — right side of the farm
     this.add.image(3420, WAGON_BASELINE_Y, 'propSunflowers')
-      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(2.0).setDepth(this.propDepth);
     this.add.image(3530, WAGON_BASELINE_Y, 'propSunflowers')
-      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(1.8).setDepth(this.propDepth);
     this.add.image(3700, WAGON_BASELINE_Y, 'propBushLarge')
-      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(2.5).setDepth(this.propDepth);
     this.add.image(3820, WAGON_BASELINE_Y, 'propBushSmall')
-      .setOrigin(0.5, 1).setScale(1.0).setDepth(this.propDepth);
+      .setOrigin(0.5, 1).setScale(2.5).setDepth(this.propDepth);
 
     this.onionPatchTooltip = this.add.container(0, 0).setDepth(30).setVisible(false);
     const onionTooltipBg = this.add.rectangle(0, 0, 132, 30, 0x1c1209, 0.82).setStrokeStyle(2, 0xdab56a, 0.95);
@@ -1515,6 +1531,14 @@ class PrototypeScene extends Phaser.Scene {
     canvas.refresh();
   }
 
+
+  createVignette() {
+    this.createVignetteTexture();
+    this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'vignette')
+      .setScrollFactor(0)
+      .setDepth(80);
+  }
+
   getMusicConfig() {
     return { key: 'forestTheme', volume: 0.42 };
   }
@@ -1537,7 +1561,7 @@ class PrototypeScene extends Phaser.Scene {
     const musicConfig = this.getMusicConfig();
     this.musicTargetVolume = musicConfig.volume;
     this.music = this.sound.add(musicConfig.key, { loop: true, volume: 0 });
-    this.writingSound = this.sound.add('writingSfx', { loop: true, volume: 0.18 });
+    this.writingSound = this.sound.add('writingSfx', { loop: true, volume: 0.45 });
     this.attackSfx  = this.sound.add('attackSfx',  { volume: 0.55 });
     this.jumpSfx    = this.sound.add('jumpSfx',    { volume: 0.45 });
     this.dogBarkSfx = this.sound.add('dogBarkSfx', { volume: 0.7 });
@@ -2265,7 +2289,7 @@ class PrototypeScene extends Phaser.Scene {
   handleSceneBoundaries(velocityX, onGround) {
     if (this.isMenuOpen || this.isDialogueOpen || this.isTransitioningToInterior || this.isSceneTransitioning) return;
     if (!onGround) return;
-    if (velocityX > 0 && this.player.body.blocked.right) {
+    if (velocityX > 0 && this.player.body.blocked.right && this.player.x > WORLD_WIDTH - 150) {
       this.transitionToScene('CityScene', 72, this.player.y);
     }
   }
@@ -2907,7 +2931,7 @@ class PrototypeScene extends Phaser.Scene {
     this.player.setVelocityX(velocityX);
 
     if (upJustPressed && onGround) {
-      this.player.setVelocityY(-760);
+      this.player.setVelocityY(-570);
       this.jumpSfx?.play();
     }
 
@@ -2982,12 +3006,21 @@ class CityScene extends PrototypeScene {
     if (this.shouldUseSceneAtmosphere()) this.createAtmosphere();
     this.createCamera();
     this.createUI();
+    this.createVignette();
     this.createItemReceiveUI();
     this.createAudio();
     this.createMenu();
     this.createDialogueUI();
 
     this.player.setPosition(this.startX, this.startY);
+
+    // Fade-in overlay for scene transitions
+    const cityIntroOverlay = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 1)
+      .setScrollFactor(0).setDepth(200);
+    this.tweens.add({
+      targets: cityIntroOverlay, alpha: 0, duration: 500, ease: 'Linear',
+      onComplete: () => cityIntroOverlay.setVisible(false),
+    });
 
     this.cursors = this.input.keyboard.createCursorKeys();
     this.menuKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
@@ -3027,7 +3060,7 @@ class CityScene extends PrototypeScene {
   createCityBuildings() {
     this.cityBuildings = this.add.group();
 
-    const baseY = BLACK_TILE_GROUND_Y - 12;
+    const baseY = GROUND_Y;
     // Town entrance (archway) at x=380, then buildings ~580px apart
     const placements = [
       { key: 'cityArchway',        x:  380 },
@@ -3316,13 +3349,13 @@ class CityScene extends PrototypeScene {
   createNPC() {}
 
   createProps() {
-    const baseY = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
-    const s = 1.0; // props pre-baked to display size
+    const baseY = GROUND_Y + PROP_BASELINE_OFFSET_Y;
+    const s = 3.0; // props at 3.0x
     const pd = 8;  // depth 8: in front of buildings (7), behind NPCs (9) and player (10)
 
     // ── Blacksmith (x=960) ──
     this.furnaceSprite = this.add.sprite(960 + 230, baseY, 'furnace', 0)
-      .setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
+      .setOrigin(0.5, 1).setScale(3.0).setDepth(pd);
     this.furnaceSprite.play('furnace-anim');
     this.add.image(960 - 220, baseY, 'decorCrateLarge').setOrigin(0.5, 1).setScale(s).setDepth(pd);
     this.add.image(960 - 160, baseY, 'decorBarrelRound').setOrigin(0.5, 1).setScale(s).setDepth(pd);
@@ -3332,7 +3365,7 @@ class CityScene extends PrototypeScene {
     this.add.image(1540 - 280, baseY, 'decorBarrelRound').setOrigin(0.5, 1).setScale(s).setDepth(pd);
     // Cooking area to the right, overlapping the tavern building edge
     this.cookingAreaSprite = this.add.sprite(1540 + 260, baseY, 'cookingArea', 0)
-      .setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
+      .setOrigin(0.5, 1).setScale(3.5).setDepth(pd);
     this.cookingAreaSprite.play('cooking-area-anim');
 
     // ── House1 (x=2120) ──
@@ -3352,23 +3385,23 @@ class CityScene extends PrototypeScene {
     this.add.image(3860 + 200, baseY, 'decorCrateLarge').setOrigin(0.5, 1).setScale(s).setDepth(pd);
 
     // ── Trees between buildings — depth 6.5: behind buildings (7), in front of wall (6) ──
-    const treeBY = BLACK_TILE_GROUND_Y;
-    this.add.image(1250, treeBY, 'propTree1').setOrigin(0.5, 1).setScale(1.0).setDepth(6.5);
-    this.add.image(1850, treeBY, 'propTree2').setOrigin(0.5, 1).setScale(1.0).setDepth(6.5);
-    this.add.image(2960, treeBY, 'propTree1').setOrigin(0.5, 1).setScale(1.0).setDepth(6.5);
-    this.add.image(3570, treeBY, 'propTree2').setOrigin(0.5, 1).setScale(1.0).setDepth(6.5);
+    const treeBY = GROUND_Y;
+    this.add.image(1250, treeBY, 'propTree1').setOrigin(0.5, 1).setScale(2.6).setDepth(6.5);
+    this.add.image(1850, treeBY, 'propTree2').setOrigin(0.5, 1).setScale(2.6).setDepth(6.5);
+    this.add.image(2960, treeBY, 'propTree1').setOrigin(0.5, 1).setScale(2.75).setDepth(6.5);
+    this.add.image(3570, treeBY, 'propTree2').setOrigin(0.5, 1).setScale(2.7).setDepth(6.5);
 
     // ── Statue between House1 and House3 ──
-    this.add.image(2410, baseY, 'propStatue').setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
+    this.add.image(2410, baseY, 'propStatue').setOrigin(0.5, 1).setScale(3.5).setDepth(pd);
 
     // ── Table with apples near city entrance ──
-    this.add.image(670, baseY, 'propTableApples').setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
+    this.add.image(670, baseY, 'propTableApples').setOrigin(0.5, 1).setScale(3.5).setDepth(pd);
 
     // ── Bushes at either end of town ──
-    this.add.image(60, BLACK_TILE_GROUND_Y, 'propBushLarge').setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
-    this.add.image(150, BLACK_TILE_GROUND_Y, 'propBushSmall').setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
-    this.add.image(CITY_WORLD_WIDTH - 320, BLACK_TILE_GROUND_Y, 'propBushLarge').setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
-    this.add.image(CITY_WORLD_WIDTH - 230, BLACK_TILE_GROUND_Y, 'propBushSmall').setOrigin(0.5, 1).setScale(1.0).setDepth(pd);
+    this.add.image(60, GROUND_Y, 'propBushLarge').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
+    this.add.image(150, GROUND_Y, 'propBushSmall').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
+    this.add.image(CITY_WORLD_WIDTH - 320, GROUND_Y, 'propBushLarge').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
+    this.add.image(CITY_WORLD_WIDTH - 230, GROUND_Y, 'propBushSmall').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
   }
 
   createCityDog() {
@@ -3906,10 +3939,10 @@ class CityScene extends PrototypeScene {
   handleSceneBoundaries(velocityX, onGround) {
     if (this.isMenuOpen || this.isDialogueOpen || this.isSceneTransitioning) return;
     if (!onGround) return;
-    if (velocityX < 0 && this.player.body.blocked.left) {
+    if (velocityX < 0 && this.player.body.blocked.left && this.player.x < 150) {
       this.transitionToScene('PrototypeScene', WORLD_WIDTH - 72, this.player.y);
     }
-    if (velocityX > 0 && this.player.body.blocked.right) {
+    if (velocityX > 0 && this.player.body.blocked.right && this.player.x > CITY_WORLD_WIDTH - 150) {
       this.transitionToScene('WildernessScene', 72, this.player.y);
     }
   }
@@ -4016,7 +4049,7 @@ class CityScene extends PrototypeScene {
     this.player.setVelocityX(velocityX);
 
     if (upJustPressed && onGround) {
-      this.player.setVelocityY(-760);
+      this.player.setVelocityY(-570);
       this.jumpSfx?.play();
     }
 
@@ -4100,6 +4133,7 @@ class WildernessScene extends PrototypeScene {
     this.createPlayer();
     this.createCamera();
     this.createUI();
+    this.createVignette();
     this.createItemReceiveUI();
     this.createAudio();
     this.createMenu();
@@ -4111,7 +4145,7 @@ class WildernessScene extends PrototypeScene {
     this.introOverlay = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 1)
       .setScrollFactor(0).setDepth(200);
     this.tweens.add({
-      targets: this.introOverlay, alpha: 0, duration: 2000, ease: 'Linear',
+      targets: this.introOverlay, alpha: 0, duration: 500, ease: 'Linear',
       onComplete: () => this.introOverlay.setVisible(false),
     });
     this.introComplete = true;
@@ -4398,7 +4432,7 @@ class WildernessScene extends PrototypeScene {
   handleSceneBoundaries(velocityX, onGround) {
     if (this.isMenuOpen || this.isDialogueOpen || this.isSceneTransitioning) return;
     if (!onGround) return;
-    if (velocityX < 0 && this.player.body.blocked.left) {
+    if (velocityX < 0 && this.player.body.blocked.left && this.player.x < 150) {
       this.transitionToScene('CityScene', CITY_WORLD_WIDTH - 72, this.player.y);
     }
   }
@@ -4499,7 +4533,7 @@ class WildernessScene extends PrototypeScene {
     else if (this.cursors.right.isDown) { velocityX = 260; this.facing = 'right'; }
 
     this.player.setVelocityX(velocityX);
-    if (upJustPressed && onGround) { this.player.setVelocityY(-760); this.jumpSfx?.play(); }
+    if (upJustPressed && onGround) { this.player.setVelocityY(-570); this.jumpSfx?.play(); }
     if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) this.startAttack();
 
     const animPrefix = this.facing === 'left' ? 'left' : 'right';
@@ -4674,6 +4708,28 @@ class HutInteriorScene extends Phaser.Scene {
     this.createHealthBar();
     this.createExitZone(GY);
     this.createDoorTooltip();
+
+    // Vignette overlay
+    if (!this.textures.exists('vignette')) {
+      const canvas = this.textures.createCanvas('vignette', GAME_WIDTH, GAME_HEIGHT);
+      const ctx = canvas.getContext();
+      const gradient = ctx.createRadialGradient(
+        GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_HEIGHT * 0.10,
+        GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH * 0.56
+      );
+      gradient.addColorStop(0, 'rgba(0, 0, 0, 0.00)');
+      gradient.addColorStop(0.30, 'rgba(0, 0, 0, 0.05)');
+      gradient.addColorStop(0.52, 'rgba(0, 0, 0, 0.18)');
+      gradient.addColorStop(0.72, 'rgba(0, 0, 0, 0.42)');
+      gradient.addColorStop(0.88, 'rgba(0, 0, 0, 0.70)');
+      gradient.addColorStop(1, 'rgba(0, 0, 0, 0.94)');
+      ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+      canvas.refresh();
+    }
+    this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'vignette')
+      .setScrollFactor(0).setDepth(80);
 
     this.cursors   = this.input.keyboard.createCursorKeys();
     this.enterKey  = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
@@ -4866,10 +4922,10 @@ class HutInteriorScene extends Phaser.Scene {
 
     if (this.cursors.left.isDown)       { velocityX = -moveSpeed; this.facing = 'left'; }
     else if (this.cursors.right.isDown) { velocityX =  moveSpeed; this.facing = 'right'; }
-    if (!this.isAttacking) this.player.setVelocityX(velocityX);
+    this.player.setVelocityX(velocityX);
 
     if (Phaser.Input.Keyboard.JustDown(this.cursors.up) && onGround) {
-      this.player.setVelocityY(-760);
+      this.player.setVelocityY(-570);
       this.jumpSfx?.play();
     }
 
@@ -4912,10 +4968,10 @@ const config = {
   width: GAME_WIDTH,
   height: GAME_HEIGHT,
   parent: 'game-wrap',
-  pixelArt: false,
-  antialias: true,
-  antialiasGL: true,
-  roundPixels: false,
+  pixelArt: true,
+  antialias: false,
+  antialiasGL: false,
+  roundPixels: true,
   backgroundColor: '#08111a',
   physics: {
     default: 'arcade',
@@ -4924,7 +4980,7 @@ const config = {
       debug: false,
     },
   },
-  scene: [StartScene, HeroSelectScene, PrototypeScene, CityScene, WildernessScene, HutInteriorScene],
+  scene: [StartScene, PrototypeScene, CityScene, WildernessScene, HutInteriorScene],
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
