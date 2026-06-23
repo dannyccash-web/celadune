@@ -3197,17 +3197,17 @@ class CityScene extends PrototypeScene {
     // door_x from spec.json is measured from building's left edge (image origin 0.5, 1)
     // door width = 144px; door center = buildingX - buildingW/2 + door_x + 72
     const doorDefs = [
-      { buildingKey: 'cityBlacksmithShop', buildingW: 384, door_x: 27,  label: "Bram Alder's Smithy"  },
-      { buildingKey: 'cityTavern',         buildingW: 480, door_x: 239, label: "Padrig's Tavern"       },
-      { buildingKey: 'cityHouse1',         buildingW: 480, door_x: 192, label: "Teren Vale's House"    },
-      { buildingKey: 'cityHouse3',         buildingW: 480, door_x: 168, label: "Ysra Thorn's House"    },
-      { buildingKey: 'cityMagicShop',      buildingW: 480, door_x: 191, label: "Oswin's Shop"          },
-      { buildingKey: 'cityHouse2',         buildingW: 480, door_x: 65,  label: "Rilla's House"         },
+      { buildingKey: 'cityBlacksmithShop', buildingW: 384, door_x: 27,  label: "Bram Alder's Smithy", interiorConfig: BRAM_SMITHY  },
+      { buildingKey: 'cityTavern',         buildingW: 480, door_x: 239, label: "Padrig's Tavern",      interiorConfig: PADRIG_TAVERN },
+      { buildingKey: 'cityHouse1',         buildingW: 480, door_x: 192, label: "Teren Vale's House",   interiorConfig: TEREN_HOUSE  },
+      { buildingKey: 'cityHouse3',         buildingW: 480, door_x: 168, label: "Ysra Thorn's House",   interiorConfig: YSRA_HOUSE   },
+      { buildingKey: 'cityMagicShop',      buildingW: 480, door_x: 191, label: "Oswin's Shop",         interiorConfig: OSWIN_SHOP   },
+      { buildingKey: 'cityHouse2',         buildingW: 480, door_x: 65,  label: "Rilla's House",        interiorConfig: RILLA_HOUSE  },
     ];
 
     this.buildingDoors = [];
 
-    doorDefs.forEach(({ buildingKey, buildingW, door_x, label }) => {
+    doorDefs.forEach(({ buildingKey, buildingW, door_x, label, interiorConfig }) => {
       const building = this.cityBuildingMap[buildingKey];
       if (!building) return;
 
@@ -3228,7 +3228,7 @@ class CityScene extends PrototypeScene {
       }).setOrigin(0.5);
       tooltip.add([tooltipBg, tooltipText]);
 
-      this.buildingDoors.push({ zone, label, tooltip, doorCenterX });
+      this.buildingDoors.push({ zone, label, tooltip, doorCenterX, interiorConfig });
     });
   }
 
@@ -4019,13 +4019,23 @@ class CityScene extends PrototypeScene {
         }
       });
     }
-    if (activeDoor && (interactPressed || ePressed)) {
-      this.showDialogueLine({
-        speaker: activeDoor.label,
-        speakerType: 'npc',
-        text: 'The door is locked.',
-        choices: ['Right then.'],
+    if (activeDoor && (interactPressed || ePressed) && !this.isTransitioningToInterior) {
+      this.isTransitioningToInterior = true;
+      this.doorSfx?.play();
+      const onExit = () => {
+        this.isTransitioningToInterior = false;
+        this.doorSfx?.play();
+      };
+      this.scene.launch('HutInteriorScene', {
+        heroKey:        this.heroKey,
+        returnSceneKey: 'CityScene',
+        interiorConfig: activeDoor.interiorConfig,
+        playerHealth:   this.playerHealth,
+        playerMaxHealth: this.playerMaxHealth,
+        returnPosition: { x: activeDoor.doorCenterX, y: this.player.y },
+        onExit,
       });
+      this.scene.pause();
       return;
     }
 
@@ -4644,6 +4654,121 @@ const MIRELLE_FARMHOUSE = {
     { key: 'furnHangLantern',     placement: 'ceiling', col:  9 },
     { key: 'furnCurtainGold',     placement: 'ceiling', col:  4 },
     { key: 'furnCurtainGold',     placement: 'ceiling', col: 16 },
+  ],
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Interior configs — one per enterable building
+// ─────────────────────────────────────────────────────────────────────────────
+const BRAM_SMITHY = {
+  key: 'bram_smithy', name: "Bram Alder's Smithy",
+  windowType: 'intWinBlueO', windowCols: [3, 9, 16],
+  furniture: [
+    { key: 'furnBedGreen',         placement: 'ground',  col:  14 },
+    { key: 'furnTub',              placement: 'ground',  col:   2 },
+    { key: 'furnTable',            placement: 'ground',  col:   6 },
+    { key: 'furnWallShelf',        placement: 'wall',    col:   5 },
+    { key: 'furnWallShelf',        placement: 'wall',    col:  13 },
+    { key: 'furnChestGreen',       placement: 'ground',  col:  10 },
+    { key: 'furnArmchairRed',      placement: 'ground',  col:  11 },
+    { key: 'furnBookcase',         placement: 'ground',  col:  18 },
+    { key: 'furnFloorLamp',        placement: 'ground',  col:  17 },
+    { key: 'furnHangLantern',      placement: 'ceiling', col:   9 },
+  ],
+};
+
+const PADRIG_TAVERN = {
+  key: 'padrig_tavern', name: "Padrig's Tavern",
+  windowType: 'intWinRedO', windowCols: [4, 10, 16],
+  furniture: [
+    { key: 'furnBedYellow',        placement: 'ground',  col:   1 },
+    { key: 'furnBathtub',          placement: 'ground',  col:   3 },
+    { key: 'furnTable',            placement: 'ground',  col:   7 },
+    { key: 'furnPictureFlower',    placement: 'wall',    col:   6 },
+    { key: 'furnPicturePortrait',  placement: 'wall',    col:  14 },
+    { key: 'furnSofaRed',          placement: 'ground',  col:  11 },
+    { key: 'furnArmchairYellow',   placement: 'ground',  col:  17 },
+    { key: 'furnNightstand',       placement: 'ground',  col:   2 },
+    { key: 'furnChandelier',       placement: 'ceiling', col:   8 },
+    { key: 'furnCurtainRed',       placement: 'ceiling', col:   4 },
+    { key: 'furnCurtainRed',       placement: 'ceiling', col:  16 },
+  ],
+};
+
+const TEREN_HOUSE = {
+  key: 'teren_house', name: "Teren Vale's House",
+  windowType: 'intWinBlueO', windowCols: [4, 10, 16],
+  furniture: [
+    { key: 'furnBedBlue',          placement: 'ground',  col:  14 },
+    { key: 'furnShower',           placement: 'ground',  col:   2 },
+    { key: 'furnTable',            placement: 'ground',  col:   6 },
+    { key: 'furnPictureFlower',    placement: 'wall',    col:   5 },
+    { key: 'furnWallShelf',        placement: 'wall',    col:  14 },
+    { key: 'furnBookcase',         placement: 'ground',  col:   1 },
+    { key: 'furnSofaBlue',         placement: 'ground',  col:   8 },
+    { key: 'furnNightstand',       placement: 'ground',  col:  17 },
+    { key: 'furnStandMirror',      placement: 'ground',  col:  13 },
+    { key: 'furnHangLantern',      placement: 'ceiling', col:   9 },
+    { key: 'furnCurtainBlue',      placement: 'ceiling', col:   4 },
+    { key: 'furnCurtainBlue',      placement: 'ceiling', col:  16 },
+  ],
+};
+
+const YSRA_HOUSE = {
+  key: 'ysra_house', name: "Ysra Thorn's House",
+  windowType: 'intWinBlueO', windowCols: [4, 10, 16],
+  furniture: [
+    { key: 'furnBedGreen',         placement: 'ground',  col:  13 },
+    { key: 'furnTub',              placement: 'ground',  col:   2 },
+    { key: 'furnTable',            placement: 'ground',  col:   6 },
+    { key: 'furnPictureFlower',    placement: 'wall',    col:   5 },
+    { key: 'furnPicturePortrait',  placement: 'wall',    col:  14 },
+    { key: 'furnArmchairGreen',    placement: 'ground',  col:   8 },
+    { key: 'furnWardrobe',         placement: 'ground',  col:  17 },
+    { key: 'furnStandMirror',      placement: 'ground',  col:  11 },
+    { key: 'furnFlowerVase',       placement: 'ground',  col:   9 },
+    { key: 'furnChandelier',       placement: 'ceiling', col:   8 },
+    { key: 'furnCurtainGreen',     placement: 'ceiling', col:   4 },
+    { key: 'furnCurtainGreen',     placement: 'ceiling', col:  16 },
+  ],
+};
+
+const OSWIN_SHOP = {
+  key: 'oswin_shop', name: "Oswin's Shop",
+  windowType: 'intWinBlueO', windowCols: [4, 10, 16],
+  furniture: [
+    { key: 'furnBedYellow',        placement: 'ground',  col:  15 },
+    { key: 'furnTub',              placement: 'ground',  col:   2 },
+    { key: 'furnTable',            placement: 'ground',  col:   6 },
+    { key: 'furnWallShelf',        placement: 'wall',    col:   5 },
+    { key: 'furnWallShelf',        placement: 'wall',    col:  13 },
+    { key: 'furnBookcase',         placement: 'ground',  col:   1 },
+    { key: 'furnBookcase',         placement: 'ground',  col:  18 },
+    { key: 'furnChestGreen',       placement: 'ground',  col:   9 },
+    { key: 'furnArmchairYellow',   placement: 'ground',  col:  11 },
+    { key: 'furnFloorLamp',        placement: 'ground',  col:  13 },
+    { key: 'furnHangLantern',      placement: 'ceiling', col:   9 },
+    { key: 'furnCurtainGold',      placement: 'ceiling', col:   4 },
+    { key: 'furnCurtainGold',      placement: 'ceiling', col:  16 },
+  ],
+};
+
+const RILLA_HOUSE = {
+  key: 'rilla_house', name: "Rilla's House",
+  windowType: 'intWinBlueO', windowCols: [4, 10, 16],
+  furniture: [
+    { key: 'furnBedBlue',          placement: 'ground',  col:  14 },
+    { key: 'furnBathtub',          placement: 'ground',  col:   2 },
+    { key: 'furnTable',            placement: 'ground',  col:   5 },
+    { key: 'furnPictureFlower',    placement: 'wall',    col:   6 },
+    { key: 'furnPicturePortrait',  placement: 'wall',    col:  15 },
+    { key: 'furnSofaBlue',         placement: 'ground',  col:   8 },
+    { key: 'furnNightstand',       placement: 'ground',  col:  17 },
+    { key: 'furnFlowerVase',       placement: 'ground',  col:  11 },
+    { key: 'furnPlantPed',         placement: 'ground',  col:  12 },
+    { key: 'furnHangLantern',      placement: 'ceiling', col:   9 },
+    { key: 'furnCurtainBlue',      placement: 'ceiling', col:   4 },
+    { key: 'furnCurtainBlue',      placement: 'ceiling', col:  16 },
   ],
 };
 
