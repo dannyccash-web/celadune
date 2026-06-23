@@ -6,9 +6,11 @@ const CITY_WORLD_WIDTH = 4800;
 const GROUND_Y = 888;
 const FRAME_W = 64;
 const FRAME_H = 64;
-const WAGON_BASELINE_Y = GROUND_Y;
-const HUT_BASELINE_Y = GROUND_Y;
-const ONION_PATCH_BASELINE_Y = GROUND_Y;
+const BLACK_TILE_GROUND_Y = GROUND_Y + 39;
+const PROP_BASELINE_OFFSET_Y = -24;
+const WAGON_BASELINE_Y = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
+const HUT_BASELINE_Y = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
+const ONION_PATCH_BASELINE_Y = BLACK_TILE_GROUND_Y + PROP_BASELINE_OFFSET_Y;
 const TOWN_NAME = 'Millhaven';
 
 const HEROES = {
@@ -3060,7 +3062,7 @@ class CityScene extends PrototypeScene {
   createCityBuildings() {
     this.cityBuildings = this.add.group();
 
-    const baseY = GROUND_Y;
+    const baseY = BLACK_TILE_GROUND_Y - 12;
     // Town entrance (archway) at x=380, then buildings ~580px apart
     const placements = [
       { key: 'cityArchway',        x:  380 },
@@ -3385,7 +3387,7 @@ class CityScene extends PrototypeScene {
     this.add.image(3860 + 200, baseY, 'decorCrateLarge').setOrigin(0.5, 1).setScale(s).setDepth(pd);
 
     // ── Trees between buildings — depth 6.5: behind buildings (7), in front of wall (6) ──
-    const treeBY = GROUND_Y;
+    const treeBY = BLACK_TILE_GROUND_Y;
     this.add.image(1250, treeBY, 'propTree1').setOrigin(0.5, 1).setScale(2.6).setDepth(6.5);
     this.add.image(1850, treeBY, 'propTree2').setOrigin(0.5, 1).setScale(2.6).setDepth(6.5);
     this.add.image(2960, treeBY, 'propTree1').setOrigin(0.5, 1).setScale(2.75).setDepth(6.5);
@@ -3398,10 +3400,10 @@ class CityScene extends PrototypeScene {
     this.add.image(670, baseY, 'propTableApples').setOrigin(0.5, 1).setScale(3.5).setDepth(pd);
 
     // ── Bushes at either end of town ──
-    this.add.image(60, GROUND_Y, 'propBushLarge').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
-    this.add.image(150, GROUND_Y, 'propBushSmall').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
-    this.add.image(CITY_WORLD_WIDTH - 320, GROUND_Y, 'propBushLarge').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
-    this.add.image(CITY_WORLD_WIDTH - 230, GROUND_Y, 'propBushSmall').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
+    this.add.image(60, BLACK_TILE_GROUND_Y, 'propBushLarge').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
+    this.add.image(150, BLACK_TILE_GROUND_Y, 'propBushSmall').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
+    this.add.image(CITY_WORLD_WIDTH - 320, BLACK_TILE_GROUND_Y, 'propBushLarge').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
+    this.add.image(CITY_WORLD_WIDTH - 230, BLACK_TILE_GROUND_Y, 'propBushSmall').setOrigin(0.5, 1).setScale(2.5).setDepth(pd);
   }
 
   createCityDog() {
@@ -4570,31 +4572,53 @@ class WildernessScene extends PrototypeScene {
 //   Ground surface (GY)      = 708
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Furniture display sizes at 2× native resolution
+// Furniture display sizes — native px × scale factor
 const FURN_SIZES = {
-  furnCabinet:      { w: 128, h: 192 },
-  furnCabinetDark:  { w: 128, h: 192 },
-  furnArmoire:      { w: 128, h: 192 },
-  furnDresser:      { w: 128, h: 192 },
-  furnChandelier:   { w:  64, h: 128 },
-  furnCurtainRed:   { w:  64, h: 192 },
-  furnCurtainGold:  { w:  64, h: 192 },
-  furnCurtainTeal:  { w:  64, h: 192 },
-  furnCurtainGreen: { w:  64, h: 192 },
-  furnBenchRed:     { w: 128, h: 128 },
-  furnBenchGreen:   { w: 128, h: 128 },
-  furnSofaRed:      { w: 256, h: 128 },
-  furnSofaGreen:    { w: 256, h: 128 },
-  furnSofaYellow:   { w: 256, h: 128 },
-  furnSofaTeal:     { w: 256, h: 128 },
-  furnBedCanopy:    { w: 320, h: 192 },
-  furnPicture:      { w:  64, h:  64 },
-  furnFlowerVase:   { w:  64, h: 128 },
-  furnBarrel:       { w:  64, h:  64 },
-  furnBathtub:      { w: 128, h: 128 },
-  furnMirrorTall:   { w: 128, h: 192 },
-  furnFloorLamp:    { w:  64, h: 192 },
-  furnChestOpen:    { w: 128, h: 128 },
+  // Beds (92×31 native → 3× = 276×93)
+  furnBedRed:          { w: 276, h:  93 },
+  furnBedBlue:         { w: 276, h:  93 },
+  furnBedGreen:        { w: 276, h:  93 },
+  furnBedYellow:       { w: 276, h:  93 },
+  furnBedDecor:        { w: 417, h:  87 },  // 139×29 native × 3
+  // Bath
+  furnBathtub:         { w: 135, h:  72 },  // 45×24 native × 3
+  furnTub:             { w: 147, h:  57 },  // 49×19 native × 3
+  furnShower:          { w: 120, h: 159 },  // 40×53 native × 3
+  // Tables / storage
+  furnTable:           { w: 150, h:  60 },  // 50×20 native × 3
+  furnBookcase:        { w: 108, h: 120 },  // 54×60 native × 2
+  furnNightstand:      { w:  84, h:  63 },  // 28×21 native × 3
+  furnChestGreen:      { w: 129, h:  60 },  // 43×20 native × 3
+  furnChestRed:        { w: 123, h:  33 },  // 41×11 native × 3
+  furnWardrobe:        { w: 156, h: 162 },  // 52×54 native × 3
+  furnCabinetDouble:   { w: 156, h: 162 },  // 52×54 native × 3
+  // Seating
+  furnArmchairBlue:    { w:  54, h:  90 },  // 18×30 native × 3
+  furnArmchairRed:     { w:  54, h:  90 },
+  furnArmchairGreen:   { w:  54, h:  90 },
+  furnArmchairYellow:  { w:  54, h:  90 },
+  furnSofaRed:         { w: 168, h:  90 },  // 56×30 native × 3
+  furnSofaBlue:        { w: 168, h:  90 },
+  furnSofaGreen:       { w: 168, h:  90 },
+  furnSofaYellow:      { w: 168, h:  90 },
+  // Floor decor
+  furnFlowerVase:      { w:  36, h:  66 },  // 12×22 native × 3
+  furnFloorLamp:       { w:  48, h: 138 },  // 16×46 native × 3
+  furnStandMirror:     { w:  84, h: 147 },  // 28×49 native × 3
+  furnPlantPed:        { w:  57, h: 108 },  // 19×36 native × 3
+  // Ceiling
+  furnHangLantern:     { w:  38, h: 124 },  // 19×62 native × 2
+  furnChandelier:      { w: 106, h:  48 },  // 53×24 native × 2
+  // Curtains (ceiling-mounted, hang down)
+  furnCurtainBlue:     { w:  78, h: 189 },  // 26×63 native × 3
+  furnCurtainGold:     { w:  78, h: 189 },
+  furnCurtainRed:      { w:  78, h: 189 },
+  furnCurtainGreen:    { w:  78, h: 189 },
+  // Wall art
+  furnPictureFlower:   { w:  78, h:  42 },  // 26×14 native × 3
+  furnPicturePortrait: { w:  42, h:  42 },  // 14×14 native × 3
+  furnWallCabinet:     { w: 156, h:  72 },  // 52×24 native × 3
+  furnWallShelf:       { w: 156, h:  72 },
 };
 
 // Mirelle's farmhouse interior config
@@ -4602,13 +4626,24 @@ const MIRELLE_FARMHOUSE = {
   key:        'mirelle_farmhouse',
   name:       "Mirelle's Farmhouse",
   windowType: 'intWinBlueO',
-  windowCols: [5, 10, 15],
+  windowCols: [4, 10, 16],
   furniture: [
-    { key: 'furnChandelier',  placement: 'ceiling', col:  7 },
-    { key: 'furnCurtainGold', placement: 'ceiling', col:  4 },
-    { key: 'furnSofaRed',     placement: 'ground',  col:  8 },
-    { key: 'furnCabinet',     placement: 'ground',  col: 17 },
-    { key: 'furnPicture',     placement: 'wall',    col: 12 },
+    // Required: bed, bath, table/chest
+    { key: 'furnBedRed',          placement: 'ground',  col: 12 },
+    { key: 'furnBathtub',         placement: 'ground',  col:  3 },
+    { key: 'furnTable',           placement: 'ground',  col:  6 },
+    // Required: 1–2 wall decorations, evenly distributed
+    { key: 'furnPictureFlower',   placement: 'wall',    col:  5 },
+    { key: 'furnPicturePortrait', placement: 'wall',    col: 15 },
+    // Additional items
+    { key: 'furnBookcase',        placement: 'ground',  col:  1 },
+    { key: 'furnArmchairBlue',    placement: 'ground',  col:  9 },
+    { key: 'furnFlowerVase',      placement: 'ground',  col: 11 },
+    { key: 'furnNightstand',      placement: 'ground',  col: 17 },
+    // Ceiling
+    { key: 'furnHangLantern',     placement: 'ceiling', col:  9 },
+    { key: 'furnCurtainGold',     placement: 'ceiling', col:  4 },
+    { key: 'furnCurtainGold',     placement: 'ceiling', col: 16 },
   ],
 };
 
@@ -4639,6 +4674,7 @@ class HutInteriorScene extends Phaser.Scene {
     const load = (key, path) => {
       if (!this.textures.exists(key)) this.load.image(key, path);
     };
+    // Interior structure tiles (unchanged)
     load('intFloor1',    P + 'floor_tile_1.png');
     load('intFloor2',    P + 'floor_tile_2.png');
     load('intWallBase',  P + 'wall_base.png');
@@ -4650,29 +4686,51 @@ class HutInteriorScene extends Phaser.Scene {
     load('intWinBlueO',  P + 'blue_window_open.png');
     load('intWinRedC',   P + 'red_window_closed.png');
     load('intWinRedO',   P + 'red_window_open.png');
-    load('furnCabinet',      F + 'cabinet_wood.png');
-    load('furnCabinetDark',  F + 'cabinet_dark.png');
-    load('furnArmoire',      F + 'armoire.png');
-    load('furnDresser',      F + 'dresser.png');
-    load('furnChandelier',   F + 'chandelier.png');
-    load('furnCurtainRed',   F + 'curtain_red.png');
-    load('furnCurtainGold',  F + 'curtain_gold.png');
-    load('furnCurtainTeal',  F + 'curtain_teal.png');
-    load('furnCurtainGreen', F + 'curtain_green.png');
-    load('furnBenchRed',     F + 'bench_red.png');
-    load('furnBenchGreen',   F + 'bench_green.png');
-    load('furnSofaRed',      F + 'sofa_red.png');
-    load('furnSofaGreen',    F + 'sofa_green.png');
-    load('furnSofaYellow',   F + 'sofa_yellow.png');
-    load('furnSofaTeal',     F + 'sofa_teal.png');
-    load('furnBedCanopy',    F + 'bed_canopy.png');
-    load('furnPicture',      F + 'picture_sm.png');
-    load('furnFlowerVase',   F + 'flower_vase.png');
-    load('furnBarrel',       F + 'barrel.png');
-    load('furnBathtub',      F + 'bathtub.png');
-    load('furnMirrorTall',   F + 'mirror_tall.png');
-    load('furnFloorLamp',    F + 'floor_lamp.png');
-    load('furnChestOpen',    F + 'chest_open.png');
+    // Beds
+    load('furnBedRed',         F + 'red_bed.png');
+    load('furnBedBlue',        F + 'blue_bed.png');
+    load('furnBedGreen',       F + 'green_bed.png');
+    load('furnBedYellow',      F + 'yellow_bed.png');
+    load('furnBedDecor',       F + 'decorative_bed.png');
+    // Bath
+    load('furnBathtub',        F + 'bathtub.png');
+    load('furnTub',            F + 'tub.png');
+    load('furnShower',         F + 'shower.png');
+    // Tables / storage
+    load('furnTable',          F + 'wooden_table.png');
+    load('furnBookcase',       F + 'bookcase.png');
+    load('furnNightstand',     F + 'nightstand.png');
+    load('furnChestGreen',     F + 'green_storage_chest.png');
+    load('furnChestRed',       F + 'red_wooden_chest.png');
+    load('furnWardrobe',       F + 'double_door_wardrobe.png');
+    load('furnCabinetDouble',  F + 'double_door_cabinet.png');
+    // Seating
+    load('furnArmchairBlue',   F + 'blue_armchair.png');
+    load('furnArmchairRed',    F + 'red_armchair.png');
+    load('furnArmchairGreen',  F + 'green_armchair.png');
+    load('furnArmchairYellow', F + 'yellow_armchair.png');
+    load('furnSofaRed',        F + 'red_sofa.png');
+    load('furnSofaBlue',       F + 'blue_sofa.png');
+    load('furnSofaGreen',      F + 'green_sofa.png');
+    load('furnSofaYellow',     F + 'yellow_sofa.png');
+    // Floor decor
+    load('furnFlowerVase',     F + 'flower_vase.png');
+    load('furnFloorLamp',      F + 'floor_lamp.png');
+    load('furnStandMirror',    F + 'standing_mirror.png');
+    load('furnPlantPed',       F + 'plant_on_pedestal.png');
+    // Ceiling
+    load('furnHangLantern',    F + 'hanging_lantern.png');
+    load('furnChandelier',     F + 'small_chandelier.png');
+    // Curtains
+    load('furnCurtainBlue',    F + 'blue_curtain_panel_right.png');
+    load('furnCurtainGold',    F + 'gold_curtain_panel_left.png');
+    load('furnCurtainRed',     F + 'red_curtain_panel_top_left.png');
+    load('furnCurtainGreen',   F + 'green_curtain_panel_top_right.png');
+    // Wall art
+    load('furnPictureFlower',   F + 'small_flower_picture.png');
+    load('furnPicturePortrait', F + 'small_framed_portrait.png');
+    load('furnWallCabinet',     F + 'small_wall_cabinet.png');
+    load('furnWallShelf',       F + 'small_wall_shelf.png');
   }
 
   create() {
