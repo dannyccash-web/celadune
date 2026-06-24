@@ -90,6 +90,19 @@ func _build_animations() -> void:
 	]
 	for d in defs:
 		_strip(f, d[0], d[1], d[2], d[3], d[4])
+
+	# "rise" = death frames in reverse order (intro sequence)
+	f.add_animation("rise")
+	f.set_animation_loop("rise", false)
+	f.set_animation_speed("rise", 5.0)
+	var death_tex: Texture2D = load("res://assets/characters/caelan/death.png")
+	if death_tex:
+		for i in [2, 1, 0]:
+			var a := AtlasTexture.new()
+			a.atlas  = death_tex
+			a.region = Rect2(i * FRAME_W, 0, FRAME_W, FRAME_H)
+			f.add_frame("rise", a)
+
 	sprite.sprite_frames = f
 
 func _strip(f: SpriteFrames, name: String, path: String, count: int, fps: float, loop: bool) -> void:
