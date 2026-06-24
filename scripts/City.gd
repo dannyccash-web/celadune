@@ -14,8 +14,10 @@ const TILE_PX      := 96
 # Green tileset (same as forest)
 const T_TOP_L := 0; const T_TOP_C := 1; const T_TOP_R := 2; const T_FILL := 10
 
-const NPC_GROUND_Y := 798.0
-const NPC_TALK_R   := 150.0
+const NPC_GROUND_Y  := 798.0
+const NPC_TALK_R    := 150.0
+const SLIME_GROUND_Y := 838.0
+const PLAYER_ATTACK_R := 180.0  # world-px reach of player attack
 
 # Dog
 const DOG_SCALE    := 3.1
@@ -77,6 +79,10 @@ var _dog_pause:  float = 0.0
 var _dog_flee:   bool  = false
 var _dog_gone:   bool  = false
 
+# Slimes
+var _slimes: Array = []
+var _player_invincible: float = 0.0   # seconds of invincibility after being hit
+
 # Audio
 var _music:      AudioStreamPlayer
 var _jump_sfx:   AudioStreamPlayer
@@ -95,9 +101,10 @@ var _door_tips: Array = []
 # Dialogue & menu
 var _dialogue_box: Node
 var _menu_panel:   Node
-var _dialogue_seq: Array = []
-var _dialogue_idx: int   = 0
-var _active_npc:   String = ""
+var _dialogue_seq:     Array = []
+var _dialogue_idx:     int   = 0
+var _active_npc:       String = ""
+var _talking_npc_idx:  int   = -1
 
 # State
 var _transitioning:  bool = false
@@ -122,6 +129,7 @@ func _ready() -> void:
 	_spawn_player()
 	_spawn_npcs()
 	_spawn_dog()
+	_spawn_slimes()
 	_build_camera()
 	_build_audio()
 	_build_hud()
@@ -378,6 +386,31 @@ func _spawn_dog() -> void:
 	_dog_sprite.play("walk")
 	_dog_node.add_child(_dog_sprite)
 
+# ── Slimes (east of city, past the last building) ────────────────────────────
+
+func _spawn_slimes() -> void:
+	var slime_script: GDScript = load("res://scripts/Slime.gd")
+
+	# [sheet_path, center_x, patrol_range_half]
+	var configs := [
+		["res://assets/enemies/slime_green.png",  4200.0, 140.0],
+		["res://assets/enemies/slime_blue.png",   4380.0, 120.0],
+		["res://assets/enemies/slime_red.png",    4560.0, 100.0],
+		["res://assets/enemies/slime_green2.png", 4680.0,  90.0],
+		["res://assets/enemies/slime_green.png",  4300.0, 160.0],
+	]
+
+	for cfg in configs:
+		var slime = slime_script.new()
+		slime.slime_sheet  = cfg[0]
+		slime.ground_y     = SLIME_GROUND_Y
+		slime.patrol_min_x = cfg[1] - cfg[2]
+		slime.patrol_max_x = cfg[1] + cfg[2]
+		slime.position     = Vector2(cfg[1], SLIME_GROUND_Y)
+		slime.hit_player.connect(_on_slime_hit_player)
+		add_child(slime)
+		_slimes.append(slime)
+
 # ── Camera ────────────────────────────────────────────────────────────────────
 
 func _build_camera() -> void:
@@ -416,6 +449,28 @@ func _on_player_jumped()   -> void: _jump_sfx.play()
 func _on_player_attacked() -> void:
 	_attack_sfx.play()
 	_trigger_dog_flee()
+	_check_attack_hits()
+
+func _check_attack_hits() -> void:
+	if not _player: return
+	for slime in _slimes:
+		if not is_instance_valid(slime): continue
+		if _player.position.distance_to(slime.position) < PLAYER_ATTACK_R:
+			slime.take_hit()
+	_slimes = _slimes.filter(func(s): return is_instance_valid(s))
+
+func _on_slime_hit_player() -> void:
+	if _player_invincible > 0.0: return
+	_player_invincible = 1.0
+	Globals.player_health = maxi(0, Globals.player_health - 1)
+	_hurt_sfx.play()
+	_refresh_hud()
+	# Brief visual flash on player sprite
+	var spr: AnimatedSprite2D = _player.get_node_or_null("Sprite")
+	if spr:
+		var tw := create_tween()
+		tw.tween_property(spr, "modulate", Color(2, 0.3, 0.3, 1), 0.08)
+		tw.tween_property(spr, "modulate", Color(1, 1, 1, 1), 0.18)
 
 # ── HUD ───────────────────────────────────────────────────────────────────────
 
@@ -508,6 +563,9 @@ func _process(delta: float) -> void:
 		_popup_timer -= delta
 		if _popup_timer <= 0.0: _popup_label.visible = false
 
+	if _player_invincible > 0.0:
+		_player_invincible -= delta
+
 	if _dialogue_open or _menu_open: return
 
 	_update_tooltips()
@@ -571,6 +629,7 @@ func _trigger_dog_flee() -> void:
 # ══════════════════════════════════════════════════════════════════════════════
 
 func _open_city_npc_dialogue(npc_idx: int) -> void:
+	_talking_npc_idx = npc_idx
 	var name: String = _npc_names[npc_idx]
 	var folder_map := {
 		"Bram Alder": "npc_city_1", "Ysra Thorn": "npc_city_2", "Teren Vale": "npc_city_3",
@@ -640,6 +699,8 @@ func _start_dialogue_seq() -> void:
 	_dialogue_open = true
 	_dialogue_idx  = 0
 	_player.set_physics_process(false)
+	if _talking_npc_idx >= 0 and _talking_npc_idx < _npcs.size():
+		_npcs[_talking_npc_idx].pause_patrol()
 	_show_next_line()
 
 func _show_next_line() -> void:
@@ -659,6 +720,9 @@ func _on_dialogue_choice(idx: int) -> void:
 	_show_next_line()
 
 func _on_dialogue_dismissed() -> void:
+	if _talking_npc_idx >= 0 and _talking_npc_idx < _npcs.size():
+		_npcs[_talking_npc_idx].resume_patrol()
+	_talking_npc_idx = -1
 	_dialogue_open = false; _active_npc = ""; _dialogue_seq = []
 	if _player: _player.set_physics_process(true)
 

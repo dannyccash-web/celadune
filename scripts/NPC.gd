@@ -89,3 +89,12 @@ func _start_pause() -> void:
 	_paused = true
 	_pause_timer = pause_ms / 1000.0
 	sprite.play("idle")
+
+# ── External pause (called by scene during dialogue) ──────────────────────────
+
+func pause_patrol() -> void:
+	set_process(false)
+	sprite.play("idle")
+
+func resume_patrol() -> void:
+	set_process(true)

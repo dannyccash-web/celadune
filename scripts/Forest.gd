@@ -618,7 +618,17 @@ func _start_dialogue_seq(_portrait) -> void:
 	_dialogue_open = true
 	_dialogue_idx  = 0
 	_player.set_physics_process(false)
+	# Pause the NPC being spoken to
+	var npc := _npc_for_id(_active_npc)
+	if npc: npc.pause_patrol()
 	_show_next_line()
+
+func _npc_for_id(npc_id: String) -> Node2D:
+	match npc_id:
+		"mirelle": return _mirelle
+		"aldric":  return _aldric
+		"lena":    return _lena
+	return null
 
 func _show_next_line() -> void:
 	if _dialogue_idx >= _dialogue_seq.size():
@@ -640,6 +650,8 @@ func _on_dialogue_choice(idx: int) -> void:
 	_show_next_line()
 
 func _on_dialogue_dismissed() -> void:
+	var npc := _npc_for_id(_active_npc)
+	if npc: npc.resume_patrol()
 	_dialogue_open = false
 	_active_npc    = ""
 	_dialogue_seq  = []
