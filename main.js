@@ -4829,7 +4829,7 @@ class HutInteriorScene extends Phaser.Scene {
     this.roomX       = RX;
     this.roomW       = ROOM_W;
     this.roomGY      = GY;
-    this.doorCenterX = RX + TILE / 2;                   // 352  col-0 centre
+    this.doorCenterX = RX + TILE + TILE / 2;            // 416  col-1 centre
 
     this.physics.world.gravity.y = 1800;
     this.cameras.main.setBackgroundColor('#000000');
@@ -4837,7 +4837,7 @@ class HutInteriorScene extends Phaser.Scene {
 
     // Pass ALL layout values to buildRoom — avoids any scope issues
     this.buildRoom({ TILE, COLS, ROOM_W, ROOF_H, WALL_H, WBASE_H, FLOOR_H, RX, RY, CEIL_Y, WALL_BOT, GY });
-    this.physics.world.setBounds(RX, 0, ROOM_W, GAME_HEIGHT);
+    this.physics.world.setBounds(RX + 127, 0, ROOM_W - 254, GAME_HEIGHT);
 
     this.spawnPlayer(GY);
     this.createHealthBar();
@@ -4881,35 +4881,6 @@ class HutInteriorScene extends Phaser.Scene {
         .setDisplaySize(TILE, FLOOR_H)   // 64×16 — natural 2× height
         .setOrigin(0, 0)
         .setDepth(2);
-    }
-
-    // ── Visual-only bleed tiles — fill screen so the player sprite never
-    //    overlaps black even when body is pressed against the physics wall ───
-    const BLEED_COLS_L = Math.ceil(RX / TILE);                      // 5 cols left
-    const BLEED_COLS_R = Math.ceil((GAME_WIDTH - RX - ROOM_W) / TILE); // 5 right
-    const bleedRows = [
-      { y: RY,                     key: 'intRoof',     h: ROOF_H  },
-      { y: RY + ROOF_H,            key: 'intWall',     h: WALL_H  },
-      { y: RY + ROOF_H +   WALL_H, key: 'intWall',     h: WALL_H  },
-      { y: RY + ROOF_H + 2*WALL_H, key: 'intWall',     h: WALL_H  },
-      { y: RY + ROOF_H + 3*WALL_H, key: 'intWall',     h: WALL_H  },
-      { y: WALL_BOT,               key: 'intWallBase', h: WBASE_H },
-    ];
-    for (let c = 1; c <= BLEED_COLS_L; c++) {
-      bleedRows.forEach(r => {
-        this.add.image(RX - c * TILE, r.y, r.key).setDisplaySize(TILE, r.h).setOrigin(0, 0).setDepth(2);
-      });
-      const fc = BLEED_COLS_L - c;
-      this.add.image(RX - c * TILE, GY, fc % 2 === 0 ? 'intFloor1' : 'intFloor2')
-        .setDisplaySize(TILE, FLOOR_H).setOrigin(0, 0).setDepth(2);
-    }
-    for (let c = 0; c < BLEED_COLS_R; c++) {
-      bleedRows.forEach(r => {
-        this.add.image(RX + ROOM_W + c * TILE, r.y, r.key).setDisplaySize(TILE, r.h).setOrigin(0, 0).setDepth(2);
-      });
-      const fc = COLS + c;
-      this.add.image(RX + ROOM_W + c * TILE, GY, fc % 2 === 0 ? 'intFloor1' : 'intFloor2')
-        .setDisplaySize(TILE, FLOOR_H).setOrigin(0, 0).setDepth(2);
     }
 
     // ── Windows: centred vertically in the 4 wall rows ─────────────────────
