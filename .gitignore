@@ -1,0 +1,8 @@
+# Godot import cache — regenerated locally and in CI
+.godot/
+
+# Web export output (built by GitHub Actions, deployed to gh-pages)
+web-build/
+
+# macOS
+.DS_Store
