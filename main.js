@@ -4593,7 +4593,7 @@ const FURN_SIZES = {
 // Mirelle's farmhouse interior config
 const MIRELLE_FARMHOUSE = {
   key: 'mirelle_farmhouse', name: "Mirelle's Farmhouse",
-  windowType: 'intWinBlueO', windowCols: [5, 15, 25],
+  windowType: 'intWinBlueO', windowCols: [4, 10, 16],
   furniture: [
     // Wall hangings — centred between each pair of windows
     { key: 'furnPictureFlower',          placement: 'wall',   col: 10 },
@@ -4614,7 +4614,7 @@ const MIRELLE_FARMHOUSE = {
 // ─────────────────────────────────────────────────────────────────────────────
 const BRAM_SMITHY = {
   key: 'bram_smithy', name: "Bram Alder's Smithy",
-  windowType: 'intWinBlueO', windowCols: [5, 15, 25],
+  windowType: 'intWinBlueO', windowCols: [4, 10, 16],
   furniture: [
     // Wall hangings — centred between each pair of windows
     { key: 'furnPicturePortrait',          placement: 'wall',   col: 10 },
@@ -4632,7 +4632,7 @@ const BRAM_SMITHY = {
 
 const PADRIG_TAVERN = {
   key: 'padrig_tavern', name: "Padrig's Tavern",
-  windowType: 'intWinRedO', windowCols: [5, 15, 25],
+  windowType: 'intWinRedO', windowCols: [4, 10, 16],
   furniture: [
     // Wall hangings — centred between each pair of windows
     { key: 'furnPictureFlower',          placement: 'wall',   col: 10 },
@@ -4650,7 +4650,7 @@ const PADRIG_TAVERN = {
 
 const TEREN_HOUSE = {
   key: 'teren_house', name: "Teren Vale's House",
-  windowType: 'intWinBlueO', windowCols: [5, 15, 25],
+  windowType: 'intWinBlueO', windowCols: [4, 10, 16],
   furniture: [
     // Wall hangings — centred between each pair of windows
     { key: 'furnWallMirror',          placement: 'wall',   col: 10 },
@@ -4668,7 +4668,7 @@ const TEREN_HOUSE = {
 
 const YSRA_HOUSE = {
   key: 'ysra_house', name: "Ysra Thorn's House",
-  windowType: 'intWinBlueO', windowCols: [5, 15, 25],
+  windowType: 'intWinBlueO', windowCols: [4, 10, 16],
   furniture: [
     // Wall hangings — centred between each pair of windows
     { key: 'furnPicturePortrait',          placement: 'wall',   col: 10 },
@@ -4686,7 +4686,7 @@ const YSRA_HOUSE = {
 
 const OSWIN_SHOP = {
   key: 'oswin_shop', name: "Oswin's Shop",
-  windowType: 'intWinBlueO', windowCols: [5, 15, 25],
+  windowType: 'intWinBlueO', windowCols: [4, 10, 16],
   furniture: [
     // Wall hangings — centred between each pair of windows
     { key: 'furnWallMirror',               placement: 'wall',   col: 10 },
@@ -4704,7 +4704,7 @@ const OSWIN_SHOP = {
 
 const RILLA_HOUSE = {
   key: 'rilla_house', name: "Rilla's House",
-  windowType: 'intWinBlueO', windowCols: [5, 15, 25],
+  windowType: 'intWinBlueO', windowCols: [4, 10, 16],
   furniture: [
     // Wall hangings — centred between each pair of windows
     { key: 'furnPicturePortrait',          placement: 'wall',   col: 10 },
@@ -4813,23 +4813,23 @@ class HutInteriorScene extends Phaser.Scene {
   create() {
     // ── Room layout constants (all at 2× native pixel dimensions) ────────────
     const TILE    = 64;   // column width = 2× native 32px
-    const COLS    = Math.floor(GAME_WIDTH / TILE);  // 30 — full screen width
-    const ROOM_W  = COLS * TILE;                    // 1920
+    const COLS    = 20;
+    const ROOM_W  = COLS * TILE;                         // 1280
     const ROOF_H  = 64;   // house_roof.png  32×32 → 64×64
-    const WALL_H  = 64;   // house_wall.png  30×30 → 64×64
-    const WBASE_H = 32;   // wall_base.png   16×16 → 64×32
-    const FLOOR_H = 16;   // floor_tile.png  32×8  → 64×16
+    const WALL_H  = 64;   // house_wall.png  30×30 → 64×64  (slight stretch)
+    const WBASE_H = 32;   // wall_base.png   16×16 → 64×32  natural 2× height
+    const FLOOR_H = 16;   // floor_tile.png  32×8  → 64×16  natural 2× height
     const ROOM_H  = ROOF_H + 4 * WALL_H + WBASE_H + FLOOR_H;  // 368
-    const RX      = 0;                              // room starts at screen left
-    const RY      = (GAME_HEIGHT - ROOM_H) / 2;    // 356
-    const CEIL_Y  = RY + ROOF_H;                    // 420  ceiling surface
-    const WALL_BOT = CEIL_Y + 4 * WALL_H;           // 676  wallbase top
-    const GY      = WALL_BOT + WBASE_H;             // 708  floor top / ground
+    const RX      = (GAME_WIDTH  - ROOM_W) / 2;         // 320
+    const RY      = (GAME_HEIGHT - ROOM_H) / 2;         // 356
+    const CEIL_Y  = RY + ROOF_H;                         // 420  ceiling surface
+    const WALL_BOT = CEIL_Y + 4 * WALL_H;               // 676  wallbase top
+    const GY      = WALL_BOT + WBASE_H;                 // 708  floor top / ground
 
     this.roomX       = RX;
     this.roomW       = ROOM_W;
     this.roomGY      = GY;
-    this.doorCenterX = RX + TILE / 2;               // 32   col-0 centre
+    this.doorCenterX = RX + TILE / 2;                   // 352  col-0 centre
 
     this.physics.world.gravity.y = 1800;
     this.cameras.main.setBackgroundColor('#000000');
@@ -4837,8 +4837,7 @@ class HutInteriorScene extends Phaser.Scene {
 
     // Pass ALL layout values to buildRoom — avoids any scope issues
     this.buildRoom({ TILE, COLS, ROOM_W, ROOF_H, WALL_H, WBASE_H, FLOOR_H, RX, RY, CEIL_Y, WALL_BOT, GY });
-    // Constrain player so sprite visually stays within the screen edges
-    this.physics.world.setBounds(127, 0, GAME_WIDTH - 254, GAME_HEIGHT);
+    this.physics.world.setBounds(RX, 0, ROOM_W, GAME_HEIGHT);
 
     this.spawnPlayer(GY);
     this.createHealthBar();
@@ -4882,6 +4881,35 @@ class HutInteriorScene extends Phaser.Scene {
         .setDisplaySize(TILE, FLOOR_H)   // 64×16 — natural 2× height
         .setOrigin(0, 0)
         .setDepth(2);
+    }
+
+    // ── Visual-only bleed tiles — fill screen so the player sprite never
+    //    overlaps black even when body is pressed against the physics wall ───
+    const BLEED_COLS_L = Math.ceil(RX / TILE);                      // 5 cols left
+    const BLEED_COLS_R = Math.ceil((GAME_WIDTH - RX - ROOM_W) / TILE); // 5 right
+    const bleedRows = [
+      { y: RY,                     key: 'intRoof',     h: ROOF_H  },
+      { y: RY + ROOF_H,            key: 'intWall',     h: WALL_H  },
+      { y: RY + ROOF_H +   WALL_H, key: 'intWall',     h: WALL_H  },
+      { y: RY + ROOF_H + 2*WALL_H, key: 'intWall',     h: WALL_H  },
+      { y: RY + ROOF_H + 3*WALL_H, key: 'intWall',     h: WALL_H  },
+      { y: WALL_BOT,               key: 'intWallBase', h: WBASE_H },
+    ];
+    for (let c = 1; c <= BLEED_COLS_L; c++) {
+      bleedRows.forEach(r => {
+        this.add.image(RX - c * TILE, r.y, r.key).setDisplaySize(TILE, r.h).setOrigin(0, 0).setDepth(2);
+      });
+      const fc = BLEED_COLS_L - c;
+      this.add.image(RX - c * TILE, GY, fc % 2 === 0 ? 'intFloor1' : 'intFloor2')
+        .setDisplaySize(TILE, FLOOR_H).setOrigin(0, 0).setDepth(2);
+    }
+    for (let c = 0; c < BLEED_COLS_R; c++) {
+      bleedRows.forEach(r => {
+        this.add.image(RX + ROOM_W + c * TILE, r.y, r.key).setDisplaySize(TILE, r.h).setOrigin(0, 0).setDepth(2);
+      });
+      const fc = COLS + c;
+      this.add.image(RX + ROOM_W + c * TILE, GY, fc % 2 === 0 ? 'intFloor1' : 'intFloor2')
+        .setDisplaySize(TILE, FLOOR_H).setOrigin(0, 0).setDepth(2);
     }
 
     // ── Windows: centred vertically in the 4 wall rows ─────────────────────
