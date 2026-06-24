@@ -19,6 +19,11 @@ const GROUND_Y     := 888     # top surface of tiles / where physics floor sits
 const PROP_BASE    := 903     # bottom of props and buildings (BLACK_TILE_GROUND_Y - 24)
 const TILE_PX      := 96
 
+# NPC Y position when standing on GROUND_Y.
+# Derived from Phaser: sprite_center.y = 888 - (offset_y + body_h - frame_h/2) * scale
+#   = 888 - (28 + 34 - 32) * 3.0 = 888 - 90 = 798
+const NPC_GROUND_Y := 798.0
+
 # Tile frame indices in floor_tiles2.png (9 columns × 18 rows, 96×96 each)
 # green set: top-left=0, top-center=1, top-right=2, fill=10
 const T_TOP_L := 0
@@ -233,7 +238,7 @@ func _spawn_npcs() -> void:
 	mirelle.pause_ms    = 5000.0
 	mirelle.frame_w     = 64
 	mirelle.frame_h     = 64
-	mirelle.position    = Vector2(2420.0, NPC.NPC_GROUND_Y)
+	mirelle.position    = Vector2(2420.0, NPC_GROUND_Y)
 	add_child(mirelle)
 
 	# Aldric (hutWanderer) — patrols X 1860–2170, scale 3.0
@@ -250,7 +255,7 @@ func _spawn_npcs() -> void:
 	aldric.pause_ms    = 3500.0
 	aldric.frame_w     = 64
 	aldric.frame_h     = 64
-	aldric.position    = Vector2(2015.0, NPC.NPC_GROUND_Y)
+	aldric.position    = Vector2(2015.0, NPC_GROUND_Y)
 	add_child(aldric)
 
 	# Farm worker (Lena) — patrols X 2950–3300, scale 3.0
@@ -267,7 +272,7 @@ func _spawn_npcs() -> void:
 	lena.pause_ms    = 4500.0
 	lena.frame_w     = 64
 	lena.frame_h     = 64
-	lena.position    = Vector2(3050.0, NPC.NPC_GROUND_Y)
+	lena.position    = Vector2(3050.0, NPC_GROUND_Y)
 	add_child(lena)
 
 # ── Camera ────────────────────────────────────────────────────────────────────
