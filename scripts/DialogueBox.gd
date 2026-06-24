@@ -1,4 +1,5 @@
 extends CanvasLayer
+class_name DialogueBox
 ## Reusable parchment-style dialogue panel.
 ## Add as child of a scene, connect signals, call show_line() to drive it.
 
