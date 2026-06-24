@@ -50,7 +50,7 @@ func _build_parallax() -> void:
 	_parallax_bg = ParallaxBackground.new()
 	add_child(_parallax_bg)
 	for i in range(BG_LAYERS.size()):
-		var cfg := BG_LAYERS[i]
+		var cfg: Dictionary = BG_LAYERS[i]
 		var tex: Texture2D = load(cfg["path"])
 		if not tex: continue
 		var s := float(GAME_H) / float(tex.get_height())
