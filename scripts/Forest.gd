@@ -225,7 +225,7 @@ func _spawn_npcs() -> void:
 	var npc_scene: PackedScene = load("res://scenes/NPC.tscn")
 
 	# Mirelle (forestLady) — patrols X 2420–2660, scale 3.0
-	var mirelle: Node2D = npc_scene.instantiate()
+	var mirelle = npc_scene.instantiate()
 	mirelle.npc_name    = "Mirelle"
 	mirelle.walk_path   = "res://assets/npcs/forest_lady/walk.png"
 	mirelle.idle_path   = "res://assets/npcs/forest_lady/idle.png"
@@ -242,7 +242,7 @@ func _spawn_npcs() -> void:
 	add_child(mirelle)
 
 	# Aldric (hutWanderer) — patrols X 1860–2170, scale 3.0
-	var aldric: Node2D = npc_scene.instantiate()
+	var aldric = npc_scene.instantiate()
 	aldric.npc_name    = "Aldric"
 	aldric.walk_path   = "res://assets/npcs/hut_wanderer/walk.png"
 	aldric.idle_path   = "res://assets/npcs/hut_wanderer/idle.png"
@@ -259,7 +259,7 @@ func _spawn_npcs() -> void:
 	add_child(aldric)
 
 	# Farm worker (Lena) — patrols X 2950–3300, scale 3.0
-	var lena: Node2D = npc_scene.instantiate()
+	var lena = npc_scene.instantiate()
 	lena.npc_name    = "Lena"
 	lena.walk_path   = "res://assets/npcs/farm_worker/walk.png"
 	lena.idle_path   = "res://assets/npcs/farm_worker/idle.png"
