@@ -2189,6 +2189,7 @@ class PrototypeScene extends Phaser.Scene {
     this.scene.launch('HutInteriorScene', {
       heroKey:        this.heroKey,
       returnSceneKey: this.scene.key,
+      returnLabel:    'Forest',
       interiorConfig: MIRELLE_FARMHOUSE,
       playerHealth:   this.playerHealth,
       returnPosition: {
@@ -3984,6 +3985,7 @@ class CityScene extends PrototypeScene {
       this.scene.launch('HutInteriorScene', {
         heroKey:        this.heroKey,
         returnSceneKey: 'CityScene',
+        returnLabel:    'City',
         interiorConfig: activeDoor.interiorConfig,
         playerHealth:   this.playerHealth,
         playerMaxHealth: this.playerMaxHealth,
@@ -4570,6 +4572,8 @@ const FURN_SIZES = {
   furnFloorLamp:       { w:  48, h: 138 },  // 16×46 native × 3
   furnStandMirror:     { w:  84, h: 147 },  // 28×49 native × 3
   furnWallMirror:      { w:  42, h:  78 },  // 14×26 native × 3
+  furnMantelShelf:     { w: 162, h:  60 },  // 54×20 native × 3  (looks like a proper dining table)
+  furnSmallRedChest:   { w: 111, h:  63 },  // 37×21 native × 3
   furnPlantPed:        { w:  57, h: 108 },  // 19×36 native × 3
   // Ceiling
   furnHangLantern:     { w:  38, h: 124 },  // 19×62 native × 2
@@ -4588,22 +4592,20 @@ const FURN_SIZES = {
 
 // Mirelle's farmhouse interior config
 const MIRELLE_FARMHOUSE = {
-  key:        'mirelle_farmhouse',
-  name:       "Mirelle's Farmhouse",
-  windowType: 'intWinBlueO',
-  windowCols: [4, 10, 16],
+  key: 'mirelle_farmhouse', name: "Mirelle's Farmhouse",
+  windowType: 'intWinBlueO', windowCols: [5, 15, 25],
   furniture: [
     // Wall hangings — centred between each pair of windows
-    { key: 'furnPictureFlower',        placement: 'wall',   col:  7 },
-    { key: 'furnWallMirror',        placement: 'wall',   col: 13 },
+    { key: 'furnPictureFlower',          placement: 'wall',   col: 10 },
+    { key: 'furnWallMirror',          placement: 'wall',   col: 20 },
     // Dining area (between windows 1 and 2): chair — table — chair (reversed)
-    { key: 'furnArmchairBlue',        placement: 'ground', col:  5 },
-    { key: 'furnTable',      placement: 'ground', col:  6 },
-    { key: 'furnArmchairBlue',        placement: 'ground', col:  9, flipX: true },
+    { key: 'furnArmchairBlue',          placement: 'ground', col:  7 },
+    { key: 'furnMantelShelf',  placement: 'ground', col:  8 },
+    { key: 'furnArmchairBlue',          placement: 'ground', col: 12, flipX: true },
     // Bed (between windows 2 and 3)
-    { key: 'furnBedRed',          placement: 'ground', col: 11 },
+    { key: 'furnBedRed',            placement: 'ground', col: 17 },
     // Bottom-right corner: chest / cabinet
-    { key: 'furnChestRed',        placement: 'ground', col: 18 },
+    { key: 'furnSmallRedChest',          placement: 'ground', col: 27 },
   ],
 };
 
@@ -4612,115 +4614,109 @@ const MIRELLE_FARMHOUSE = {
 // ─────────────────────────────────────────────────────────────────────────────
 const BRAM_SMITHY = {
   key: 'bram_smithy', name: "Bram Alder's Smithy",
-  windowType: 'intWinBlueO',
-  windowCols: [4, 10, 16],
+  windowType: 'intWinBlueO', windowCols: [5, 15, 25],
   furniture: [
     // Wall hangings — centred between each pair of windows
-    { key: 'furnWallShelf',        placement: 'wall',   col:  7 },
-    { key: 'furnPicturePortrait',        placement: 'wall',   col: 13 },
+    { key: 'furnPicturePortrait',          placement: 'wall',   col: 10 },
+    { key: 'furnWallMirror',               placement: 'wall',   col: 20 },
     // Dining area (between windows 1 and 2): chair — table — chair (reversed)
-    { key: 'furnArmchairRed',        placement: 'ground', col:  5 },
-    { key: 'furnTable',      placement: 'ground', col:  6 },
-    { key: 'furnArmchairRed',        placement: 'ground', col:  9, flipX: true },
+    { key: 'furnArmchairRed',          placement: 'ground', col:  7 },
+    { key: 'furnMantelShelf',  placement: 'ground', col:  8 },
+    { key: 'furnArmchairRed',          placement: 'ground', col: 12, flipX: true },
     // Bed (between windows 2 and 3)
-    { key: 'furnBedGreen',          placement: 'ground', col: 11 },
+    { key: 'furnBedGreen',            placement: 'ground', col: 17 },
     // Bottom-right corner: chest / cabinet
-    { key: 'furnChestGreen',        placement: 'ground', col: 18 },
+    { key: 'furnSmallRedChest',          placement: 'ground', col: 27 },
   ],
 };
 
 const PADRIG_TAVERN = {
   key: 'padrig_tavern', name: "Padrig's Tavern",
-  windowType: 'intWinRedO',
-  windowCols: [4, 10, 16],
+  windowType: 'intWinRedO', windowCols: [5, 15, 25],
   furniture: [
     // Wall hangings — centred between each pair of windows
-    { key: 'furnPictureFlower',        placement: 'wall',   col:  7 },
-    { key: 'furnPicturePortrait',        placement: 'wall',   col: 13 },
+    { key: 'furnPictureFlower',          placement: 'wall',   col: 10 },
+    { key: 'furnPicturePortrait',          placement: 'wall',   col: 20 },
     // Dining area (between windows 1 and 2): chair — table — chair (reversed)
-    { key: 'furnArmchairYellow',        placement: 'ground', col:  5 },
-    { key: 'furnTable',      placement: 'ground', col:  6 },
-    { key: 'furnArmchairYellow',        placement: 'ground', col:  9, flipX: true },
+    { key: 'furnArmchairYellow',          placement: 'ground', col:  7 },
+    { key: 'furnMantelShelf',  placement: 'ground', col:  8 },
+    { key: 'furnArmchairYellow',          placement: 'ground', col: 12, flipX: true },
     // Bed (between windows 2 and 3)
-    { key: 'furnBedYellow',          placement: 'ground', col: 11 },
+    { key: 'furnBedYellow',            placement: 'ground', col: 17 },
     // Bottom-right corner: chest / cabinet
-    { key: 'furnChestGreen',        placement: 'ground', col: 18 },
+    { key: 'furnSmallRedChest',          placement: 'ground', col: 27 },
   ],
 };
 
 const TEREN_HOUSE = {
   key: 'teren_house', name: "Teren Vale's House",
-  windowType: 'intWinBlueO',
-  windowCols: [4, 10, 16],
+  windowType: 'intWinBlueO', windowCols: [5, 15, 25],
   furniture: [
     // Wall hangings — centred between each pair of windows
-    { key: 'furnWallMirror',        placement: 'wall',   col:  7 },
-    { key: 'furnPictureFlower',        placement: 'wall',   col: 13 },
+    { key: 'furnWallMirror',          placement: 'wall',   col: 10 },
+    { key: 'furnPictureFlower',          placement: 'wall',   col: 20 },
     // Dining area (between windows 1 and 2): chair — table — chair (reversed)
-    { key: 'furnArmchairBlue',        placement: 'ground', col:  5 },
-    { key: 'furnTable',      placement: 'ground', col:  6 },
-    { key: 'furnArmchairBlue',        placement: 'ground', col:  9, flipX: true },
+    { key: 'furnArmchairBlue',          placement: 'ground', col:  7 },
+    { key: 'furnMantelShelf',  placement: 'ground', col:  8 },
+    { key: 'furnArmchairBlue',          placement: 'ground', col: 12, flipX: true },
     // Bed (between windows 2 and 3)
-    { key: 'furnBedBlue',          placement: 'ground', col: 11 },
+    { key: 'furnBedBlue',            placement: 'ground', col: 17 },
     // Bottom-right corner: chest / cabinet
-    { key: 'furnCabinetDouble',        placement: 'ground', col: 18 },
+    { key: 'furnCabinetDouble',          placement: 'ground', col: 27 },
   ],
 };
 
 const YSRA_HOUSE = {
   key: 'ysra_house', name: "Ysra Thorn's House",
-  windowType: 'intWinBlueO',
-  windowCols: [4, 10, 16],
+  windowType: 'intWinBlueO', windowCols: [5, 15, 25],
   furniture: [
     // Wall hangings — centred between each pair of windows
-    { key: 'furnPicturePortrait',        placement: 'wall',   col:  7 },
-    { key: 'furnWallMirror',        placement: 'wall',   col: 13 },
+    { key: 'furnPicturePortrait',          placement: 'wall',   col: 10 },
+    { key: 'furnWallMirror',          placement: 'wall',   col: 20 },
     // Dining area (between windows 1 and 2): chair — table — chair (reversed)
-    { key: 'furnArmchairGreen',        placement: 'ground', col:  5 },
-    { key: 'furnTable',      placement: 'ground', col:  6 },
-    { key: 'furnArmchairGreen',        placement: 'ground', col:  9, flipX: true },
+    { key: 'furnArmchairGreen',          placement: 'ground', col:  7 },
+    { key: 'furnMantelShelf',  placement: 'ground', col:  8 },
+    { key: 'furnArmchairGreen',          placement: 'ground', col: 12, flipX: true },
     // Bed (between windows 2 and 3)
-    { key: 'furnBedGreen',          placement: 'ground', col: 11 },
+    { key: 'furnBedGreen',            placement: 'ground', col: 17 },
     // Bottom-right corner: chest / cabinet
-    { key: 'furnWardrobe',        placement: 'ground', col: 18 },
+    { key: 'furnCabinetDouble',          placement: 'ground', col: 27 },
   ],
 };
 
 const OSWIN_SHOP = {
   key: 'oswin_shop', name: "Oswin's Shop",
-  windowType: 'intWinBlueO',
-  windowCols: [4, 10, 16],
+  windowType: 'intWinBlueO', windowCols: [5, 15, 25],
   furniture: [
     // Wall hangings — centred between each pair of windows
-    { key: 'furnWallShelf',        placement: 'wall',   col:  7 },
-    { key: 'furnPictureFlower',        placement: 'wall',   col: 13 },
+    { key: 'furnWallMirror',               placement: 'wall',   col: 10 },
+    { key: 'furnPictureFlower',            placement: 'wall',   col: 20 },
     // Dining area (between windows 1 and 2): chair — table — chair (reversed)
-    { key: 'furnArmchairYellow',        placement: 'ground', col:  5 },
-    { key: 'furnTable',      placement: 'ground', col:  6 },
-    { key: 'furnArmchairYellow',        placement: 'ground', col:  9, flipX: true },
+    { key: 'furnArmchairYellow',          placement: 'ground', col:  7 },
+    { key: 'furnMantelShelf',  placement: 'ground', col:  8 },
+    { key: 'furnArmchairYellow',          placement: 'ground', col: 12, flipX: true },
     // Bed (between windows 2 and 3)
-    { key: 'furnBedYellow',          placement: 'ground', col: 11 },
+    { key: 'furnBedYellow',            placement: 'ground', col: 17 },
     // Bottom-right corner: chest / cabinet
-    { key: 'furnChestGreen',        placement: 'ground', col: 18 },
+    { key: 'furnSmallRedChest',          placement: 'ground', col: 27 },
   ],
 };
 
 const RILLA_HOUSE = {
   key: 'rilla_house', name: "Rilla's House",
-  windowType: 'intWinBlueO',
-  windowCols: [4, 10, 16],
+  windowType: 'intWinBlueO', windowCols: [5, 15, 25],
   furniture: [
     // Wall hangings — centred between each pair of windows
-    { key: 'furnPicturePortrait',        placement: 'wall',   col:  7 },
-    { key: 'furnPictureFlower',        placement: 'wall',   col: 13 },
+    { key: 'furnPicturePortrait',          placement: 'wall',   col: 10 },
+    { key: 'furnPictureFlower',          placement: 'wall',   col: 20 },
     // Dining area (between windows 1 and 2): chair — table — chair (reversed)
-    { key: 'furnArmchairBlue',        placement: 'ground', col:  5 },
-    { key: 'furnTable',      placement: 'ground', col:  6 },
-    { key: 'furnArmchairBlue',        placement: 'ground', col:  9, flipX: true },
+    { key: 'furnArmchairBlue',          placement: 'ground', col:  7 },
+    { key: 'furnMantelShelf',  placement: 'ground', col:  8 },
+    { key: 'furnArmchairBlue',          placement: 'ground', col: 12, flipX: true },
     // Bed (between windows 2 and 3)
-    { key: 'furnBedBlue',          placement: 'ground', col: 11 },
+    { key: 'furnBedBlue',            placement: 'ground', col: 17 },
     // Bottom-right corner: chest / cabinet
-    { key: 'furnChestRed',        placement: 'ground', col: 18 },
+    { key: 'furnSmallRedChest',          placement: 'ground', col: 27 },
   ],
 };
 
@@ -4736,6 +4732,7 @@ class HutInteriorScene extends Phaser.Scene {
     this.heroKey          = data?.heroKey        || 'caelan';
     this.returnSceneKey   = data?.returnSceneKey  || 'PrototypeScene';
     this.returnPosition   = data?.returnPosition  || { x: 2240, y: 800 };
+    this.returnLabel      = data?.returnLabel      || 'the world';
     this.interiorConfig   = data?.interiorConfig  || MIRELLE_FARMHOUSE;
     this.playerHealth     = Number.isFinite(data?.playerHealth) ? data.playerHealth : 10;
     this.playerMaxHealth  = 10;
@@ -4795,6 +4792,8 @@ class HutInteriorScene extends Phaser.Scene {
     load('furnFloorLamp',      F + 'floor_lamp.png');
     load('furnStandMirror',    F + 'standing_mirror.png');
     load('furnWallMirror',     F + 'wall_mirror.png');
+    load('furnMantelShelf',    F + 'mantel_shelf.png');
+    load('furnSmallRedChest',  F + 'small_red_chest.png');
     load('furnPlantPed',       F + 'plant_on_pedestal.png');
     // Ceiling
     load('furnHangLantern',    F + 'hanging_lantern.png');
@@ -4814,23 +4813,23 @@ class HutInteriorScene extends Phaser.Scene {
   create() {
     // ── Room layout constants (all at 2× native pixel dimensions) ────────────
     const TILE    = 64;   // column width = 2× native 32px
-    const COLS    = 20;
-    const ROOM_W  = COLS * TILE;                         // 1280
+    const COLS    = Math.floor(GAME_WIDTH / TILE);  // 30 — full screen width
+    const ROOM_W  = COLS * TILE;                    // 1920
     const ROOF_H  = 64;   // house_roof.png  32×32 → 64×64
-    const WALL_H  = 64;   // house_wall.png  30×30 → 64×64  (slight stretch)
-    const WBASE_H = 32;   // wall_base.png   16×16 → 64×32  natural 2× height
-    const FLOOR_H = 16;   // floor_tile.png  32×8  → 64×16  natural 2× height
+    const WALL_H  = 64;   // house_wall.png  30×30 → 64×64
+    const WBASE_H = 32;   // wall_base.png   16×16 → 64×32
+    const FLOOR_H = 16;   // floor_tile.png  32×8  → 64×16
     const ROOM_H  = ROOF_H + 4 * WALL_H + WBASE_H + FLOOR_H;  // 368
-    const RX      = (GAME_WIDTH  - ROOM_W) / 2;         // 320
-    const RY      = (GAME_HEIGHT - ROOM_H) / 2;         // 356
-    const CEIL_Y  = RY + ROOF_H;                         // 420  ceiling surface
-    const WALL_BOT = CEIL_Y + 4 * WALL_H;               // 676  wallbase top
-    const GY      = WALL_BOT + WBASE_H;                 // 708  floor top / ground
+    const RX      = 0;                              // room starts at screen left
+    const RY      = (GAME_HEIGHT - ROOM_H) / 2;    // 356
+    const CEIL_Y  = RY + ROOF_H;                    // 420  ceiling surface
+    const WALL_BOT = CEIL_Y + 4 * WALL_H;           // 676  wallbase top
+    const GY      = WALL_BOT + WBASE_H;             // 708  floor top / ground
 
     this.roomX       = RX;
     this.roomW       = ROOM_W;
     this.roomGY      = GY;
-    this.doorCenterX = RX + TILE / 2;                   // 352  col-0 centre
+    this.doorCenterX = RX + TILE / 2;               // 32   col-0 centre
 
     this.physics.world.gravity.y = 1800;
     this.cameras.main.setBackgroundColor('#000000');
@@ -4838,7 +4837,8 @@ class HutInteriorScene extends Phaser.Scene {
 
     // Pass ALL layout values to buildRoom — avoids any scope issues
     this.buildRoom({ TILE, COLS, ROOM_W, ROOF_H, WALL_H, WBASE_H, FLOOR_H, RX, RY, CEIL_Y, WALL_BOT, GY });
-    this.physics.world.setBounds(RX, 0, ROOM_W, GAME_HEIGHT);
+    // Constrain player so sprite visually stays within the screen edges
+    this.physics.world.setBounds(127, 0, GAME_WIDTH - 254, GAME_HEIGHT);
 
     this.spawnPlayer(GY);
     this.createHealthBar();
@@ -4943,7 +4943,7 @@ class HutInteriorScene extends Phaser.Scene {
       this.ground.add(r);
     };
 
-    addStatic(GAME_WIDTH / 2, GY + 2 + H/2,      GAME_WIDTH, H, true,  true,  false, true);   // floor
+    addStatic(GAME_WIDTH / 2, GY + H/2,           GAME_WIDTH, H, true,  true,  false, true);   // floor
     addStatic(GAME_WIDTH / 2, CEIL_Y - 2 - H/2,  GAME_WIDTH, H, true,  true,  true,  false);  // ceiling
     addStatic(RX - 4,          GAME_HEIGHT / 2, 8, GAME_HEIGHT, false, true,  true,  true);    // left wall
     addStatic(RX + ROOM_W + 4, GAME_HEIGHT / 2, 8, GAME_HEIGHT, true,  false, true,  true);   // right wall
@@ -5000,14 +5000,11 @@ class HutInteriorScene extends Phaser.Scene {
 
   createDoorTooltip() {
     this.doorTooltip = this.add.container(0, 0).setDepth(30).setVisible(false);
-    const bg   = this.add.rectangle(0, 0, 240, 54, 0x1c1209, 0.90).setStrokeStyle(2, 0xdab56a, 0.95);
-    const name = this.add.text(0, -11, this.interiorConfig.name, {
-      fontFamily: 'Roboto Mono', fontSize: '15px', color: '#f7edd6', fontStyle: 'bold',
+    const bg   = this.add.rectangle(0, 0, 220, 38, 0x1c1209, 0.90).setStrokeStyle(2, 0xdab56a, 0.95);
+    const label = this.add.text(0, 0, `→  ${this.returnLabel}`, {
+      fontFamily: 'Roboto Mono', fontSize: '15px', color: '#f7edd6',
     }).setOrigin(0.5);
-    const hint = this.add.text(0, 12, '[↵ Enter]  Exit', {
-      fontFamily: 'Roboto Mono', fontSize: '12px', color: '#c9b48a',
-    }).setOrigin(0.5);
-    this.doorTooltip.add([bg, name, hint]);
+    this.doorTooltip.add([bg, label]);
   }
 
   startAttack() {
