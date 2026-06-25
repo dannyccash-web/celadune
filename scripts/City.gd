@@ -1,22 +1,21 @@
 extends Node2D
 # ══════════════════════════════════════════════════════════════════════════════
 # City scene
-# World 4800 × 1080  |  GROUND_Y = 888  |  GREEN tile set
+# World 4800 × 1080  |  GROUND_Y = 927  |  BROWN tile set
 # ══════════════════════════════════════════════════════════════════════════════
 
 const WORLD_WIDTH  := 4800
 const GAME_W       := 1920
 const GAME_H       := 1080
-const GROUND_Y     := 888
-const PROP_BASE    := 915   # building base anchor (BLACK_TILE_GROUND_Y 927 - 12)
+const GROUND_Y     := 927
+const PROP_BASE    := 915   # building base anchor (GROUND_Y - 12)
 const TILE_PX      := 96
 
-# Green tileset (same as forest)
-const T_TOP_L := 0; const T_TOP_C := 1; const T_TOP_R := 2; const T_FILL := 10
+# Brown tileset (frames from floor_tiles2.png row 6-7)
+const T_TOP_L := 54; const T_TOP_C := 55; const T_TOP_R := 56; const T_FILL := 64
 
-const NPC_GROUND_Y  := 798.0
+const NPC_GROUND_Y  := 837.0
 const NPC_TALK_R    := 150.0
-const SLIME_GROUND_Y := 838.0
 const PLAYER_ATTACK_R := 180.0  # world-px reach of player attack
 
 # Dog
@@ -25,7 +24,7 @@ const DOG_FRAME_SZ := 32
 const DOG_WALK_ROW := 0
 const DOG_FIRST_FR := 6
 const DOG_LAST_FR  := 11
-const DOG_GROUND_Y := 838.0
+const DOG_GROUND_Y := 877.0
 const DOG_MIN_X    := 400.0
 const DOG_MAX_X    := 4400.0
 const DOG_SPEED    := 58.0
@@ -79,9 +78,7 @@ var _dog_pause:  float = 0.0
 var _dog_flee:   bool  = false
 var _dog_gone:   bool  = false
 
-# Slimes
-var _slimes: Array = []
-var _player_invincible: float = 0.0   # seconds of invincibility after being hit
+# (Slimes are in the Wilderness scene, east of the city)
 
 # Audio
 var _music:      AudioStreamPlayer
@@ -131,7 +128,6 @@ func _ready() -> void:
 	_spawn_player()
 	_spawn_npcs()
 	_spawn_dog()
-	_spawn_slimes()
 	_build_camera()
 	_build_audio()
 	_build_hud()
@@ -196,7 +192,7 @@ func _build_ground_tiles() -> void:
 func _tile(tex: Texture2D, cx: float, cy: float, frame: int, z: int) -> void:
 	var atlas := AtlasTexture.new()
 	atlas.atlas  = tex
-	atlas.region = Rect2((frame % 9) * TILE_PX, (frame / 9) * TILE_PX, TILE_PX, TILE_PX)
+	atlas.region = Rect2((frame % 9) * TILE_PX, (frame / 9) * TILE_PX, TILE_PX, TILE_PX)  # integer division in GDScript 4
 	var sp := Sprite2D.new(); sp.texture = atlas; sp.centered = true
 	sp.position = Vector2(cx, cy); sp.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sp.z_index = z; add_child(sp)
@@ -299,6 +295,11 @@ func _build_decor_props() -> void:
 	# Right side
 	_prop("res://assets/props/decor_crate_small.png", 3100, PROP_BASE, 7)
 	_prop("res://assets/props/decor_barrel_round.png",3180, PROP_BASE, 7)
+	# Trees between buildings — depth 6: behind buildings (7), in front of wall (5)
+	_prop("res://assets/props/tree1.png", 1250, GROUND_Y, 6)
+	_prop("res://assets/props/tree2.png", 1850, GROUND_Y, 6)
+	_prop("res://assets/props/tree1.png", 2960, GROUND_Y, 6)
+	_prop("res://assets/props/tree2.png", 3570, GROUND_Y, 6)
 
 func _prop(path: String, x: float, base_y: float, z: int) -> void:
 	var tex: Texture2D = load(path)
@@ -388,30 +389,7 @@ func _spawn_dog() -> void:
 	_dog_sprite.play("walk")
 	_dog_node.add_child(_dog_sprite)
 
-# ── Slimes (east of city, past the last building) ────────────────────────────
-
-func _spawn_slimes() -> void:
-	var slime_script: GDScript = load("res://scripts/Slime.gd")
-
-	# [sheet_path, center_x, patrol_range_half]
-	var configs := [
-		["res://assets/enemies/slime_green.png",  4200.0, 140.0],
-		["res://assets/enemies/slime_blue.png",   4380.0, 120.0],
-		["res://assets/enemies/slime_red.png",    4560.0, 100.0],
-		["res://assets/enemies/slime_red.png", 4680.0,  90.0],
-		["res://assets/enemies/slime_green.png",  4300.0, 160.0],
-	]
-
-	for cfg in configs:
-		var slime = slime_script.new()
-		slime.slime_sheet  = cfg[0]
-		slime.ground_y     = SLIME_GROUND_Y
-		slime.patrol_min_x = cfg[1] - cfg[2]
-		slime.patrol_max_x = cfg[1] + cfg[2]
-		slime.position     = Vector2(cfg[1], SLIME_GROUND_Y)
-		slime.hit_player.connect(_on_slime_hit_player)
-		add_child(slime)
-		_slimes.append(slime)
+# (Slimes spawn in the Wilderness scene east of city — see Wilderness.gd)
 
 # ── Camera ────────────────────────────────────────────────────────────────────
 
@@ -450,32 +428,7 @@ func _audio(path: String, vol: float, loop: bool) -> AudioStreamPlayer:
 func _on_player_jumped()   -> void: _jump_sfx.play()
 func _on_player_attacked() -> void:
 	_attack_sfx.play()
-	# Only flee if dog is within 200px — matches Phaser's distance check
-	if _dog_node and not _dog_flee and not _dog_gone:
-		if absf(_player.position.x - _dog_node.position.x) < 200.0:
-			_trigger_dog_flee()
-	_check_attack_hits()
-
-func _check_attack_hits() -> void:
-	if not _player: return
-	for slime in _slimes:
-		if not is_instance_valid(slime): continue
-		if _player.position.distance_to(slime.position) < PLAYER_ATTACK_R:
-			slime.take_hit()
-	_slimes = _slimes.filter(func(s): return is_instance_valid(s))
-
-func _on_slime_hit_player() -> void:
-	if _player_invincible > 0.0: return
-	_player_invincible = 1.0
-	Globals.player_health = maxi(0, Globals.player_health - 1)
-	_hurt_sfx.play()
-	_refresh_hud()
-	# Brief visual flash on player sprite
-	var spr: AnimatedSprite2D = _player.get_node_or_null("Sprite")
-	if spr:
-		var tw := create_tween()
-		tw.tween_property(spr, "modulate", Color(2, 0.3, 0.3, 1), 0.08)
-		tw.tween_property(spr, "modulate", Color(1, 1, 1, 1), 0.18)
+	_trigger_dog_flee()
 
 # ── HUD ───────────────────────────────────────────────────────────────────────
 
@@ -568,9 +521,6 @@ func _process(delta: float) -> void:
 		_popup_timer -= delta
 		if _popup_timer <= 0.0: _popup_label.visible = false
 
-	if _player_invincible > 0.0:
-		_player_invincible -= delta
-
 	if _dialogue_open or _menu_open: return
 
 	_update_tooltips()
@@ -617,7 +567,7 @@ func _update_dog(delta: float) -> void:
 
 	var spd: float = DOG_FLEE_SPD if _dog_flee else DOG_SPEED
 	_dog_node.position.x += _dog_dir * spd * delta
-	_dog_sprite.flip_h = _dog_dir < 0  # flip when going LEFT (sprite faces right natively)
+	_dog_sprite.flip_h = _dog_dir < 0
 
 	if _dog_flee:
 		if _dog_node.position.x < DOG_MIN_X - 200 or _dog_node.position.x > DOG_MAX_X + 200:
@@ -836,12 +786,13 @@ func _enter_building(config_id: String) -> void:
 
 func _check_boundaries() -> void:
 	if _transitioning or not _player: return
+	# Left edge → back to Forest
 	if _player.position.x < 80 and _player.velocity.x < 0:
 		Globals.from_transition = true
 		Globals.spawn_x = 5000.0
 		_transition_to("Forest")
-	# Right edge → Wilderness (matches Phaser: right off City → WildernessScene)
-	if _player.position.x > 4680.0 and _player.velocity.x > 0:
+	# Right edge → Wilderness
+	elif _player.position.x > WORLD_WIDTH - 80 and _player.velocity.x > 0:
 		Globals.from_transition = true
 		Globals.spawn_x = 120.0
 		_transition_to("Wilderness")
