@@ -177,12 +177,13 @@ func _ready() -> void:
 
 func _build_room(cfg: Dictionary) -> void:
 	# Black background
+	# Background in CanvasLayer so it renders regardless of camera position
+	var _bg_cl := CanvasLayer.new(); _bg_cl.layer = -1; add_child(_bg_cl)
 	var bg := ColorRect.new()
 	bg.color    = Color(0.04, 0.03, 0.02)
 	bg.size     = Vector2(GAME_W, GAME_H)
 	bg.position = Vector2.ZERO
-	bg.z_index  = -10
-	add_child(bg)
+	_bg_cl.add_child(bg)
 
 	var P := "res://assets/props/interior/"
 	var roof_tex  : Texture2D = load(P + "house_roof.png")
@@ -302,6 +303,7 @@ func _build_camera() -> void:
 	_camera = Camera2D.new()
 	_camera.limit_left   = 0; _camera.limit_right  = GAME_W
 	_camera.limit_top    = 0; _camera.limit_bottom = GAME_H
+	_camera.make_current()
 	_player.add_child(_camera)
 
 func _build_audio() -> void:

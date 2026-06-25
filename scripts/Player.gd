@@ -133,7 +133,7 @@ func _physics_process(delta: float) -> void:
 		emit_signal("jumped")
 
 	# Attack — Phaser startAttack() plays special_attack (4-frame overhead slash)
-	if Input.is_action_just_pressed("attack") and is_on_floor() and not _attacking:
+	if Input.is_action_just_pressed("attack") and not _attacking:
 		_attacking = true
 		sprite.play("special_attack")
 		emit_signal("attacked")

@@ -275,7 +275,7 @@ func _spawn_dog() -> void:
 	_dog_sprite = AnimatedSprite2D.new()
 	_dog_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_dog_sprite.scale = Vector2(DOG_SCALE, DOG_SCALE)
-	_dog_sprite.flip_h = true  # starts facing right
+	_dog_sprite.flip_h = false  # sprite faces right natively (Phaser: setFlipX(false))
 
 	var sf := SpriteFrames.new()
 	sf.remove_animation("default")
@@ -523,7 +523,7 @@ func _update_dog(delta: float) -> void:
 
 	var spd: float = DOG_FLEE_SPD if _dog_flee else DOG_SPEED
 	_dog_node.position.x += _dog_dir * spd * delta
-	_dog_sprite.flip_h = _dog_dir > 0
+	_dog_sprite.flip_h = _dog_dir < 0  # flip when going LEFT
 
 	if _dog_flee:
 		# Remove once off bounds
