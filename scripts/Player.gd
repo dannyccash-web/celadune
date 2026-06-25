@@ -99,7 +99,7 @@ func _build_animations() -> void:
 	# "rise" = death frames in reverse order (intro sequence)
 	f.add_animation("rise")
 	f.set_animation_loop("rise", false)
-	f.set_animation_speed("rise", 5.0)
+	f.set_animation_speed("rise", 8.0)   # Phaser frameRate:8
 	var death_tex: Texture2D = load("res://assets/characters/caelan/death.png")
 	if death_tex:
 		for i in [2, 1, 0]:

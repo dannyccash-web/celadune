@@ -450,7 +450,10 @@ func _audio(path: String, vol: float, loop: bool) -> AudioStreamPlayer:
 func _on_player_jumped()   -> void: _jump_sfx.play()
 func _on_player_attacked() -> void:
 	_attack_sfx.play()
-	_trigger_dog_flee()
+	# Only flee if dog is within 200px — matches Phaser's distance check
+	if _dog_node and not _dog_flee and not _dog_gone:
+		if absf(_player.position.x - _dog_node.position.x) < 200.0:
+			_trigger_dog_flee()
 	_check_attack_hits()
 
 func _check_attack_hits() -> void:
@@ -837,6 +840,11 @@ func _check_boundaries() -> void:
 		Globals.from_transition = true
 		Globals.spawn_x = 5000.0
 		_transition_to("Forest")
+	# Right edge → Wilderness (matches Phaser: right off City → WildernessScene)
+	if _player.position.x > 4680.0 and _player.velocity.x > 0:
+		Globals.from_transition = true
+		Globals.spawn_x = 120.0
+		_transition_to("Wilderness")
 
 func _transition_to(scene_name: String) -> void:
 	if _transitioning: return

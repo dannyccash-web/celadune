@@ -320,12 +320,12 @@ func _build_audio() -> void:
 	_door_sfx.volume_db = linear_to_db(0.7); add_child(_door_sfx)
 
 	_jump_sfx = AudioStreamPlayer.new()
-	var jsfx := load("res://assets/sfx/jump.mp3") as AudioStream
+	var jsfx := load("res://assets/sfx/ribhavagrawal-woosh-230554.mp3") as AudioStream
 	if jsfx: _jump_sfx.stream = jsfx
 	_jump_sfx.volume_db = linear_to_db(0.4); add_child(_jump_sfx)
 
 	_attack_sfx = AudioStreamPlayer.new()
-	var asfx := load("res://assets/sfx/attack.mp3") as AudioStream
+	var asfx := load("res://assets/sfx/freesound_community-sword-sound-2-36274.mp3") as AudioStream
 	if asfx: _attack_sfx.stream = asfx
 	_attack_sfx.volume_db = linear_to_db(0.55); add_child(_attack_sfx)
 

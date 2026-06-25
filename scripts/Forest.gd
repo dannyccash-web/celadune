@@ -332,7 +332,7 @@ func _on_player_attacked() -> void:
 	_attack_sfx.play()
 	# Only flee if dog is within 400px — matches Phaser's "nearby" check
 	if _dog_node and not _dog_flee and not _dog_gone:
-		if absf(_player.position.x - _dog_node.position.x) < 400.0:
+		if absf(_player.position.x - _dog_node.position.x) < 200.0:
 			_trigger_dog_flee()
 
 # ── HUD ───────────────────────────────────────────────────────────────────────
