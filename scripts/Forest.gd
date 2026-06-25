@@ -285,7 +285,7 @@ func _spawn_dog() -> void:
 	for i in range(DOG_FIRST_FR, DOG_LAST_FR + 1):
 		var a := AtlasTexture.new()
 		a.atlas  = dog_tex
-		a.region = Rect2(i * DOG_FRAME_SZ, DOG_WALK_ROW * DOG_FRAME_SZ, DOG_FRAME_SZ, DOG_FRAME_SZ)
+		var _fpr_local := 192 / DOG_FRAME_SZ; a.region = Rect2((i % _fpr_local) * DOG_FRAME_SZ, (i / _fpr_local) * DOG_FRAME_SZ, DOG_FRAME_SZ, DOG_FRAME_SZ)
 		sf.add_frame("walk", a)
 	_dog_sprite.sprite_frames = sf
 	_dog_sprite.play("walk")
@@ -330,7 +330,10 @@ func _audio(path: String, vol: float, loop: bool) -> AudioStreamPlayer:
 func _on_player_jumped()   -> void: _jump_sfx.play()
 func _on_player_attacked() -> void:
 	_attack_sfx.play()
-	_trigger_dog_flee()
+	# Only flee if dog is within 400px — matches Phaser's "nearby" check
+	if _dog_node and not _dog_flee and not _dog_gone:
+		if absf(_player.position.x - _dog_node.position.x) < 400.0:
+			_trigger_dog_flee()
 
 # ── HUD ───────────────────────────────────────────────────────────────────────
 

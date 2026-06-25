@@ -132,10 +132,10 @@ func _physics_process(delta: float) -> void:
 		velocity.y = JUMP_VEL
 		emit_signal("jumped")
 
-	# Attack
+	# Attack — Phaser startAttack() plays special_attack (4-frame overhead slash)
 	if Input.is_action_just_pressed("attack") and is_on_floor() and not _attacking:
 		_attacking = true
-		sprite.play("attack")
+		sprite.play("special_attack")
 		emit_signal("attacked")
 		sprite.animation_finished.connect(_on_attack_done, CONNECT_ONE_SHOT)
 
