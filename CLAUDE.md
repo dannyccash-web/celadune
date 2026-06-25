@@ -3,10 +3,17 @@
 ## Repository
 - **GitHub:** https://github.com/dannyccash-web/celadune
 - **Live site:** https://dannyccash-web.github.io/celadune/
-- **Deploy:** GitHub Pages (auto-deploys from `main` branch, ~1-2 min delay)
+- **Deploy:** GitHub Actions → GitHub Pages (triggers on push to `main`, ~2-3 min build)
+
+## Tech stack
+- **Engine:** Godot 4.6 (GL Compatibility mode)
+- **Entry point:** scenes/Start.tscn → scripts/Start.gd
+- **Assets:** assets/ folder — sprites, audio, tiles, UI, NPCs
+- **Autoload:** scripts/Globals.gd (player state, scene transitions)
+- **Web export:** `.github/workflows/deploy.yml` builds the project headless and deploys `web-build/` to Pages
 
 ## Git workflow
-After making any changes to the project, commit and push to GitHub so the live site updates:
+After making any changes, commit and push — the GitHub Action builds and deploys automatically:
 
 ```bash
 cd ~/Documents/Claude/Projects/Celadune
@@ -15,19 +22,31 @@ git commit -m "<description of changes>"
 git push origin main
 ```
 
-If the push is rejected due to a stale lock file, remove it first:
+**CRITICAL:** Never push from the FUSE-mounted path (`/sessions/.../mnt/Celadune`).
+Always clone to `/tmp/celadune_push`, copy files, then push:
 ```bash
-rm ~/Documents/Claude/Projects/Celadune/.git/refs/remotes/origin/main.lock
+rm -rf /tmp/celadune_push
+git clone https://<token>@github.com/dannyccash-web/celadune.git /tmp/celadune_push
+# copy changed files into /tmp/celadune_push/
+cd /tmp/celadune_push
+git config user.email "dannyccash@gmail.com"
+git config user.name "Danny Cash"
+git add -A && git commit -m "..." && git push origin main
+```
+Token is in `/sessions/.../mnt/Celadune/.git/config` remote URL.
+
+If push fails due to stale lock file:
+```bash
+rm /tmp/celadune_push/.git/refs/remotes/origin/main.lock
 ```
 
 ## GitHub credentials
-- Token is stored in macOS Keychain / git credential manager — no manual entry needed after first push.
-- If prompted, use your GitHub username + a Personal Access Token (Settings → Developer settings → Personal access tokens).
+- Token embedded in `.git/config` remote URL (see above)
+- If prompted manually: GitHub username + Personal Access Token
 
-## Tech stack
-- **Engine:** Phaser 3 (loaded from CDN in index.html)
-- **Entry point:** main.js (single file, all scenes)
-- **Assets:** assets/ folder — sprites, audio, tiles, UI, NPCs
+## Phaser reference
+The original Phaser 3 version of the game lives in `phaser-reference/` (index.html + main.js).
+It is NOT live — the Godot export is the live version. Use Phaser files as reference only.
 - **No build step** — plain JS served as static files via GitHub Pages
 
 ## NPC system (GandalfHardcore modular sprites)
