@@ -1,8 +1,8 @@
 extends Node2D
 # ══════════════════════════════════════════════════════════════════════════════
 # Wilderness scene — east of Millhaven (City)
-# World 5184 × 1080  |  Variable heightmap terrain  |  GREEN tile set
-# Player enters from City left edge (spawn_x=120), exits left back to City.
+# World 5184 × 1080  |  Flat terrain (green tiles)  |  6 slimes
+# Player enters from City right edge (spawn_x=120), exits left back to City.
 # ══════════════════════════════════════════════════════════════════════════════
 
 const WORLD_WIDTH  := 5184
@@ -11,10 +11,9 @@ const GAME_H       := 1080
 const GROUND_Y     := 888
 const TILE_PX      := 96
 
-# Green tileset
-const T_TOP_L := 0; const T_TOP_C := 1; const T_TOP_R := 2; const T_FILL := 10
+# Green tileset (frames from floor_tiles2.png)
+const T_TOP_C := 1; const T_FILL := 10
 
-const NPC_GROUND_Y    := 798.0
 const SLIME_GROUND_Y  := 838.0
 const PLAYER_ATTACK_R := 160.0
 
@@ -26,34 +25,6 @@ const BG_LAYERS := [
 	{ "path": "res://assets/bg/forest_short.png",    "factor": 0.90, "y_off": -172 },
 ]
 
-# ── Terrain heightmap ─────────────────────────────────────────────────────────
-# Each element is 0 or 1 (tile elevations). Built once in _ready().
-var _heightmap: Array = []
-
-func _compute_heightmap() -> void:
-	var cols := int(ceil(float(WORLD_WIDTH) / TILE_PX)) + 4
-	_heightmap.resize(cols)
-	for i in range(cols):
-		var x := float(i * TILE_PX)
-		var v := sin(x * 0.0013) * 2.0 + sin(x * 0.0022) * 1.0 + sin(x * 0.0041) * 0.5
-		_heightmap[i] = int(clamp(round(v + 0.5), 0.0, 1.0))
-	# Smooth: max step between adjacent cols = 1
-	for _pass in range(6):
-		for i in range(1, cols):
-			if _heightmap[i] > _heightmap[i - 1] + 1:
-				_heightmap[i] = _heightmap[i - 1] + 1
-		for i in range(cols - 2, -1, -1):
-			if _heightmap[i] > _heightmap[i + 1] + 1:
-				_heightmap[i] = _heightmap[i + 1] + 1
-	# Keep first/last 3 columns flat so edges are clean
-	for i in range(3): _heightmap[i] = 0
-	for i in range(cols - 3, cols): _heightmap[i] = 0
-
-func _get_surface_y(col: int) -> float:
-	if _heightmap.is_empty(): _compute_heightmap()
-	var c := clampi(col, 0, _heightmap.size() - 1)
-	return float(GROUND_Y - _heightmap[c] * TILE_PX)
-
 # ── Nodes ─────────────────────────────────────────────────────────────────────
 var _player:      CharacterBody2D
 var _camera:      Camera2D
@@ -61,7 +32,7 @@ var _parallax_bg: ParallaxBackground
 var _sky_layer:   ParallaxLayer
 var _sky_drift:   float = 0.0
 
-var _slimes:          Array = []
+var _slimes:            Array = []
 var _player_invincible: float = 0.0
 
 var _music:      AudioStreamPlayer
@@ -73,14 +44,13 @@ var _hp_bar_fg: ColorRect
 var _hp_label:  Label
 var _hud_layer: CanvasLayer
 
-var _menu_panel:   Node
-var _menu_open:    bool = false
+var _menu_panel:    Node
+var _menu_open:     bool = false
 var _transitioning: bool = false
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
 func _ready() -> void:
-	_compute_heightmap()
 	_build_parallax()
 	_build_ground()
 	_spawn_player()
@@ -103,7 +73,7 @@ func _build_parallax() -> void:
 		var s := float(GAME_H) / float(tex.get_height())
 		var layer := ParallaxLayer.new()
 		layer.motion_scale     = Vector2(cfg["factor"], 0.0)
-		layer.motion_mirroring = Vector2(tex.get_width() * s, 0.0)
+		layer.motion_mirroring = Vector2(ceil(tex.get_width() * s), 0.0)
 		_parallax_bg.add_child(layer)
 		var sp := Sprite2D.new()
 		sp.texture = tex; sp.centered = false
@@ -112,57 +82,33 @@ func _build_parallax() -> void:
 		layer.add_child(sp)
 		if i == 0: _sky_layer = layer
 
-# ── Ground (heightmap) ────────────────────────────────────────────────────────
+# ── Ground (flat — same physics approach as Forest/City) ──────────────────────
 
 func _build_ground() -> void:
-	var tile_tex: Texture2D = load("res://assets/tiles/floor_tiles2.png")
-	var cols := int(ceil(float(WORLD_WIDTH) / TILE_PX))
-
-	# Static physics body spanning entire ground
+	# Single flat physics body
 	var body  := StaticBody2D.new()
 	var shape := CollisionShape2D.new()
 	var rect  := RectangleShape2D.new()
-	rect.size     = Vector2(WORLD_WIDTH * 2.0, 400.0)
+	rect.size      = Vector2(WORLD_WIDTH * 2.0, 400.0)
 	shape.position = Vector2(WORLD_WIDTH / 2.0, GROUND_Y + 200.0)
-	shape.shape   = rect
+	shape.shape    = rect
 	body.add_child(shape)
 	add_child(body)
 
+	# Visual tiles
+	var tile_tex: Texture2D = load("res://assets/tiles/floor_tiles2.png")
+	var cols := WORLD_WIDTH / TILE_PX
 	for col in range(cols):
-		var surface_y := _get_surface_y(col)
 		var cx := col * TILE_PX + TILE_PX / 2
-
-		# Determine top-tile variant
-		var prev_y := _get_surface_y(max(0, col - 1))
-		var next_y := _get_surface_y(min(cols - 1, col + 1))
-		var top := T_TOP_C
-		if prev_y > surface_y and next_y >= surface_y: top = T_TOP_L
-		elif next_y > surface_y and prev_y >= surface_y: top = T_TOP_R
-
-		# Dark fill rectangle behind tiles
+		_tile(tile_tex, cx, GROUND_Y + TILE_PX / 2, T_TOP_C, 12)
+		var fill_rows := int(ceil(float(GAME_H - GROUND_Y) / TILE_PX)) + 1
+		for row in range(1, fill_rows + 1):
+			_tile(tile_tex, cx, GROUND_Y + TILE_PX * row + TILE_PX / 2, T_FILL, 2)
 		var bg := ColorRect.new()
 		bg.color    = Color(0.102, 0.071, 0.031)
-		bg.size     = Vector2(TILE_PX, GAME_H + 200.0 - surface_y)
-		bg.position = Vector2(cx - TILE_PX / 2, surface_y)
+		bg.size     = Vector2(TILE_PX, GAME_H + 200.0 - GROUND_Y)
+		bg.position = Vector2(cx - TILE_PX / 2, GROUND_Y)
 		bg.z_index  = 1; add_child(bg)
-
-		# Surface tile
-		_tile(tile_tex, cx, surface_y + TILE_PX / 2, top, 12)
-
-		# Fill tiles downward
-		var fill_rows := int(ceil((GAME_H - surface_y) / TILE_PX)) + 1
-		for row in range(1, fill_rows + 1):
-			_tile(tile_tex, cx, surface_y + TILE_PX * row + TILE_PX / 2, T_FILL, 2)
-
-		# Per-column physics strip
-		var col_body  := StaticBody2D.new()
-		var col_shape := CollisionShape2D.new()
-		var col_rect  := RectangleShape2D.new()
-		col_rect.size     = Vector2(TILE_PX, 48.0)
-		col_shape.position = Vector2(cx, surface_y + 2.0 + 24.0)
-		col_shape.shape   = col_rect
-		col_body.add_child(col_shape)
-		add_child(col_body)
 
 func _tile(tex: Texture2D, cx: float, cy: float, frame: int, z: int) -> void:
 	var atlas := AtlasTexture.new()
@@ -194,14 +140,12 @@ func _spawn_slimes() -> void:
 	var spawn_xs := [800.0, 1400.0, 2100.0, 2800.0, 3500.0, 4200.0]
 	for i in range(spawn_xs.size()):
 		var sx := spawn_xs[i]
-		var col := int(sx / TILE_PX)
-		var sy  := _get_surface_y(col)
 		var slime = slime_script.new()
 		slime.slime_sheet  = sheets[i % sheets.size()]
-		slime.ground_y     = sy
+		slime.ground_y     = SLIME_GROUND_Y
 		slime.patrol_min_x = max(100.0, sx - 500.0)
 		slime.patrol_max_x = min(float(WORLD_WIDTH - 100), sx + 500.0)
-		slime.position     = Vector2(sx, sy)
+		slime.position     = Vector2(sx, SLIME_GROUND_Y)
 		slime.hit_player.connect(_on_slime_hit_player)
 		add_child(slime)
 		_slimes.append(slime)
@@ -222,10 +166,10 @@ func _build_camera() -> void:
 # ── Audio ─────────────────────────────────────────────────────────────────────
 
 func _build_audio() -> void:
-	_music      = _audio("res://assets/audio/celadune_theme.mp3",                                        0.0,  true)
-	_jump_sfx   = _audio("res://assets/sfx/ribhavagrawal-woosh-230554.mp3",                             0.45, false)
-	_attack_sfx = _audio("res://assets/sfx/freesound_community-sword-sound-2-36274.mp3",                0.55, false)
-	_hurt_sfx   = _audio("res://assets/sfx/freesound_community-male_hurt7-48124.mp3",                   0.6,  false)
+	_music      = _audio("res://assets/audio/celadune_theme.mp3",                               0.0,  true)
+	_jump_sfx   = _audio("res://assets/sfx/ribhavagrawal-woosh-230554.mp3",                    0.45, false)
+	_attack_sfx = _audio("res://assets/sfx/freesound_community-sword-sound-2-36274.mp3",       0.55, false)
+	_hurt_sfx   = _audio("res://assets/sfx/freesound_community-male_hurt7-48124.mp3",          0.6,  false)
 	_music.play()
 	create_tween().tween_property(_music, "volume_db", linear_to_db(0.28), 0.32)
 

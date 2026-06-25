@@ -128,7 +128,7 @@ func _build_parallax() -> void:
 		var s  := float(GAME_H) / float(tex.get_height())
 		var layer := ParallaxLayer.new()
 		layer.motion_scale     = Vector2(cfg["factor"], 0.0)
-		layer.motion_mirroring = Vector2(tex.get_width() * s, 0.0)
+		layer.motion_mirroring = Vector2(ceil(tex.get_width() * s), 0.0)  # ceil avoids 1px seams
 		_parallax_bg.add_child(layer)
 		var sp := Sprite2D.new()
 		sp.texture = tex; sp.centered = false; sp.scale = Vector2(s, s)
@@ -156,9 +156,7 @@ func _build_ground_tiles() -> void:
 	var cols := WORLD_WIDTH / TILE_PX
 	for col in range(cols):
 		var cx := col * TILE_PX + TILE_PX / 2
-		var top := T_TOP_C
-		if col == 0:          top = T_TOP_L
-		elif col == cols - 1: top = T_TOP_R
+		var top := T_TOP_C   # always flat-top; no edge dirt at world boundaries
 		_tile(tile_tex, cx, GROUND_Y + TILE_PX / 2, top, 12)
 		var fill_rows := int(ceil(float(GAME_H - GROUND_Y) / TILE_PX)) + 1
 		for row in range(1, fill_rows + 1):
@@ -268,27 +266,38 @@ func _spawn_dog() -> void:
 	if not dog_tex: return
 
 	_dog_node = Node2D.new()
-	_dog_node.position = Vector2(750.0, DOG_GROUND_Y)
+	_dog_node.position = Vector2(850.0, DOG_GROUND_Y)   # 100px further right than before
 	_dog_node.z_index  = 8
 	add_child(_dog_node)
 
 	_dog_sprite = AnimatedSprite2D.new()
 	_dog_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_dog_sprite.scale = Vector2(DOG_SCALE, DOG_SCALE)
-	_dog_sprite.flip_h = false  # sprite faces right natively (Phaser: setFlipX(false))
+	_dog_sprite.flip_h = false  # sprite faces right natively
 
 	var sf := SpriteFrames.new()
 	sf.remove_animation("default")
+	# Idle animation — row 0 frames 0-2 (standing still)
+	sf.add_animation("idle")
+	sf.set_animation_loop("idle", true)
+	sf.set_animation_speed("idle", 3.0)
+	var _fpr_local := 192 / DOG_FRAME_SZ
+	for i in range(3):
+		var ai := AtlasTexture.new()
+		ai.atlas  = dog_tex
+		ai.region = Rect2(i * DOG_FRAME_SZ, 0, DOG_FRAME_SZ, DOG_FRAME_SZ)
+		sf.add_frame("idle", ai)
+	# Walk animation — row 1 frames 6-11
 	sf.add_animation("walk")
 	sf.set_animation_loop("walk", true)
 	sf.set_animation_speed("walk", 8.0)
 	for i in range(DOG_FIRST_FR, DOG_LAST_FR + 1):
 		var a := AtlasTexture.new()
 		a.atlas  = dog_tex
-		var _fpr_local := 192 / DOG_FRAME_SZ; a.region = Rect2((i % _fpr_local) * DOG_FRAME_SZ, (i / _fpr_local) * DOG_FRAME_SZ, DOG_FRAME_SZ, DOG_FRAME_SZ)
+		a.region = Rect2((i % _fpr_local) * DOG_FRAME_SZ, (i / _fpr_local) * DOG_FRAME_SZ, DOG_FRAME_SZ, DOG_FRAME_SZ)
 		sf.add_frame("walk", a)
 	_dog_sprite.sprite_frames = sf
-	_dog_sprite.play("walk")
+	_dog_sprite.play("idle")
 
 	_dog_node.add_child(_dog_sprite)
 
@@ -519,8 +528,12 @@ func _update_dog(delta: float) -> void:
 
 	if _dog_pause > 0.0:
 		_dog_pause -= delta
+		if _dog_sprite.animation != "idle":
+			_dog_sprite.play("idle")
 		return
 
+	if _dog_sprite.animation == "idle":
+		_dog_sprite.play("walk")
 	var spd: float = DOG_FLEE_SPD if _dog_flee else DOG_SPEED
 	_dog_node.position.x += _dog_dir * spd * delta
 	_dog_sprite.flip_h = _dog_dir < 0  # flip when going LEFT

@@ -1,20 +1,20 @@
 extends Node2D
 # ══════════════════════════════════════════════════════════════════════════════
 # City scene
-# World 4800 × 1080  |  GROUND_Y = 927  |  BROWN tile set
+# World 4800 × 1080  |  GROUND_Y = 888  |  BROWN tile set (same visual level as Forest)
 # ══════════════════════════════════════════════════════════════════════════════
 
 const WORLD_WIDTH  := 4800
 const GAME_W       := 1920
 const GAME_H       := 1080
-const GROUND_Y     := 927
-const PROP_BASE    := 915   # building base anchor (GROUND_Y - 12)
+const GROUND_Y     := 888
+const PROP_BASE    := 876   # building base anchor (GROUND_Y - 12)
 const TILE_PX      := 96
 
 # Brown tileset (frames from floor_tiles2.png row 6-7)
 const T_TOP_L := 54; const T_TOP_C := 55; const T_TOP_R := 56; const T_FILL := 64
 
-const NPC_GROUND_Y  := 837.0
+const NPC_GROUND_Y  := 798.0
 const NPC_TALK_R    := 150.0
 const PLAYER_ATTACK_R := 180.0  # world-px reach of player attack
 
@@ -24,7 +24,7 @@ const DOG_FRAME_SZ := 32
 const DOG_WALK_ROW := 0
 const DOG_FIRST_FR := 6
 const DOG_LAST_FR  := 11
-const DOG_GROUND_Y := 877.0
+const DOG_GROUND_Y := 838.0
 const DOG_MIN_X    := 400.0
 const DOG_MAX_X    := 4400.0
 const DOG_SPEED    := 58.0
@@ -94,6 +94,7 @@ var _hud_layer: CanvasLayer
 
 # Door tooltips (world-space)
 var _door_tips: Array = []
+var _npc_tips:  Array = []   # parallel to _npcs / _npc_names
 
 # Dialogue & menu
 var _dialogue_box:     Node
@@ -127,6 +128,7 @@ func _ready() -> void:
 	_build_decor_props()
 	_spawn_player()
 	_spawn_npcs()
+	_build_npc_tooltips()
 	_spawn_dog()
 	_build_camera()
 	_build_audio()
@@ -148,7 +150,7 @@ func _build_parallax() -> void:
 		var s := float(GAME_H) / float(tex.get_height())
 		var layer := ParallaxLayer.new()
 		layer.motion_scale     = Vector2(cfg["factor"], 0.0)
-		layer.motion_mirroring = Vector2(tex.get_width() * s, 0.0)
+		layer.motion_mirroring = Vector2(ceil(tex.get_width() * s), 0.0)  # ceil avoids 1px seams
 		_parallax_bg.add_child(layer)
 		var sp := Sprite2D.new()
 		sp.texture = tex; sp.centered = false
@@ -176,9 +178,7 @@ func _build_ground_tiles() -> void:
 	var cols := WORLD_WIDTH / TILE_PX
 	for col in range(cols):
 		var cx := col * TILE_PX + TILE_PX / 2
-		var top := T_TOP_C
-		if col == 0:          top = T_TOP_L
-		elif col == cols - 1: top = T_TOP_R
+		var top := T_TOP_C   # always flat-top; no edge dirt at world boundaries
 		_tile(tile_tex, cx, GROUND_Y + TILE_PX / 2, top, 12)
 		var fill_rows := int(ceil(float(GAME_H - GROUND_Y) / TILE_PX)) + 1
 		for row in range(1, fill_rows + 1):
@@ -285,10 +285,10 @@ func _build_decor_props() -> void:
 	_prop("res://assets/props/decor_crate_large.png",  800,  PROP_BASE, 7)
 	_prop("res://assets/props/decor_barrel_large.png", 870,  PROP_BASE, 7)
 	_prop("res://assets/props/decor_crate.png",        1070, PROP_BASE, 7)
-	# Near tavern
-	_prop("res://assets/props/decor_stool.png",       1460, PROP_BASE, 7)
-	_prop("res://assets/props/table_apples.png",      1610, PROP_BASE, 7)
-	_prop("res://assets/props/decor_pottery.png",     1700, PROP_BASE, 7)
+	# Near tavern — keep props clear of door at x=1611
+	_prop("res://assets/props/decor_stool.png",       1390, PROP_BASE, 7)
+	_prop("res://assets/props/table_apples.png",      1450, PROP_BASE, 7)
+	_prop("res://assets/props/decor_pottery.png",     1730, PROP_BASE, 7)
 	# Central plaza
 	_prop("res://assets/props/statue.png",            2420, PROP_BASE, 7)
 	_prop("res://assets/props/decor_barrels_duo.png", 2560, PROP_BASE, 7)
@@ -377,6 +377,16 @@ func _spawn_dog() -> void:
 
 	var sf := SpriteFrames.new()
 	sf.remove_animation("default")
+	# Idle animation — row 0 frames 0-2 (stationary)
+	sf.add_animation("idle")
+	sf.set_animation_loop("idle", true)
+	sf.set_animation_speed("idle", 3.0)
+	for i in range(3):
+		var ai := AtlasTexture.new()
+		ai.atlas  = dog_tex
+		ai.region = Rect2(i * DOG_FRAME_SZ, 0, DOG_FRAME_SZ, DOG_FRAME_SZ)
+		sf.add_frame("idle", ai)
+	# Walk animation — row 1 frames 6-11
 	sf.add_animation("walk")
 	sf.set_animation_loop("walk", true)
 	sf.set_animation_speed("walk", 8.0)
@@ -386,7 +396,7 @@ func _spawn_dog() -> void:
 		a.region = Rect2(i * DOG_FRAME_SZ, DOG_WALK_ROW * DOG_FRAME_SZ, DOG_FRAME_SZ, DOG_FRAME_SZ)
 		sf.add_frame("walk", a)
 	_dog_sprite.sprite_frames = sf
-	_dog_sprite.play("walk")
+	_dog_sprite.play("idle")
 	_dog_node.add_child(_dog_sprite)
 
 # (Slimes spawn in the Wilderness scene east of city — see Wilderness.gd)
@@ -544,13 +554,22 @@ func _update_tooltips() -> void:
 		var near := absf(px - door_x) < 100.0
 		lbl.visible = near
 		if near:
-			lbl.position = Vector2(door_x - 70, GROUND_Y - 130)
+			lbl.position = Vector2(door_x - 70, GROUND_Y - 250)  # above door top with gap
 			near_door_config = dt["config_id"]
 			near_door_x = door_x
 
 	# E to enter building
 	if Input.is_action_just_pressed("interact") and near_door_config != "":
 		_enter_building(near_door_config); return
+
+	# NPC name tooltips
+	for i in range(_npcs.size()):
+		var npc: Node2D = _npcs[i]
+		var tip: Label  = _npc_tips[i] if i < _npc_tips.size() else null
+		if not npc or not tip: continue
+		var near := Vector2(px, py).distance_to(npc.position) < NPC_TALK_R
+		tip.visible = near
+		if near: tip.position = npc.position + Vector2(-40, -110)
 
 	# NPC tooltips + interact
 	if Input.is_action_just_pressed("interact"):
@@ -560,11 +579,30 @@ func _update_tooltips() -> void:
 			if Vector2(px, py).distance_to(npc.position) < NPC_TALK_R:
 				_open_city_npc_dialogue(i); return
 
+func _build_npc_tooltips() -> void:
+	for i in range(_npc_names.size()):
+		var lbl := Label.new()
+		lbl.text    = _npc_names[i]
+		lbl.visible = false
+		lbl.z_index = 30
+		lbl.add_theme_color_override("font_color",        Color(0.97, 0.93, 0.84))
+		lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
+		lbl.add_theme_constant_override("shadow_offset_x", 2)
+		lbl.add_theme_constant_override("shadow_offset_y", 2)
+		lbl.add_theme_font_size_override("font_size", 16)
+		add_child(lbl)
+		_npc_tips.append(lbl)
+
 func _update_dog(delta: float) -> void:
 	if not _dog_node or _dog_gone: return
 	if _dog_pause > 0.0:
-		_dog_pause -= delta; return
+		_dog_pause -= delta
+		if _dog_sprite.animation != "idle":
+			_dog_sprite.play("idle")
+		return
 
+	if _dog_sprite.animation == "idle":
+		_dog_sprite.play("walk")
 	var spd: float = DOG_FLEE_SPD if _dog_flee else DOG_SPEED
 	_dog_node.position.x += _dog_dir * spd * delta
 	_dog_sprite.flip_h = _dog_dir < 0
