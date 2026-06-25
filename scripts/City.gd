@@ -398,7 +398,7 @@ func _spawn_slimes() -> void:
 		["res://assets/enemies/slime_green.png",  4200.0, 140.0],
 		["res://assets/enemies/slime_blue.png",   4380.0, 120.0],
 		["res://assets/enemies/slime_red.png",    4560.0, 100.0],
-		["res://assets/enemies/slime_green2.png", 4680.0,  90.0],
+		["res://assets/enemies/slime_red.png", 4680.0,  90.0],
 		["res://assets/enemies/slime_green.png",  4300.0, 160.0],
 	]
 
@@ -617,7 +617,7 @@ func _update_dog(delta: float) -> void:
 
 	var spd: float = DOG_FLEE_SPD if _dog_flee else DOG_SPEED
 	_dog_node.position.x += _dog_dir * spd * delta
-	_dog_sprite.flip_h = _dog_dir > 0
+	_dog_sprite.flip_h = _dog_dir < 0  # flip when going LEFT (sprite faces right natively)
 
 	if _dog_flee:
 		if _dog_node.position.x < DOG_MIN_X - 200 or _dog_node.position.x > DOG_MAX_X + 200:
