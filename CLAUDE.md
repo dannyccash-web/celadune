@@ -6,7 +6,7 @@
 - **Deploy:** GitHub Actions → GitHub Pages (triggers on push to `main`, ~2-3 min build)
 
 ## Tech stack
-- **Engine:** Godot 4.6 (GL Compatibility mode)
+- **Engine:** Godot 4.6.1 (GL Compatibility mode)
 - **Entry point:** scenes/Start.tscn → scripts/Start.gd
 - **Assets:** assets/ folder — sprites, audio, tiles, UI, NPCs
 - **Autoload:** scripts/Globals.gd (player state, scene transitions)

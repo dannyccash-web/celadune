@@ -18,7 +18,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      GODOT_VERSION: "4.6"
+      GODOT_VERSION: "4.6.1"
     steps:
       - uses: actions/checkout@v4
 
