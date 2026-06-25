@@ -50,14 +50,14 @@ const BUILDINGS := [
 	["res://assets/buildings/city_house_2/building.png",    3860],
 ]
 
-# Door interaction zones: [building_x, door_center_x, label]
+# Door interaction zones: [building_x, door_center_x, label, interior_config_id]
 const DOOR_ZONES := [
-	[960,  909,  "Blacksmith"],
-	[1540, 1611, "Tavern"],
-	[2120, 2144, "House"],
-	[2700, 2700, "House"],
-	[3280, 3303, "Magic Shop"],
-	[3860, 3757, "House"],
+	[960,  909,  "Blacksmith",  "bram_smithy"],
+	[1540, 1611, "Tavern",      "padrig_tavern"],
+	[2120, 2144, "House",       "teren_house"],
+	[2700, 2700, "House",       "ysra_house"],
+	[3280, 3303, "Magic Shop",  "oswin_shop"],
+	[3860, 3757, "House",       "rilla_house"],
 ]
 
 # ── Nodes ─────────────────────────────────────────────────────────────────────
@@ -99,12 +99,14 @@ var _hud_layer: CanvasLayer
 var _door_tips: Array = []
 
 # Dialogue & menu
-var _dialogue_box: Node
-var _menu_panel:   Node
-var _dialogue_seq:     Array = []
-var _dialogue_idx:     int   = 0
+var _dialogue_box:     Node
+var _menu_panel:       Node
+var _dialogue_seq:     Array  = []
+var _dialogue_idx:     int    = 0
 var _active_npc:       String = ""
-var _talking_npc_idx:  int   = -1
+var _talking_npc_idx:  int    = -1
+var _dialogue_state:   String = ""
+var _city_portrait:    SpriteFrames = null
 
 # State
 var _transitioning:  bool = false
@@ -241,7 +243,7 @@ func _build_buildings() -> void:
 func _build_door_zones() -> void:
 	for dz in DOOR_ZONES:
 		var lbl := Label.new()
-		lbl.text    = str(dz[2])
+		lbl.text    = str(dz[2]) + "  (E)"
 		lbl.visible = false
 		lbl.z_index = 30
 		lbl.add_theme_color_override("font_color",        Color(0.97, 0.93, 0.84))
@@ -250,7 +252,7 @@ func _build_door_zones() -> void:
 		lbl.add_theme_constant_override("shadow_offset_y", 2)
 		lbl.add_theme_font_size_override("font_size", 16)
 		add_child(lbl)
-		_door_tips.append({"label": lbl, "door_x": float(dz[1])})
+		_door_tips.append({"label": lbl, "door_x": float(dz[1]), "config_id": str(dz[3])})
 
 # ── Animated props (furnace and cooking area near tavern) ─────────────────────
 
@@ -581,12 +583,21 @@ func _update_tooltips() -> void:
 	var py := _player.position.y
 
 	# Building door tooltips
+	var near_door_config: String = ""
+	var near_door_x: float = 0.0
 	for dt in _door_tips:
 		var lbl: Label = dt["label"]
 		var door_x: float = dt["door_x"]
 		var near := absf(px - door_x) < 100.0
 		lbl.visible = near
-		if near: lbl.position = Vector2(door_x - 60, GROUND_Y - 130)
+		if near:
+			lbl.position = Vector2(door_x - 70, GROUND_Y - 130)
+			near_door_config = dt["config_id"]
+			near_door_x = door_x
+
+	# E to enter building
+	if Input.is_action_just_pressed("interact") and near_door_config != "":
+		_enter_building(near_door_config); return
 
 	# NPC tooltips + interact
 	if Input.is_action_just_pressed("interact"):
@@ -632,98 +643,173 @@ func _open_city_npc_dialogue(npc_idx: int) -> void:
 	_talking_npc_idx = npc_idx
 	var name: String = _npc_names[npc_idx]
 	var folder_map := {
-		"Bram Alder": "npc_city_1", "Ysra Thorn": "npc_city_2", "Teren Vale": "npc_city_3",
-		"Padrig": "npc_tavern_chef", "Oswin": "npc_city_4", "Rilla": "npc_city_5",
+		"Bram Alder":  "npc_city_1",
+		"Ysra Thorn":  "npc_city_2",
+		"Teren Vale":  "npc_city_3",
+		"Padrig":      "npc_tavern_chef",
+		"Oswin":       "npc_city_4",
+		"Rilla":       "npc_city_5",
 	}
 	var folder: String = folder_map.get(name, "npc_city_1")
-	var portrait := DialogueBox.make_portrait_frames("res://assets/npcs/" + folder + "/idle.png", 5)
-	var rep := Globals.get_rep_group()
+	_city_portrait = DialogueBox.make_portrait_frames("res://assets/npcs/" + folder + "/idle.png", 5)
+	var rep := Globals.player_reputation
 
-	if name == "Padrig":
-		_open_padrig_dialogue(portrait)
-		return
-
-	var line := _city_greeting(name, rep)
-	_dialogue_seq = [
-		{"speaker": name, "text": line, "choices": [], "portrait": portrait},
-	]
-	_active_npc = name.to_lower().replace(" ", "_")
-	_start_dialogue_seq()
-
-func _open_padrig_dialogue(portrait) -> void:
-	_active_npc = "padrig"
-	match Globals.quest_state:
-		"accepted":
-			if Globals.has_item("Onions"):
-				_dialogue_seq = [
-					{"speaker": "Padrig", "text": "Ah, you must be the traveller Mirelle mentioned! Those onions — do you have them?", "choices": ["Here they are!", "Not yet."], "portrait": portrait},
-				]
-			else:
-				_dialogue_seq = [
-					{"speaker": "Padrig", "text": "I'm still waiting on those onions from Mirelle's farm. Have you found them?", "choices": [], "portrait": portrait},
-				]
-		"onionsEaten":
-			_dialogue_seq = [
-				{"speaker": "Padrig", "text": "I heard you had the onions... but ate them yourself? Ha! Well, no harm done. Here, take this gold for the trouble.", "choices": [], "portrait": portrait},
-			]
-			Globals.quest_state = "complete"
-			Globals.add_gold(25)
-			show_item_popup("25 Gold")
-		"paymentPending":
-			_dialogue_seq = [
-				{"speaker": "Padrig", "text": "You already brought those onions! Here — your reward. Thank you kindly.", "choices": [], "portrait": portrait},
-			]
-			Globals.quest_state = "complete"
-			Globals.add_gold(50)
-			show_item_popup("50 Gold")
-		"complete":
-			_dialogue_seq = [
-				{"speaker": "Padrig", "text": "The stew has never been better, thanks to you. Come back anytime, friend!", "choices": [], "portrait": portrait},
-			]
-		_:
-			_dialogue_seq = [
-				{"speaker": "Padrig", "text": "Welcome to the tavern! Can I get you something? We're famous for the stew.", "choices": [], "portrait": portrait},
-			]
-	_start_dialogue_seq()
-
-func _city_greeting(name: String, rep: String) -> String:
-	match rep:
-		"hostile": return "Move along."
-		"cold":    return "Hello. Be careful in the city."
-		"neutral": return "Welcome to " + Globals.TOWN_NAME + ", traveller."
-		"friendly": return "Good to see a friendly face! How goes it, " + Globals.selected_hero.capitalize() + "?"
-		_:         return "Blessings upon you, hero! " + Globals.TOWN_NAME + " is grateful for your presence."
-	return ""
-
-func _start_dialogue_seq() -> void:
 	_dialogue_open = true
-	_dialogue_idx  = 0
 	_player.set_physics_process(false)
 	if _talking_npc_idx >= 0 and _talking_npc_idx < _npcs.size():
 		_npcs[_talking_npc_idx].pause_patrol()
-	_show_next_line()
 
-func _show_next_line() -> void:
-	if _dialogue_idx >= _dialogue_seq.size():
-		_dialogue_box.close(); return
-	var d: Dictionary = _dialogue_seq[_dialogue_idx]
-	_dialogue_box.show_line(d["speaker"], d["text"], d.get("choices", []), d.get("portrait", null))
+	match name:
+		"Bram Alder":
+			_active_npc     = "city1"
+			if rep <= 2:
+				_dialogue_state = "city1End"
+				var line := "You've got a reputation, stranger. I'd rather not be seen talking to you. Move along." if rep == 1 else "I know your type. Don't cause trouble in Millhaven."
+				_dialogue_box.show_line("Bram Alder", line, ["..."], _city_portrait)
+			else:
+				_dialogue_state = "city1Greet"
+				var lines := {
+					3: "New face in Millhaven. What brings you through?",
+					4: "Welcome to " + Globals.TOWN_NAME + ". Quiet place, the way folk here like it. Most are farmers and traders.",
+					5: "Ah, a traveler! " + Globals.TOWN_NAME + " isn't much, but it's honest. Looking for anything in particular?",
+					6: "Good to see a respectable face! " + Globals.TOWN_NAME + "'s been busy with harvest coming in.",
+					7: "By the saints — Caelan himself in " + Globals.TOWN_NAME + "! Folk speak well of you around here.",
+				}
+				_dialogue_box.show_line("Bram Alder", lines.get(rep, lines[4]), ["Just passing through."], _city_portrait)
 
-func _on_dialogue_choice(idx: int) -> void:
-	if _active_npc == "padrig" and _dialogue_idx == 0:
-		if idx == 0 and Globals.has_item("Onions"):
-			Globals.remove_item("Onions")
-			Globals.quest_state = "paymentPending"
-			Globals.add_gold(50)
-			show_item_popup("50 Gold")
-	_dialogue_idx += 1
-	_show_next_line()
+		"Ysra Thorn":
+			_active_npc = "city2"
+			if rep <= 2:
+				_dialogue_state = "city2End"
+				var line := "I don't deal with people of poor character. Away with you." if rep == 1 else "I've no patience for troublemakers. Keep walking."
+				_dialogue_box.show_line("Ysra Thorn", line, ["..."], _city_portrait)
+			else:
+				_dialogue_state = "city2Greet"
+				var lines := {
+					3: "The roads north of the mill get dangerous. Not that it's my business to warn you.",
+					4: "Passable roads for now, but I'd keep an eye on the north track past the mill. Strange marks in the mud lately.",
+					5: "Glad you're passing through. Something's been prowling the north fields. You look like you can handle yourself.",
+					6: "Take care on the north road — strange tracks near the mill. Good to have someone capable around.",
+					7: "You know these roads better than most by now. Still — the north track has been unsettled. Watch yourself.",
+				}
+				_dialogue_box.show_line("Ysra Thorn", lines.get(rep, lines[4]), ["I appreciate the warning."], _city_portrait)
+
+		"Teren Vale":
+			_active_npc = "city3"
+			if rep <= 2:
+				_dialogue_state = "city3End"
+				var line := "Get away from me." if rep == 1 else "I've nothing to say to someone like you."
+				_dialogue_box.show_line("Teren Vale", line, ["..."], _city_portrait)
+			else:
+				_dialogue_state = "city3Greet"
+				var lines := {
+					3: "Not much of a talker today. Is something the matter?",
+					4: Globals.TOWN_NAME + "'s been here longer than the king's tax collectors, and it'll outlast them too. Things are quiet, for now.",
+					5: "Good to see a new face that doesn't look like trouble! Harvest was decent, mill's running again.",
+					6: "Always glad when decent folk pass through. Trade's picked up since the mill wheel got fixed.",
+					7: "They ought to put your name on the town gate, friend. " + Globals.TOWN_NAME + "'s better for having you around.",
+				}
+				_dialogue_box.show_line("Teren Vale", lines.get(rep, lines[4]), ["Good to know."], _city_portrait)
+
+		"Padrig":
+			_active_npc = "padrig"
+			_open_padrig_dialogue(rep)
+
+		"Oswin":
+			_active_npc = "city4"
+			if rep <= 2:
+				_dialogue_state = "city4End"
+				var line := "Not interested in talking." if rep == 1 else "Got nothing for you. Move on."
+				_dialogue_box.show_line("Oswin", line, ["..."], _city_portrait)
+			else:
+				_dialogue_state = "city4Greet"
+				var lines := {
+					3: "Business is slow today. Can't say I'm feeling chatty.",
+					4: "Market day's Thursday — that's when " + Globals.TOWN_NAME + " really comes alive.",
+					5: "Good day! There's always something to trade in " + Globals.TOWN_NAME + " if you know who to ask.",
+					6: "A pleasure to meet you! Business picks up when good folk pass through.",
+					7: "Caelan! An honor. I'll have to tell my wife I spoke with you today.",
+				}
+				_dialogue_box.show_line("Oswin", lines.get(rep, lines[4]), ["Good to know."], _city_portrait)
+
+		"Rilla":
+			_active_npc = "city5"
+			if rep <= 2:
+				_dialogue_state = "city5End"
+				var line := "Don't talk to me." if rep == 1 else "I have nothing to say to you."
+				_dialogue_box.show_line("Rilla", line, ["..."], _city_portrait)
+			else:
+				_dialogue_state = "city5Greet"
+				var lines := {
+					3: "Not the best day for visitors, honestly.",
+					4: "It's a decent enough town if you give it a chance. " + Globals.TOWN_NAME + " grows on you.",
+					5: "Welcome! Don't let the size fool you — there's plenty of life here.",
+					6: "What a lovely day! The baker just pulled fresh bread out. " + Globals.TOWN_NAME + " smells wonderful right now.",
+					7: "Oh, Caelan! I've heard so much. " + Globals.TOWN_NAME + " is lucky to have people like you stopping by.",
+				}
+				_dialogue_box.show_line("Rilla", lines.get(rep, lines[4]), ["Thanks, always nice to hear."], _city_portrait)
+
+func _open_padrig_dialogue(rep: int) -> void:
+	# Player has onions — quest delivery
+	if Globals.has_item("Onions"):
+		var lines := {
+			1: "Those Mirelle's onions? Fine. Here's the 5 gold. Now get out of my kitchen.",
+			2: "Mirelle's onions. Here — take the 5 gold. Tell her I'm grateful.",
+			3: "Mirelle's onions? Good. Here, take the 5 gold for her.",
+			4: "Mirelle's onions! Best in the valley. Here's the 5 gold as promised — make sure she gets it.",
+			5: "You brought Mirelle's onions! Wonderful. Here are 5 gold — give them to her with my thanks.",
+			6: "Mirelle's onions, fresh as ever! My kitchen will thank you. Here's 5 gold — tell her she's a treasure.",
+			7: "Caelan with Mirelle's onions — my kitchen smells like heaven already. Here's 5 gold, not a coin short!",
+		}
+		Globals.remove_item("Onions")
+		Globals.story_flags["chef_onions_delivered"] = true
+		Globals.quest_state = "paymentPending"
+		Globals.add_gold(5)
+		show_item_popup("5 Gold")
+		_dialogue_state = "chefThanks"
+		_dialogue_box.show_line("Padrig", lines.get(rep, lines[4]), ["I'll get this to Mirelle."], _city_portrait)
+		return
+
+	# After delivery — already complete
+	if Globals.story_flags.get("chef_onions_delivered", false):
+		var lines := {
+			1: "You again. Kitchen's not open to troublemakers.",
+			2: "You're back. Don't cause problems in here.",
+			3: "The stew's on if you need it. Don't linger.",
+			4: "The kitchen still smells better for Mirelle's onions. Tell her I haven't forgotten.",
+			5: "Good to see you again! Stew's hot and the bread just came out.",
+			6: "Welcome back! I've got a table saved. The lamb stew is particularly good today.",
+			7: "Caelan! I was hoping you'd stop by. Drinks are on me — sit down!",
+		}
+		_dialogue_state = "chefAfter"
+		_dialogue_box.show_line("Padrig", lines.get(rep, lines[4]), ["Thanks, Padrig."], _city_portrait)
+		return
+
+	# Standard greeting
+	var lines := {
+		1: "I run a respectable establishment. I'll have to ask you to leave.",
+		2: "I've heard things. The kitchen's not a place for trouble.",
+		3: "What'll it be? Make it quick.",
+		4: "Welcome to the " + Globals.TOWN_NAME + " Tavern! Best stew in the valley, if I say so myself.",
+		5: "Come in, come in! Fire's going and the stew's on. What can I get you?",
+		6: "Wonderful to see you! Fresh lamb stew today. Sit yourself down.",
+		7: "Caelan! The man himself! I'll tell the whole town — come in, drinks on me!",
+	}
+	_dialogue_state = "chefGreeting"
+	_dialogue_box.show_line("Padrig", lines.get(rep, lines[4]), ["Maybe another time."], _city_portrait)
+
+func _on_dialogue_choice(_idx: int) -> void:
+	# All city NPC dialogues are single-line terminal — always close
+	_dialogue_box.close()
 
 func _on_dialogue_dismissed() -> void:
 	if _talking_npc_idx >= 0 and _talking_npc_idx < _npcs.size():
 		_npcs[_talking_npc_idx].resume_patrol()
 	_talking_npc_idx = -1
-	_dialogue_open = false; _active_npc = ""; _dialogue_seq = []
+	_dialogue_open   = false
+	_active_npc      = ""
+	_dialogue_state  = ""
+	_dialogue_seq    = []
 	if _player: _player.set_physics_process(true)
 
 # ── Menu ──────────────────────────────────────────────────────────────────────
@@ -738,6 +824,12 @@ func _on_menu_closed() -> void:
 	if _player: _player.set_physics_process(true)
 
 # ── Scene boundaries ──────────────────────────────────────────────────────────
+
+func _enter_building(config_id: String) -> void:
+	if _transitioning: return
+	Globals.interior_config_id = config_id
+	Globals.from_transition    = true
+	_transition_to("HutInterior")
 
 func _check_boundaries() -> void:
 	if _transitioning or not _player: return

@@ -40,6 +40,7 @@ var city_dog_fled: bool = false
 var spawn_x: float = 680.0
 var spawn_y: float = 768.0
 var from_transition: bool = false
+var interior_config_id: String = "mirelle_farmhouse"
 
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -91,8 +92,9 @@ func reset() -> void:
 		"mirelle_quest_complete": false,
 		"gold_given_to_mirelle":  null,
 	}
-	farm_dog_fled   = false
-	city_dog_fled   = false
-	spawn_x         = 680.0
-	spawn_y         = 768.0
-	from_transition = false
+	farm_dog_fled      = false
+	city_dog_fled      = false
+	spawn_x            = 680.0
+	spawn_y            = 768.0
+	from_transition    = false
+	interior_config_id = "mirelle_farmhouse"

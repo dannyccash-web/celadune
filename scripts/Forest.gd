@@ -78,11 +78,13 @@ var _lena_tip:    Label
 var _hut_tip:     Label
 
 # Dialogue & menu
-var _dialogue_box: Node
-var _menu_panel:   Node
-var _dialogue_seq: Array = []
-var _dialogue_idx: int   = 0
-var _active_npc:   String = ""
+var _dialogue_box:   Node
+var _menu_panel:     Node
+var _dialogue_seq:   Array = []
+var _dialogue_idx:   int   = 0
+var _active_npc:     String = ""
+var _dialogue_state: String = ""
+var _mirelle_portrait: SpriteFrames = null
 
 # State
 var _intro_complete: bool = false
@@ -497,9 +499,9 @@ func _update_tooltips(_delta: float) -> void:
 		elif _mirelle and Vector2(px, py).distance_to(_mirelle.position) < NPC_TALK_R:
 			_open_mirelle_dialogue()
 		elif _aldric and Vector2(px, py).distance_to(_aldric.position) < NPC_TALK_R:
-			_open_npc_dialogue("aldric", "Aldric", "res://assets/npcs/hut_wanderer/idle.png")
+			_open_aldric_dialogue()
 		elif _lena and Vector2(px, py).distance_to(_lena.position) < NPC_TALK_R:
-			_open_npc_dialogue("lena", "Lena", "res://assets/npcs/farm_worker/idle.png")
+			_open_lena_dialogue()
 
 func _update_tip(lbl: Label, npc: Node2D, px: float, py: float, off: Vector2) -> void:
 	if not npc: lbl.visible = false; return
@@ -551,77 +553,12 @@ func _trigger_dog_flee() -> void:
 # Dialogue
 # ══════════════════════════════════════════════════════════════════════════════
 
-func _open_mirelle_dialogue() -> void:
-	if not _mirelle: return
-	var rep := Globals.get_rep_group()
-	var portrait := DialogueBox.make_portrait_frames("res://assets/npcs/forest_lady/idle.png", 5)
-
-	# Select lines based on quest state
-	match Globals.quest_state:
-		"complete":
-			_dialogue_seq = [
-				{"speaker": "Mirelle", "text": "You're a true friend, " + Globals.selected_hero.capitalize() + ". Padrig appreciated the onions.", "choices": [], "portrait": portrait},
-			]
-		"accepted":
-			_dialogue_seq = [
-				{"speaker": "Mirelle", "text": "Have you found those onions yet? Padrig needs them for the tavern stew.", "choices": [], "portrait": portrait},
-			]
-		"paymentPending":
-			_dialogue_seq = [
-				{"speaker": "Mirelle", "text": "I hear you made it to the city! Did you speak with Padrig at the tavern?", "choices": [], "portrait": portrait},
-			]
-		"onionsEaten":
-			_dialogue_seq = [
-				{"speaker": "Mirelle", "text": "...Did you eat the onions? I had a bad feeling about those.", "choices": [], "portrait": portrait},
-			]
-		_:
-			# Not offered or declined — offer based on rep
-			var greeting := _mirelle_greeting(rep)
-			var offer    := "Oh — while you're passing through, could you do me a small favor? I need someone to bring a basket of onions to Padrig at the city tavern."
-			_dialogue_seq = [
-				{"speaker": "Mirelle", "text": greeting, "choices": [], "portrait": portrait},
-				{"speaker": "Mirelle", "text": offer, "choices": ["Sure, I'll bring them.", "Not just now, Mirelle."], "portrait": portrait},
-			]
-
-	_active_npc = "mirelle"
-	_start_dialogue_seq(portrait)
-
-func _mirelle_greeting(rep: String) -> String:
-	match rep:
-		"hostile": return "What is it. I'm busy."
-		"cold":    return "Hmm. You again."
-		"neutral": return "Hello there. Safe travels, I hope."
-		"friendly": return "Ah, " + Globals.selected_hero.capitalize() + "! Good to see you again."
-		_:         return "Welcome back, dear friend. It warms my heart to see you!"
-	return ""
-
-func _open_npc_dialogue(npc_id: String, name: String, idle_path: String) -> void:
-	var portrait := DialogueBox.make_portrait_frames(idle_path, 5)
-	var rep := Globals.get_rep_group()
-	var line := _generic_greeting(name, rep)
-	_dialogue_seq = [
-		{"speaker": name, "text": line, "choices": [], "portrait": portrait},
-	]
-	_active_npc = npc_id
-	_start_dialogue_seq(portrait)
-
-func _generic_greeting(name: String, rep: String) -> String:
-	match rep:
-		"hostile": return "..."
-		"cold":    return "Careful out there."
-		"neutral": return "Greetings, traveller."
-		"friendly": return "Good to see you, friend!"
-		_:         return "Blessings upon you, " + Globals.selected_hero.capitalize() + "!"
-	return ""
-
-func _start_dialogue_seq(_portrait) -> void:
+func _open_dialogue_direct(npc_id: String, npc_node: Node2D) -> void:
 	_dialogue_open = true
-	_dialogue_idx  = 0
+	_active_npc    = npc_id
+	_dialogue_state = ""
 	_player.set_physics_process(false)
-	# Pause the NPC being spoken to
-	var npc := _npc_for_id(_active_npc)
-	if npc: npc.pause_patrol()
-	_show_next_line()
+	if npc_node: npc_node.pause_patrol()
 
 func _npc_for_id(npc_id: String) -> Node2D:
 	match npc_id:
@@ -630,31 +567,169 @@ func _npc_for_id(npc_id: String) -> Node2D:
 		"lena":    return _lena
 	return null
 
-func _show_next_line() -> void:
-	if _dialogue_idx >= _dialogue_seq.size():
-		_dialogue_box.close()
+# ── Mirelle dialogue (full Phaser state machine) ──────────────────────────────
+
+func _open_mirelle_dialogue() -> void:
+	if not _mirelle: return
+	var rep := Globals.player_reputation
+	_mirelle_portrait = DialogueBox.make_portrait_frames("res://assets/npcs/forest_lady/idle.png", 5)
+	_open_dialogue_direct("mirelle", _mirelle)
+
+	if rep == 1:
+		_dialogue_state = "mirelleHostile"
+		_dialogue_box.show_line("Mirelle",
+			"I want nothing from you right now, Caelan. You've brought nothing but trouble lately. Come back when things have settled.",
+			["...Understood."], _mirelle_portrait)
 		return
-	var d: Dictionary = _dialogue_seq[_dialogue_idx]
-	_dialogue_box.show_line(d["speaker"], d["text"], d.get("choices", []), d.get("portrait", null))
+
+	if Globals.story_flags.get("mirelle_quest_complete", false):
+		var after_lines := {
+			2: "I still have doubts about you, Caelan. But you did deliver those onions.",
+			3: "You did your job. That's all I ask.",
+			4: "Thank you again for delivering the onions, Caelan. You did right by me.",
+			5: "The farm is in good hands with you here, Caelan. Truly.",
+			6: "Every day I am grateful to have you looking after this place.",
+			7: "There is no one I'd trust more with this farm. You're a good man.",
+		}
+		_dialogue_state = "mirelleAfterQuest"
+		_dialogue_box.show_line("Mirelle", after_lines.get(rep, after_lines[4]),
+			["Take care, Mirelle."], _mirelle_portrait)
+		return
+
+	if Globals.quest_state == "paymentPending":
+		_dialogue_state = "mirellePaymentChoice"
+		_dialogue_box.show_line("Mirelle",
+			"Caelan! Did Padrig have the payment ready?",
+			["Here are your 5 gold, Mirelle.", "I'm afraid he couldn't pay today."],
+			_mirelle_portrait)
+		return
+
+	if Globals.quest_state == "accepted":
+		_dialogue_state = "mirelleReminder"
+		_dialogue_box.show_line("Mirelle",
+			"You still have the onions — Padrig is waiting at the tavern in Millhaven. He pays 5 gold on delivery.",
+			["I'll bring them soon."], _mirelle_portrait)
+		return
+
+	if Globals.quest_state == "onionsEaten":
+		_dialogue_state = "mirelleReminder"
+		_dialogue_box.show_line("Mirelle",
+			"...Did you eat the onions? I had a bad feeling about those.",
+			["Sorry, Mirelle."], _mirelle_portrait)
+		return
+
+	# Default: rep-scaled quest offer
+	var greet_lines := {
+		2: "Caelan. I'm not entirely sure where we stand right now, but I still have work to be done. I have a bundle of onions for Padrig at the tavern in Millhaven — he pays 5 gold on delivery. Will you take them?",
+		3: "Caelan. I could use your help. Padrig at the Millhaven tavern is expecting a bundle of onions — he pays 5 gold. Would you take them over?",
+		4: "Caelan, just who I needed. I have a fresh bundle of onions ready for Padrig the chef at the tavern in Millhaven. He pays 5 gold on delivery. Would you bring them over?",
+		5: "Caelan, good timing! I have onions ready for Padrig in Millhaven — 5 gold on delivery. Could you run them over?",
+		6: "You're a good man, Caelan. I have a bundle of onions for Padrig at the Millhaven tavern — he always pays well, 5 gold. Would you mind bringing them?",
+		7: "Caelan! No one I'd rather trust with this. Padrig at the Millhaven tavern is expecting a bundle of onions — 5 gold on delivery. Will you take them?",
+	}
+	_dialogue_state = "mirelleOffer"
+	_dialogue_box.show_line("Mirelle", greet_lines.get(rep, greet_lines[4]),
+		["Sure, I'll bring them.", "Not just now, Mirelle."], _mirelle_portrait)
+
+# ── Aldric dialogue ───────────────────────────────────────────────────────────
+
+func _open_aldric_dialogue() -> void:
+	if not _aldric: return
+	var rep := Globals.player_reputation
+	var portrait := DialogueBox.make_portrait_frames("res://assets/npcs/hut_wanderer/idle.png", 5)
+	_open_dialogue_direct("aldric", _aldric)
+	var lines := {
+		1: "I know what people are saying about you. Best keep moving.",
+		2: "Something about you doesn't sit right. I'd rather be left alone.",
+		3: "Morning. Not really in the mood for conversation.",
+		4: "Just keeping an eye on the road. Quiet so far — suits me fine.",
+		5: "Good day! All quiet on this stretch. Glad to see a friendly face.",
+		6: "Always good to see you around here. The woods feel safer when you're about.",
+		7: "Hah! They ought to name this road after you, Caelan.",
+	}
+	var choices := ["..."] if rep <= 2 else ["Good to see you too."]
+	_dialogue_state = "aldricGreet"
+	_dialogue_box.show_line("Aldric", lines.get(rep, lines[4]), choices, portrait)
+
+# ── Lena dialogue ─────────────────────────────────────────────────────────────
+
+func _open_lena_dialogue() -> void:
+	if not _lena: return
+	var rep := Globals.player_reputation
+	var portrait := DialogueBox.make_portrait_frames("res://assets/npcs/farm_worker/idle.png", 5)
+	_open_dialogue_direct("lena", _lena)
+	var lines := {
+		1: "Stay away from me. I don't want any trouble.",
+		2: "I don't know you. Don't bother me while I'm working.",
+		3: "Just here tending the crops. Don't mind me.",
+		4: "The harvest is looking decent this season. Keep an eye out for rabbits though — they've been getting into the patch.",
+		5: "Good to see you around! These onions need watching. The rabbits have been relentless lately.",
+		6: "What a nice day for the fields! Mirelle says the onions are coming in beautifully.",
+		7: "Caelan! Always glad when you're around. Mirelle says the same. The whole farm feels safer with you here.",
+	}
+	var choices := ["..."] if rep <= 2 else ["I'll keep an eye out."]
+	_dialogue_state = "lenaGreet"
+	_dialogue_box.show_line("Lena", lines.get(rep, lines[4]), choices, portrait)
+
+# ── Choice & dismissal handlers ───────────────────────────────────────────────
 
 func _on_dialogue_choice(idx: int) -> void:
-	if _active_npc == "mirelle" and _dialogue_idx == 1:
-		if idx == 0:
-			# Accepted quest
-			Globals.quest_state = "accepted"
-			Globals.add_item({"name": "Onions", "texture": "", "actions": ["Eat"]})
-			show_item_popup("Onions")
-		else:
-			Globals.quest_state = "declined"
-	_dialogue_idx += 1
-	_show_next_line()
+	match _dialogue_state:
+		"mirelleOffer":
+			if idx == 0:  # "Sure, I'll bring them."
+				Globals.quest_state = "accepted"
+				Globals.add_item({"name": "Onions", "texture": "", "actions": ["Eat"]})
+				show_item_popup("Onions")
+				_dialogue_state = "mirelleQuestAccepted"
+				_dialogue_box.show_line("Mirelle",
+					"Thank you, Caelan. Padrig is at the tavern in Millhaven — he will know they are mine. Make sure he pays the full 5 gold.",
+					["I'll head there now."], _mirelle_portrait)
+			else:  # "Not just now, Mirelle."
+				Globals.quest_state = "declined"
+				_dialogue_state = "mirelleQuestDeclined"
+				_dialogue_box.show_line("Mirelle",
+					"All right. Come find me when you have a moment — the onions won't keep forever.",
+					["Will do."], _mirelle_portrait)
+
+		"mirellePaymentChoice":
+			if idx == 0:  # "Here are your 5 gold, Mirelle."
+				if Globals.spend_gold(5):
+					Globals.change_reputation(0.5)
+					Globals.story_flags["mirelle_quest_complete"] = true
+					Globals.story_flags["gold_given_to_mirelle"]  = true
+					Globals.quest_state = "complete"
+					_dialogue_state     = "mirelleGoldGiven"
+					_dialogue_box.show_line("Mirelle",
+						"Every coin — thank you, Caelan. Honest as ever. I am glad to have you looking after this place.",
+						["Glad to help, Mirelle."], _mirelle_portrait)
+				else:
+					_dialogue_state = "mirelleNoGold"
+					_dialogue_box.show_line("Mirelle",
+						"It sounds like the road may have parted you from it. Come back when you have it sorted.",
+						["I will."], _mirelle_portrait)
+			else:  # "I'm afraid he couldn't pay today." (lie)
+				Globals.change_reputation(-0.5)
+				Globals.story_flags["mirelle_quest_complete"] = true
+				Globals.story_flags["gold_given_to_mirelle"]  = false
+				Globals.quest_state = "complete"
+				_dialogue_state     = "mirelleLied"
+				_dialogue_box.show_line("Mirelle",
+					"...I see. Well. I'll manage without it. Thank you for making the trip at least.",
+					["..."], _mirelle_portrait)
+
+		_:
+			# All terminal states (mirelleHostile, mirelleAfterQuest, mirelleReminder,
+			# mirelleQuestAccepted, mirelleQuestDeclined, mirelleGoldGiven,
+			# mirelleNoGold, mirelleLied, aldricGreet, lenaGreet)
+			_dialogue_box.close()
 
 func _on_dialogue_dismissed() -> void:
 	var npc := _npc_for_id(_active_npc)
 	if npc: npc.resume_patrol()
-	_dialogue_open = false
-	_active_npc    = ""
-	_dialogue_seq  = []
+	_dialogue_open  = false
+	_active_npc     = ""
+	_dialogue_state = ""
+	_dialogue_seq   = []
 	if _player: _player.set_physics_process(true)
 
 # ══════════════════════════════════════════════════════════════════════════════

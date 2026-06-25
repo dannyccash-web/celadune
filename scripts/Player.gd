@@ -86,7 +86,12 @@ func _build_animations() -> void:
 		["walk_sword",     "res://assets/characters/caelan/walk_sword.png",     6,  10.0, true],
 		["jump_sword",     "res://assets/characters/caelan/jump_sword.png",     3,  10.0, false],
 		["attack_sword",   "res://assets/characters/caelan/attack_sword.png",   3,   8.0, false],
-		["combo_attack",   "res://assets/characters/caelan/combo_attack.png",   8,  10.0, false],
+		["combo_attack",       "res://assets/characters/caelan/combo_attack.png",       8,  10.0, false],
+		["walk_heavy",         "res://assets/characters/caelan/walk_heavy.png",         6,   8.0, true],
+		["run_sword",          "res://assets/characters/caelan/run_sword.png",          6,  12.0, true],
+		["walk_sword_heavy",   "res://assets/characters/caelan/walk_sword_heavy.png",   6,   8.0, true],
+		["death_sword",        "res://assets/characters/caelan/death_sword.png",        3,   5.0, false],
+		["special_slash",      "res://assets/characters/caelan/special_slash.png",      6,   8.0, false],
 	]
 	for d in defs:
 		_strip(f, d[0], d[1], d[2], d[3], d[4])
@@ -147,8 +152,13 @@ func _physics_process(delta: float) -> void:
 			if is_on_floor() and sprite.animation != "idle":
 				sprite.play("idle")
 
-		if not is_on_floor() and sprite.animation != "jump":
-			sprite.play("jump")
+		if not is_on_floor():
+			if sprite.animation != "jump":
+				sprite.play("jump")
+			if velocity.y > -20.0 and sprite.is_playing():
+				sprite.pause()
+			elif velocity.y <= -20.0 and not sprite.is_playing():
+				sprite.play()  # resume ascending from paused state
 	else:
 		velocity.x = move_toward(velocity.x, 0.0, DRAG_X * delta)
 

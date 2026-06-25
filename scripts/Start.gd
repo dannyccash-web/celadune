@@ -130,4 +130,4 @@ func _go_to_forest() -> void:
 	var cl := CanvasLayer.new(); cl.layer = 200; cl.add_child(ov); add_child(cl)
 	var tw2 := create_tween()
 	tw2.tween_property(ov, "color", Color(0,0,0,1), 0.4)
-	tw2.tween_callback(func(): get_tree().change_scene_to_file("res://scenes/Forest.tscn"))
+	tw2.tween_callback(func(): get_tree().change_scene_to_file("res://scenes/HeroSelect.tscn"))
