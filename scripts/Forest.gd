@@ -471,9 +471,9 @@ func _process(delta: float) -> void:
 	if not _player: return
 	if not _intro_complete: return
 
-	# Sky drift
+	# Sky drift — only move sky layer, not all parallax layers
 	_sky_drift -= 0.1
-	if _sky_layer: _parallax_bg.scroll_offset = Vector2(_sky_drift, 0.0)
+	if _sky_layer: _sky_layer.motion_offset = Vector2(_sky_drift, 0.0)
 
 	# Popup timer
 	if _popup_timer > 0.0:
@@ -769,8 +769,9 @@ func _enter_hut() -> void:
 	if _transitioning: return
 	_transitioning = true
 	_door_sfx.play()
-	Globals.from_transition = true
-	Globals.spawn_x = HUT_DOOR_X
+	Globals.from_transition      = true
+	Globals.spawn_x              = HUT_DOOR_X
+	Globals.interior_config_id   = "mirelle_farmhouse"
 	_transition_to("HutInterior")
 
 func _check_scene_boundaries() -> void:

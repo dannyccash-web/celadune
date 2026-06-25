@@ -117,12 +117,12 @@ func _build_controls_text() -> void:
 	_ctrl_root.add_child(h1)
 
 	var kb_text := (
-		"Arrow Left / Right  Move\n" +
-		"Arrow Up            Jump\n" +
-		"Space               Attack\n" +
-		"Enter               Interact / Confirm\n" +
-		"M                   Open Menu\n" +
-		"Esc / Backspace     Cancel / Close"
+		"Arrow Left / Right   Move\n" +
+		"Arrow Up / W         Jump\n" +
+		"Space / Z            Attack\n" +
+		"E / Enter            Interact / Confirm\n" +
+		"M                    Open Menu\n" +
+		"Esc                  Cancel / Close"
 	)
 	var b1 := _label(kb_text, 0, 46, 25, Globals.FONT_MONO, Color(0.169, 0.106, 0.059))
 	b1.autowrap_mode = TextServer.AUTOWRAP_WORD

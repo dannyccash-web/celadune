@@ -6,11 +6,13 @@ extends Node2D
 const GAME_W := 1920
 const GAME_H := 1080
 
-var _music:       AudioStreamPlayer
-var _sheen_timer: float = 0.0
-var _sheen_x:     float = -600.0
-var _sheen_active: bool  = false
-var _ready_to_start: bool = false
+var _music:           AudioStreamPlayer
+var _sheen:           ColorRect = null   # direct reference for fast updates
+var _sheen_x:         float = 0.0
+var _sheen_active:    bool  = false
+var _ready_to_start:  bool  = false
+var _logo_left:       float = 320.0   # logo left edge in logo-container space
+var _logo_right:      float = 1280.0  # logo right edge in logo-container space
 
 func _ready() -> void:
 	_build_ui()
@@ -30,30 +32,38 @@ func _build_ui() -> void:
 	bg.position     = Vector2.ZERO
 	cl.add_child(bg)
 
-	# Dark overlay for readability
-	var overlay := ColorRect.new()
-	overlay.color    = Color(0.02, 0.02, 0.04, 0.38)
-	overlay.size     = Vector2(GAME_W, GAME_H)
-	overlay.position = Vector2.ZERO
-	cl.add_child(overlay)
+	# Logo — placed in a clipping container so the sheen is masked to the logo area
+	const LOGO_W := 1280; const LOGO_H := 640
+	const LOGO_X := (GAME_W - LOGO_W) / 2   # = 320
+	const LOGO_Y := 60
 
-	# Logo
+	# Clipping container — children render only within its rect
+	var logo_clip := Control.new()
+	logo_clip.position     = Vector2(LOGO_X, LOGO_Y)
+	logo_clip.size         = Vector2(LOGO_W, LOGO_H)
+	logo_clip.clip_children = Control.CLIP_CHILDREN_ONLY
+	cl.add_child(logo_clip)
+
 	var logo := TextureRect.new()
 	logo.texture      = load("res://assets/ui/celadune_logo.png")
 	logo.expand_mode  = TextureRect.EXPAND_IGNORE_SIZE
 	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	logo.size         = Vector2(960, 480)
-	logo.position     = Vector2(480, 80)
-	cl.add_child(logo)
+	logo.size         = Vector2(LOGO_W, LOGO_H)
+	logo.position     = Vector2.ZERO
+	logo_clip.add_child(logo)
 
-	# Sheen effect (white diagonal stripe over logo)
-	var sheen := ColorRect.new()
-	sheen.name    = "Sheen"
-	sheen.color   = Color(1, 1, 1, 0.18)
-	sheen.size    = Vector2(60, 700)
-	sheen.rotation = deg_to_rad(30)
-	sheen.position = Vector2(-600, 0)
-	cl.add_child(sheen)
+	# Sheen — diagonal stripe; swept in _process; clipped to logo bounds by parent
+	_sheen = ColorRect.new()
+	_sheen.name     = "Sheen"
+	_sheen.color    = Color(1, 1, 1, 0.25)
+	_sheen.size     = Vector2(90, LOGO_H + 200)
+	_sheen.rotation = deg_to_rad(20)
+	_sheen.position = Vector2(-120, -100)   # local coords inside logo_clip
+	logo_clip.add_child(_sheen)
+
+	# Sweep range is logo-container-local: 0 .. LOGO_W
+	_logo_left  = 0.0
+	_logo_right = LOGO_W
 
 	# "Press Enter to begin"
 	var prompt := Label.new()
@@ -72,13 +82,7 @@ func _build_ui() -> void:
 	tw.tween_property(prompt, "modulate:a", 0.3, 0.85)
 	tw.tween_property(prompt, "modulate:a", 1.0, 0.85)
 
-	# Version hint
-	var ver := Label.new()
-	ver.text     = Globals.TOWN_NAME
-	ver.position = Vector2(GAME_W - 200, GAME_H - 36)
-	ver.add_theme_font_size_override("font_size", 18)
-	ver.add_theme_color_override("font_color", Color(0.55, 0.50, 0.38, 0.7))
-	cl.add_child(ver)
+	# (watermark removed)
 
 func _build_audio() -> void:
 	_music = AudioStreamPlayer.new()
@@ -97,26 +101,19 @@ func _build_audio() -> void:
 
 func _start_sheen() -> void:
 	_sheen_active = true
-	_sheen_x      = -600.0
+	_sheen_x      = _logo_left - 120.0   # start just before logo left edge
 
 func _process(delta: float) -> void:
-	# Animate sheen across logo
-	if _sheen_active:
+	# Animate sheen across logo (position is local to logo_clip container)
+	if _sheen_active and _sheen:
 		_sheen_x += 800.0 * delta
-		var sheen = get_node_or_null("CanvasLayer/Sheen")
-		if not sheen:
-			# Find it in the canvas layer
-			for cl in get_children():
-				if cl is CanvasLayer:
-					sheen = cl.get_node_or_null("Sheen")
-					if sheen: break
-		if sheen:
-			sheen.position.x = _sheen_x
-			if _sheen_x > GAME_W + 200:
-				_sheen_active = false
-				# Restart sheen after 4 seconds
-				await get_tree().create_timer(4.0).timeout
-				if is_instance_valid(self): _start_sheen()
+		_sheen.position.x = _sheen_x
+		if _sheen_x > _logo_right + 120.0:
+			_sheen_active = false
+			_sheen.position.x = _logo_left - 200   # hide offscreen left
+			# Restart sheen after 4 seconds
+			await get_tree().create_timer(4.0).timeout
+			if is_instance_valid(self): _start_sheen()
 
 	if not _ready_to_start: return
 	if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("jump"):
@@ -130,4 +127,4 @@ func _go_to_forest() -> void:
 	var cl := CanvasLayer.new(); cl.layer = 200; cl.add_child(ov); add_child(cl)
 	var tw2 := create_tween()
 	tw2.tween_property(ov, "color", Color(0,0,0,1), 0.4)
-	tw2.tween_callback(func(): get_tree().change_scene_to_file("res://scenes/Forest.tscn"))
+	tw2.tween_callback(func(): get_tree().change_scene_to_file("res://scenes/HeroSelect.tscn"))

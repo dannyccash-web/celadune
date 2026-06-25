@@ -238,25 +238,39 @@ func _build_buildings() -> void:
 
 func _build_door_zones() -> void:
 	for dz in DOOR_ZONES:
+		var door_x := float(dz[1])
+		# Permanent building name label — always visible above door
 		var lbl := Label.new()
-		lbl.text    = str(dz[2]) + "  (E)"
-		lbl.visible = false
+		lbl.text    = str(dz[2])
+		lbl.visible = true
 		lbl.z_index = 30
+		lbl.position = Vector2(door_x - 60, GROUND_Y - 300)
 		lbl.add_theme_color_override("font_color",        Color(0.97, 0.93, 0.84))
-		lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
+		lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
 		lbl.add_theme_constant_override("shadow_offset_x", 2)
 		lbl.add_theme_constant_override("shadow_offset_y", 2)
-		lbl.add_theme_font_size_override("font_size", 16)
+		lbl.add_theme_font_size_override("font_size", 18)
 		add_child(lbl)
-		_door_tips.append({"label": lbl, "door_x": float(dz[1]), "config_id": str(dz[3])})
+		# Proximity hint label — only shown when near door
+		var hint := Label.new()
+		hint.text    = "E  —  Enter"
+		hint.visible = false
+		hint.z_index = 30
+		hint.add_theme_color_override("font_color",        Color(0.78, 0.95, 0.78))
+		hint.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
+		hint.add_theme_constant_override("shadow_offset_x", 2)
+		hint.add_theme_constant_override("shadow_offset_y", 2)
+		hint.add_theme_font_size_override("font_size", 15)
+		add_child(hint)
+		_door_tips.append({"label": lbl, "hint": hint, "door_x": door_x, "config_id": str(dz[3])})
 
 # ── Animated props (furnace and cooking area near tavern) ─────────────────────
 
 func _build_animated_props() -> void:
-	_anim_prop("res://assets/props/furnace_animated.png", 6,  64, 64, 1130, PROP_BASE, 9)
-	_anim_prop("res://assets/props/cooking_area.png",    12, 64, 64, 1350, PROP_BASE, 9)
+	_anim_prop("res://assets/props/furnace_animated.png", 6,  64, 64, 1130, PROP_BASE, 9, 4.0)
+	_anim_prop("res://assets/props/cooking_area.png",    12, 64, 64, 1350, PROP_BASE, 9, 8.0)
 
-func _anim_prop(path: String, frame_count: int, fw: int, fh: int, x: float, base_y: float, z: int) -> void:
+func _anim_prop(path: String, frame_count: int, fw: int, fh: int, x: float, base_y: float, z: int, fps: float = 8.0) -> void:
 	var tex: Texture2D = load(path)
 	if not tex: return
 	var anim := AnimatedSprite2D.new()
@@ -265,7 +279,7 @@ func _anim_prop(path: String, frame_count: int, fw: int, fh: int, x: float, base
 	sf.remove_animation("default")
 	sf.add_animation("play")
 	sf.set_animation_loop("play", true)
-	sf.set_animation_speed("play", 8.0)
+	sf.set_animation_speed("play", fps)
 	for i in range(frame_count):
 		var a := AtlasTexture.new()
 		a.atlas  = tex
@@ -281,10 +295,10 @@ func _anim_prop(path: String, frame_count: int, fw: int, fh: int, x: float, base
 # ── Decor props ───────────────────────────────────────────────────────────────
 
 func _build_decor_props() -> void:
-	# Around blacksmith
-	_prop("res://assets/props/decor_crate_large.png",  800,  PROP_BASE, 7)
-	_prop("res://assets/props/decor_barrel_large.png", 870,  PROP_BASE, 7)
-	_prop("res://assets/props/decor_crate.png",        1070, PROP_BASE, 7)
+	# Around blacksmith — keep props clear of door at x=909
+	_prop("res://assets/props/decor_crate_large.png",  760,  PROP_BASE, 7)
+	_prop("res://assets/props/decor_barrel_large.png", 820,  PROP_BASE, 7)
+	_prop("res://assets/props/decor_crate.png",        1090, PROP_BASE, 7)
 	# Near tavern — keep props clear of door at x=1611
 	_prop("res://assets/props/decor_stool.png",       1390, PROP_BASE, 7)
 	_prop("res://assets/props/table_apples.png",      1450, PROP_BASE, 7)
@@ -525,7 +539,7 @@ func _process(delta: float) -> void:
 	if not _player: return
 
 	_sky_drift -= 0.1
-	if _sky_layer: _parallax_bg.scroll_offset = Vector2(_sky_drift, 0.0)
+	if _sky_layer: _sky_layer.motion_offset = Vector2(_sky_drift, 0.0)
 
 	if _popup_timer > 0.0:
 		_popup_timer -= delta
@@ -545,18 +559,16 @@ func _update_tooltips() -> void:
 	var px := _player.position.x
 	var py := _player.position.y
 
-	# Building door tooltips
+	# Building door tooltips — permanent labels always shown; hint shown only when near
 	var near_door_config: String = ""
-	var near_door_x: float = 0.0
 	for dt in _door_tips:
-		var lbl: Label = dt["label"]
+		var hint: Label = dt["hint"]
 		var door_x: float = dt["door_x"]
 		var near := absf(px - door_x) < 100.0
-		lbl.visible = near
+		hint.visible = near
 		if near:
-			lbl.position = Vector2(door_x - 70, GROUND_Y - 250)  # above door top with gap
+			hint.position = Vector2(door_x - 44, GROUND_Y - 270)
 			near_door_config = dt["config_id"]
-			near_door_x = door_x
 
 	# E to enter building
 	if Input.is_action_just_pressed("interact") and near_door_config != "":

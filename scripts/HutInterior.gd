@@ -18,7 +18,7 @@ const WIN_H   := 128
 const DOOR_X  := 64.0
 const EXIT_R  := 100.0
 
-const FURN_SCALE := 2.5
+const FURN_SCALE := 3.0
 const PROP_P := "res://assets/props/furniture/"
 const INT_P  := "res://assets/props/interior/"
 

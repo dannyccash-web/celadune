@@ -123,7 +123,7 @@ func _tile(tex: Texture2D, cx: float, cy: float, frame: int, z: int) -> void:
 func _spawn_player() -> void:
 	var s: PackedScene = load("res://scenes/Player.tscn")
 	_player = s.instantiate()
-	_player.position = Vector2(Globals.spawn_x, GROUND_Y - 120.0)
+	_player.position = Vector2(Globals.spawn_x, 835.0)
 	_player.jumped.connect(_on_player_jumped)
 	_player.attacked.connect(_on_player_attacked)
 	add_child(_player)
@@ -275,7 +275,7 @@ func _process(delta: float) -> void:
 	if not _player: return
 
 	_sky_drift -= 0.1
-	if _sky_layer: _parallax_bg.scroll_offset = Vector2(_sky_drift, 0.0)
+	if _sky_layer: _sky_layer.motion_offset = Vector2(_sky_drift, 0.0)
 
 	if _player_invincible > 0.0:
 		_player_invincible -= delta
