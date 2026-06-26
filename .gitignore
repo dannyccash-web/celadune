@@ -1,7 +1,7 @@
 # Godot import cache — regenerated locally and in CI
 .godot/
 
-# Web export output (built by GitHub Actions, deployed to gh-pages)
+# Web export output (built by GitHub Actions, deployed to Pages)
 web-build/
 
 # macOS

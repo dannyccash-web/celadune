@@ -1,171 +1,170 @@
 extends CharacterBody2D
+## Celadune player controller.
+##
+## A solid, genre-standard 2D platformer character: run with acceleration,
+## variable-height jump, coyote time, jump buffering, double jump, wall slide,
+## wall jump, and dash. Abilities are gated through Globals so the game can
+## unlock them over time. Tune the constants below to change game feel —
+## you should never need to touch the logic to retune movement.
 
-# ── Coordinate derivation ────────────────────────────────────────────────────
-# Phaser source values (main.js):
-#   playerBaseScaleX/Y = 3.1
-#   body.setSize(20, 34), setOffset(41, 28)   ← unscaled px
-#   body bottom when on floor = GROUND_Y = 888
-#
-# In Phaser, body world size = 20×34 × 3.1 = 62×105.4
-# Body bottom at 888 → body top = 888 - 105.4 = 782.6
-# Sprite center.y = body_top - (offset_y × scale) + (frame_h/2 × scale)
-#                 = 782.6 - (28×3.1) + (32×3.1) = 782.6 - 86.8 + 99.2 = 795
-#
-# Godot CharacterBody2D: RectangleShape2D size=(62, 105), half_h=52.5
-# On floor: position.y = 888 - 52.5 = 835.5
-# We want sprite visual center at 795 → sprite.position.y = 795 - 835.5 = -40.5 ≈ -41
-#
-# IMPORTANT: Use sprite.position (world-space offset from parent), NOT sprite.offset.
-# sprite.offset is pre-scale in Godot and would be multiplied by 3.1, making it 127px.
+# ── Movement tuning ───────────────────────────────────────────────────────────
+const SPEED            := 320.0    # top horizontal run speed (px/s)
+const ACCEL            := 2600.0   # ground acceleration (px/s^2)
+const FRICTION         := 3200.0   # ground deceleration (px/s^2)
+const AIR_ACCEL        := 1800.0   # weaker control in the air
+const AIR_FRICTION     := 900.0
 
-# ── Signals (Forest.gd connects these for SFX) ───────────────────────────────
-signal jumped
-signal attacked
+const GRAVITY          := 2000.0   # falling acceleration (px/s^2)
+const MAX_FALL         := 1100.0   # terminal velocity
+const JUMP_VELOCITY    := -720.0   # initial jump impulse
+const JUMP_CUT         := 0.45     # release jump early -> keep this fraction of up-velocity
 
-# ── Physics constants — exact Phaser values ──────────────────────────────────
-const SPEED         := 260.0   # px/s  (Phaser moveSpeed = 260)
-const JUMP_VEL      := -570.0  # px/s  (Phaser setVelocityY(-570))
-const GRAVITY       := 1800.0  # px/s² (Phaser world gravity.y = 1800)
-const DRAG_X        := 1800.0  # px/s² (Phaser body.setDragX(1800))
-const MAX_VEL_X     := 350.0   # px/s  (Phaser body.setMaxVelocity(350, 1200))
-const MAX_VEL_Y     := 1200.0
+const COYOTE_TIME      := 0.10     # grace period to jump after leaving a ledge
+const JUMP_BUFFER      := 0.10     # press jump slightly before landing and it still fires
 
-# ── Sprite constants ─────────────────────────────────────────────────────────
-const FRAME_W       := 100
-const FRAME_H       := 64
-const SCALE         := 3.1
+const DOUBLE_JUMP_VEL  := -640.0
 
-# Shape matches Phaser's scaled physics body
-const SHAPE_W       := 62.0    # 20 × 3.1
-const SHAPE_H       := 105.0   # 34 × 3.1
-# Sprite node sits 41 world-pixels above CharacterBody2D center (see derivation above)
-const SPRITE_Y      := -41.0
+# Wall mechanics
+const WALL_SLIDE_SPEED := 140.0    # capped fall speed while hugging a wall
+const WALL_JUMP_PUSH   := 360.0    # horizontal kick away from the wall
+const WALL_JUMP_VEL    := -700.0
 
-# ── Nodes ────────────────────────────────────────────────────────────────────
+# Dash
+const DASH_SPEED       := 720.0
+const DASH_TIME        := 0.16
+const DASH_COOLDOWN    := 0.45
+
+# ── State ─────────────────────────────────────────────────────────────────────
+var _coyote := 0.0
+var _buffer := 0.0
+var _can_double := false
+var _dashing := false
+var _dash_timer := 0.0
+var _dash_cd := 0.0
+var _dash_dir := 1.0
+var _facing := 1.0
+
 @onready var sprite: AnimatedSprite2D = $Sprite
-@onready var collision: CollisionShape2D = $Collision
-
-# ── State ────────────────────────────────────────────────────────────────────
-var _attacking := false
-const ATTACK_FRAMES := 3
-const ATTACK_FPS    := 8.0
-const ATTACK_DUR    := ATTACK_FRAMES / ATTACK_FPS   # 0.375 s
 
 func _ready() -> void:
-	_build_collision()
 	_build_animations()
-
-	sprite.scale          = Vector2(SCALE, SCALE)
-	sprite.position       = Vector2(0.0, SPRITE_Y)   # world-space offset, unaffected by sprite scale
-	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	sprite.flip_h         = true   # sprites face LEFT by default; start facing right
 	sprite.play("idle")
-	z_index = 10
 
-func _build_collision() -> void:
-	var r := RectangleShape2D.new()
-	r.size = Vector2(SHAPE_W, SHAPE_H)
-	collision.shape = r
-
-func _build_animations() -> void:
-	# All Caelan animation sheets are single-row warrior strips (frames 0..N in row 0).
-	# createCaelanAnimations() in Phaser uses warriorFrameList which picks frames 0..count-1.
-	# Direction is handled by flip_h, not by separate left/right rows.
-	var f := SpriteFrames.new()
-	f.remove_animation("default")
-	var defs := [
-		# [name, path, frames, fps, loop]
-		["idle",           "res://assets/characters/caelan/idle.png",           1,  1.0,  true],
-		["walk",           "res://assets/characters/caelan/walk.png",           6,  10.0, true],
-		["run",            "res://assets/characters/caelan/run.png",            6,  12.0, true],
-		["jump",           "res://assets/characters/caelan/jump.png",           3,  10.0, false],
-		["attack",         "res://assets/characters/caelan/attack.png",         3,   8.0, false],
-		["special_attack", "res://assets/characters/caelan/special_attack.png", 4,   8.0, false],
-		["death",          "res://assets/characters/caelan/death.png",          3,   5.0, false],
-		["idle_sword",     "res://assets/characters/caelan/idle_sword.png",     1,   1.0, true],
-		["walk_sword",     "res://assets/characters/caelan/walk_sword.png",     6,  10.0, true],
-		["jump_sword",     "res://assets/characters/caelan/jump_sword.png",     3,  10.0, false],
-		["attack_sword",   "res://assets/characters/caelan/attack_sword.png",   3,   8.0, false],
-		["combo_attack",       "res://assets/characters/caelan/combo_attack.png",       8,  10.0, false],
-		["walk_heavy",         "res://assets/characters/caelan/walk_heavy.png",         6,   8.0, true],
-		["run_sword",          "res://assets/characters/caelan/run_sword.png",          6,  12.0, true],
-		["walk_sword_heavy",   "res://assets/characters/caelan/walk_sword_heavy.png",   6,   8.0, true],
-		["death_sword",        "res://assets/characters/caelan/death_sword.png",        3,   5.0, false],
-		["special_slash",      "res://assets/characters/caelan/special_slash.png",      6,   8.0, false],
-	]
-	for d in defs:
-		_strip(f, d[0], d[1], d[2], d[3], d[4])
-
-	# "rise" = death frames in reverse order (intro sequence)
-	f.add_animation("rise")
-	f.set_animation_loop("rise", false)
-	f.set_animation_speed("rise", 8.0)   # Phaser frameRate:8
-	var death_tex: Texture2D = load("res://assets/characters/caelan/death.png")
-	if death_tex:
-		for i in [2, 1, 0]:
-			var a := AtlasTexture.new()
-			a.atlas  = death_tex
-			a.region = Rect2(i * FRAME_W, 0, FRAME_W, FRAME_H)
-			f.add_frame("rise", a)
-
-	sprite.sprite_frames = f
-
-func _strip(f: SpriteFrames, name: String, path: String, count: int, fps: float, loop: bool) -> void:
-	f.add_animation(name)
-	f.set_animation_loop(name, loop)
-	f.set_animation_speed(name, fps)
-	var tex: Texture2D = load(path)
-	for i in range(count):
-		var a := AtlasTexture.new()
-		a.atlas  = tex
-		a.region = Rect2(i * FRAME_W, 0, FRAME_W, FRAME_H)
-		f.add_frame(name, a)
-
-# ── Per-frame physics ─────────────────────────────────────────────────────────
 func _physics_process(delta: float) -> void:
+	if _dash_cd > 0.0:
+		_dash_cd -= delta
+
+	if _dashing:
+		_process_dash(delta)
+		move_and_slide()
+		return
+
+	var on_floor := is_on_floor()
+	var input_x := Input.get_axis("move_left", "move_right")
+
 	# Gravity
-	if not is_on_floor():
-		velocity.y = minf(velocity.y + GRAVITY * delta, MAX_VEL_Y)
-
-	# Jump
-	if Input.is_action_just_pressed("jump") and is_on_floor() and not _attacking:
-		velocity.y = JUMP_VEL
-		emit_signal("jumped")
-
-	# Attack — Phaser startAttack() plays special_attack (4-frame overhead slash)
-	if Input.is_action_just_pressed("attack") and not _attacking:
-		_attacking = true
-		sprite.play("special_attack")
-		emit_signal("attacked")
-		sprite.animation_finished.connect(_on_attack_done, CONNECT_ONE_SHOT)
+	if not on_floor:
+		velocity.y = minf(velocity.y + GRAVITY * delta, MAX_FALL)
 
 	# Horizontal movement
-	var dir := Input.get_axis("move_left", "move_right")
-	if not _attacking:
-		if dir != 0.0:
-			velocity.x = clampf(dir * SPEED, -MAX_VEL_X, MAX_VEL_X)
-			sprite.flip_h = dir > 0.0   # flip_h true = facing right
-			if is_on_floor() and sprite.animation != "walk":
-				sprite.play("walk")
-		else:
-			velocity.x = move_toward(velocity.x, 0.0, DRAG_X * delta)
-			if is_on_floor() and sprite.animation != "idle":
-				sprite.play("idle")
-
-		if not is_on_floor():
-			if sprite.animation != "jump":
-				sprite.play("jump")
-			if velocity.y > -20.0 and sprite.is_playing():
-				sprite.pause()
-			elif velocity.y <= -20.0 and not sprite.is_playing():
-				sprite.play()  # resume ascending from paused state
+	var accel := ACCEL if on_floor else AIR_ACCEL
+	var friction := FRICTION if on_floor else AIR_FRICTION
+	if input_x != 0.0:
+		velocity.x = move_toward(velocity.x, input_x * SPEED, accel * delta)
+		_facing = signf(input_x)
 	else:
-		# Only drag horizontal velocity when on the floor — in the air, preserve momentum
-		if is_on_floor():
-			velocity.x = move_toward(velocity.x, 0.0, DRAG_X * delta)
+		velocity.x = move_toward(velocity.x, 0.0, friction * delta)
+
+	# Timers
+	if on_floor:
+		_coyote = COYOTE_TIME
+		_can_double = Globals.has_ability("double_jump")
+	else:
+		_coyote = maxf(_coyote - delta, 0.0)
+	_buffer = maxf(_buffer - delta, 0.0)
+	if Input.is_action_just_pressed("jump"):
+		_buffer = JUMP_BUFFER
+
+	# Wall slide
+	var on_wall := is_on_wall_only() and not on_floor
+	var pushing_wall := on_wall and input_x != 0.0 and signf(input_x) == -signf(get_wall_normal().x)
+	if pushing_wall and velocity.y > WALL_SLIDE_SPEED:
+		velocity.y = WALL_SLIDE_SPEED
+
+	# Jumping
+	if _buffer > 0.0:
+		if _coyote > 0.0:
+			_do_jump(JUMP_VELOCITY)
+		elif on_wall and Globals.has_ability("wall_jump"):
+			_do_wall_jump()
+		elif _can_double:
+			_can_double = false
+			_do_jump(DOUBLE_JUMP_VEL)
+
+	# Variable jump height
+	if Input.is_action_just_released("jump") and velocity.y < 0.0:
+		velocity.y *= JUMP_CUT
+
+	# Dash
+	if Input.is_action_just_pressed("dash") and Globals.has_ability("dash") and _dash_cd <= 0.0:
+		_start_dash()
 
 	move_and_slide()
+	_update_animation(input_x, on_floor, pushing_wall)
 
-func _on_attack_done() -> void:
-	_attacking = false
-	sprite.play("idle")
+func _do_jump(vel: float) -> void:
+	velocity.y = vel
+	_buffer = 0.0
+	_coyote = 0.0
+
+func _do_wall_jump() -> void:
+	var nx := signf(get_wall_normal().x)
+	velocity.y = WALL_JUMP_VEL
+	velocity.x = nx * WALL_JUMP_PUSH
+	_facing = nx
+	_buffer = 0.0
+
+func _start_dash() -> void:
+	_dashing = true
+	_dash_timer = DASH_TIME
+	_dash_cd = DASH_COOLDOWN
+	_dash_dir = _facing
+	sprite.play("jump")
+
+func _process_dash(delta: float) -> void:
+	_dash_timer -= delta
+	velocity = Vector2(_dash_dir * DASH_SPEED, 0.0)
+	if _dash_timer <= 0.0:
+		_dashing = false
+
+func _update_animation(input_x: float, on_floor: bool, sliding: bool) -> void:
+	sprite.flip_h = _facing < 0.0
+	if not on_floor:
+		sprite.play("jump")
+	elif input_x != 0.0:
+		sprite.play("run")
+	else:
+		sprite.play("idle")
+
+# Builds SpriteFrames from the placeholder strips at runtime so no .import-time
+# SpriteFrames resource is needed. Swap the textures for your real art later.
+func _build_animations() -> void:
+	var frames := SpriteFrames.new()
+	frames.remove_animation("default")
+	_add_anim(frames, "idle", "res://assets/sprites/player_idle.png", 2, 4.0, true)
+	_add_anim(frames, "run",  "res://assets/sprites/player_run.png",  4, 12.0, true)
+	_add_anim(frames, "jump", "res://assets/sprites/player_jump.png", 1, 1.0, false)
+	sprite.sprite_frames = frames
+
+func _add_anim(frames: SpriteFrames, name: String, path: String, count: int, fps: float, loop: bool) -> void:
+	frames.add_animation(name)
+	frames.set_animation_speed(name, fps)
+	frames.set_animation_loop(name, loop)
+	var sheet: Texture2D = load(path)
+	var fw := int(sheet.get_width() / count)
+	var fh := sheet.get_height()
+	for i in count:
+		var atlas := AtlasTexture.new()
+		atlas.atlas = sheet
+		atlas.region = Rect2(i * fw, 0, fw, fh)
+		frames.add_frame(name, atlas)
