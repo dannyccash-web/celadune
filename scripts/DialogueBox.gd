@@ -80,14 +80,21 @@ func _build_ui() -> void:
 	var portrait_frame := _border_rect(PANEL_X + 43, PANEL_Y + 36, PORTRAIT_SZ, PORTRAIT_SZ, COL_BORDER_IN, 2)
 	add_child(portrait_frame)
 
-	# Portrait sprite (NPC shown here during dialogue)
+	# Portrait clip container — clips the zoomed sprite to exactly the frame rect
+	var portrait_clip := Control.new()
+	portrait_clip.position     = Vector2(PANEL_X + 43, PANEL_Y + 36)
+	portrait_clip.size         = Vector2(PORTRAIT_SZ, PORTRAIT_SZ)
+	portrait_clip.clip_children = Control.CLIP_CHILDREN_ONLY
+	portrait_clip.z_index      = 1
+	add_child(portrait_clip)
+
+	# Portrait sprite — zoomed 6× and offset upward so head/torso fills the frame
 	_portrait_sprite = AnimatedSprite2D.new()
-	_portrait_sprite.position = Vector2(PANEL_X + 43 + PORTRAIT_SZ / 2, PANEL_Y + 36 + PORTRAIT_SZ)
-	_portrait_sprite.scale    = Vector2(8.0, 8.0)
+	_portrait_sprite.position = Vector2(PORTRAIT_SZ / 2, PORTRAIT_SZ / 2 - 15)
+	_portrait_sprite.scale    = Vector2(6.0, 6.0)
 	_portrait_sprite.flip_h   = true
 	_portrait_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_portrait_sprite.z_index  = 1
-	add_child(_portrait_sprite)
+	portrait_clip.add_child(_portrait_sprite)
 
 	# Speaker name
 	_speaker_label = Label.new()
@@ -115,13 +122,16 @@ func _build_ui() -> void:
 	_options_container.add_theme_constant_override("separation", 10)
 	add_child(_options_container)
 
-	# Hint label
+	# Hint label — shown only when choices are available, bottom-right of panel
 	_hint_label = Label.new()
-	_hint_label.text     = "Enter to choose"
-	_hint_label.position = Vector2(PANEL_X + PANEL_W - 41, PANEL_Y + 22)
+	_hint_label.text     = "↑↓ to choose   Enter to confirm"
+	_hint_label.position = Vector2(PANEL_X + 43, PANEL_Y + PANEL_H - 48)
+	_hint_label.size     = Vector2(PANEL_W - 86, 36)
+	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_hint_label.add_theme_font_override("font", Globals.FONT_MONO)
-	_hint_label.add_theme_font_size_override("font_size", 19)
+	_hint_label.add_theme_font_size_override("font_size", 18)
 	_hint_label.add_theme_color_override("font_color", Color(0.306, 0.216, 0.125))
+	_hint_label.visible = false   # only shown when _awaiting_choice = true
 	add_child(_hint_label)
 
 	# Writing SFX
@@ -180,6 +190,7 @@ func close() -> void:
 	visible = false
 	_is_typing       = false
 	_awaiting_choice = false
+	_hint_label.visible = false
 	if _writing_sfx and _writing_sfx.playing:
 		_writing_sfx.stop()
 	dismissed.emit()
@@ -224,6 +235,7 @@ func _finish_typing() -> void:
 	if _portrait_sprite: _portrait_sprite.stop()
 	if _choices.size() > 0:
 		_awaiting_choice = true
+		_hint_label.visible = true
 		_render_options()
 
 func _clear_options() -> void:
