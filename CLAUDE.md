@@ -38,7 +38,21 @@ world, and content as the main work.
 4. Add a `Door` instance; set `target_room` + `target_spawn`.
 
 ## Controls
-Move: A/D or arrows · Jump: Space/W · Dash: Shift · Use door: E
+Move: A/D or arrows · Jump: Space/W · Dash: Shift · Use door / talk: E
+
+## Dialogue & NPCs (write story without code)
+- **Dialogue.gd** is an autoload that shows a bottom text box, types lines out,
+  advances on E/Space, and pauses the game while open. Call it from anywhere:
+  `Dialogue.start("Eldrin", ["Line one.", "Line two."], on_done)`.
+- **NPC.tscn / NPC.gd** is a talkable character. Drop it in a room and fill in
+  the Inspector — no scripting:
+  - `Speaker Name`, `Lines` (one entry per text-box line).
+  - `Set Flag On End` — story flag set when the talk finishes.
+  - `Gate Flag` + `Lines After` — if the flag is set, the NPC says `Lines After`
+    instead, so characters can react to what the player has done.
+- **Story flags** live in `Globals` (`set_flag` / `has_flag`). Use them to gate
+  dialogue, doors, or anything else. The example NPC "Eldrin" in Room1 shows the
+  pattern (sets `met_eldrin`, then greets you differently next time).
 
 ## MetroidvaniaSystem (MetSys) — the world-map layer
 The MIT framework by KoBeWi is installed under `addons/MetroidvaniaSystem/`

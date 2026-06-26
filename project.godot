@@ -19,6 +19,7 @@ metroidvania_system/settings_file="res://world/MetSysSettings.tres"
 [autoload]
 
 Globals="*res://scripts/Globals.gd"
+Dialogue="*res://scripts/Dialogue.gd"
 
 [display]
 

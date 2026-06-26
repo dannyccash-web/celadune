@@ -17,3 +17,15 @@ var abilities := {
 
 func has_ability(name: String) -> bool:
 	return abilities.get(name, false)
+
+# ── Story flags ───────────────────────────────────────────────────────────────
+# Simple named on/off switches that record story progress. NPCs can set a flag
+# when a conversation ends, and gate different dialogue on whether a flag is set.
+# Example: Globals.set_flag("met_elder"); if Globals.has_flag("met_elder"): ...
+var flags := {}
+
+func set_flag(name: String, value: bool = true) -> void:
+	flags[name] = value
+
+func has_flag(name: String) -> bool:
+	return flags.get(name, false)

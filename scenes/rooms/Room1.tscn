@@ -1,9 +1,10 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Texture2D" path="res://assets/tiles/grass.png" id="grass"]
 [ext_resource type="Texture2D" path="res://assets/tiles/stone.png" id="stone"]
 [ext_resource type="Texture2D" path="res://assets/tiles/dirt.png" id="dirt"]
 [ext_resource type="PackedScene" path="res://scenes/Door.tscn" id="door"]
+[ext_resource type="PackedScene" path="res://scenes/NPC.tscn" id="npc"]
 
 [sub_resource type="RectangleShape2D" id="ground_shape"]
 size = Vector2(1280, 80)
@@ -112,3 +113,11 @@ position = Vector2(1060, 598)
 position = Vector2(1150, 600)
 target_room = "res://scenes/rooms/Room2.tscn"
 target_spawn = "DoorFromRoom1"
+
+[node name="Eldrin" parent="." instance=ExtResource("npc")]
+position = Vector2(680, 592)
+speaker_name = "Eldrin"
+lines = Array[String](["Well met, traveler. I am Eldrin, keeper of Celadune.", "The land has grown restless since the light dimmed in the east.", "Take the door beyond those platforms — your path begins there."])
+set_flag_on_end = "met_eldrin"
+gate_flag = "met_eldrin"
+lines_after = Array[String](["You return, traveler. The eastern door awaits when you are ready."])
