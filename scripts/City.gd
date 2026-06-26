@@ -150,7 +150,7 @@ func _build_parallax() -> void:
 		var s := float(GAME_H) / float(tex.get_height())
 		var layer := ParallaxLayer.new()
 		layer.motion_scale     = Vector2(cfg["factor"], 0.0)
-		layer.motion_mirroring = Vector2(ceil(tex.get_width() * s), 0.0)  # ceil avoids 1px seams
+		layer.motion_mirroring = Vector2(ceil(tex.get_width() * s) + 2.0, 0.0)  # +2 eliminates seams
 		_parallax_bg.add_child(layer)
 		var sp := Sprite2D.new()
 		sp.texture = tex; sp.centered = false
@@ -203,11 +203,11 @@ func _tile(tex: Texture2D, cx: float, cy: float, frame: int, z: int) -> void:
 func _build_city_wall() -> void:
 	var tex: Texture2D = load("res://assets/props/brick_wall.png")
 	if not tex: return
-	const WALL_Y  := 726
-	const WALL_H  := 184
+	const WALL_Y := 726
+	var wall_h := int(tex.get_height())   # native pixel height = 1 tile (≈51px), no stretching
 	# Two sections around the archway gap (gap center=380, half-width=100)
-	_tiled_wall(tex, 0, WALL_Y, 280, WALL_H, 5)
-	_tiled_wall(tex, 480, WALL_Y, WORLD_WIDTH - 480, WALL_H, 5)
+	_tiled_wall(tex, 0, WALL_Y, 280, wall_h, 5)
+	_tiled_wall(tex, 480, WALL_Y, WORLD_WIDTH - 480, wall_h, 5)
 
 func _tiled_wall(tex: Texture2D, x: int, y: int, w: int, h: int, z: int) -> void:
 	var sp := Sprite2D.new()
@@ -230,7 +230,7 @@ func _build_buildings() -> void:
 		var sp := Sprite2D.new()
 		sp.texture  = tex; sp.centered = true
 		sp.offset   = Vector2(0, -tex.get_height() * 0.5)
-		sp.position = Vector2(b[1], PROP_BASE)
+		sp.position = Vector2(b[1], GROUND_Y)   # bottom at GROUND_Y so buildings rest on ground
 		sp.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		sp.z_index  = 7; add_child(sp)
 
@@ -239,36 +239,26 @@ func _build_buildings() -> void:
 func _build_door_zones() -> void:
 	for dz in DOOR_ZONES:
 		var door_x := float(dz[1])
-		# Permanent building name label — always visible above door
+		# Building name label — hidden by default, shown only when player is near
 		var lbl := Label.new()
 		lbl.text    = str(dz[2])
-		lbl.visible = true
+		lbl.visible = false   # proximity only
 		lbl.z_index = 30
 		lbl.position = Vector2(door_x - 60, GROUND_Y - 300)
 		lbl.add_theme_color_override("font_color",        Color(0.97, 0.93, 0.84))
 		lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
 		lbl.add_theme_constant_override("shadow_offset_x", 2)
 		lbl.add_theme_constant_override("shadow_offset_y", 2)
-		lbl.add_theme_font_size_override("font_size", 18)
+		lbl.add_theme_font_size_override("font_size", 20)
 		add_child(lbl)
-		# Proximity hint label — only shown when near door
-		var hint := Label.new()
-		hint.text    = "E  —  Enter"
-		hint.visible = false
-		hint.z_index = 30
-		hint.add_theme_color_override("font_color",        Color(0.78, 0.95, 0.78))
-		hint.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
-		hint.add_theme_constant_override("shadow_offset_x", 2)
-		hint.add_theme_constant_override("shadow_offset_y", 2)
-		hint.add_theme_font_size_override("font_size", 15)
-		add_child(hint)
-		_door_tips.append({"label": lbl, "hint": hint, "door_x": door_x, "config_id": str(dz[3])})
+		_door_tips.append({"label": lbl, "door_x": door_x, "config_id": str(dz[3])})
 
 # ── Animated props (furnace and cooking area near tavern) ─────────────────────
 
 func _build_animated_props() -> void:
-	_anim_prop("res://assets/props/furnace_animated.png", 6,  64, 64, 1130, PROP_BASE, 9, 4.0)
-	_anim_prop("res://assets/props/cooking_area.png",    12, 64, 64, 1350, PROP_BASE, 9, 8.0)
+	# Furnace: 12fps makes the 6-frame fire cycle smooth (no blink effect)
+	_anim_prop("res://assets/props/furnace_animated.png", 6,  64, 64, 1130, GROUND_Y, 9, 12.0)
+	_anim_prop("res://assets/props/cooking_area.png",    12, 64, 64, 1350, GROUND_Y, 9, 8.0)
 
 func _anim_prop(path: String, frame_count: int, fw: int, fh: int, x: float, base_y: float, z: int, fps: float = 8.0) -> void:
 	var tex: Texture2D = load(path)
@@ -295,20 +285,20 @@ func _anim_prop(path: String, frame_count: int, fw: int, fh: int, x: float, base
 # ── Decor props ───────────────────────────────────────────────────────────────
 
 func _build_decor_props() -> void:
-	# Around blacksmith — keep props clear of door at x=909
-	_prop("res://assets/props/decor_crate_large.png",  760,  PROP_BASE, 7)
-	_prop("res://assets/props/decor_barrel_large.png", 820,  PROP_BASE, 7)
-	_prop("res://assets/props/decor_crate.png",        1090, PROP_BASE, 7)
-	# Near tavern — keep props clear of door at x=1611
-	_prop("res://assets/props/decor_stool.png",       1390, PROP_BASE, 7)
-	_prop("res://assets/props/table_apples.png",      1450, PROP_BASE, 7)
-	_prop("res://assets/props/decor_pottery.png",     1730, PROP_BASE, 7)
+	# Around blacksmith — door at x=909; props kept well clear (>200px away)
+	_prop("res://assets/props/decor_crate_large.png",  600,  GROUND_Y, 7)
+	_prop("res://assets/props/decor_barrel_large.png", 690,  GROUND_Y, 7)
+	_prop("res://assets/props/decor_crate.png",        1140, GROUND_Y, 7)
+	# Near tavern — door at x=1611; props kept well clear
+	_prop("res://assets/props/decor_stool.png",       1390, GROUND_Y, 7)
+	_prop("res://assets/props/table_apples.png",      1450, GROUND_Y, 7)
+	_prop("res://assets/props/decor_pottery.png",     1730, GROUND_Y, 7)
 	# Central plaza
-	_prop("res://assets/props/statue.png",            2420, PROP_BASE, 7)
-	_prop("res://assets/props/decor_barrels_duo.png", 2560, PROP_BASE, 7)
+	_prop("res://assets/props/statue.png",            2420, GROUND_Y, 7)
+	_prop("res://assets/props/decor_barrels_duo.png", 2560, GROUND_Y, 7)
 	# Right side
-	_prop("res://assets/props/decor_crate_small.png", 3100, PROP_BASE, 7)
-	_prop("res://assets/props/decor_barrel_round.png",3180, PROP_BASE, 7)
+	_prop("res://assets/props/decor_crate_small.png", 3100, GROUND_Y, 7)
+	_prop("res://assets/props/decor_barrel_round.png",3180, GROUND_Y, 7)
 	# Trees between buildings — depth 6: behind buildings (7), in front of wall (5)
 	_prop("res://assets/props/tree1.png", 1250, GROUND_Y, 6)
 	_prop("res://assets/props/tree2.png", 1850, GROUND_Y, 6)
@@ -431,7 +421,9 @@ func _build_camera() -> void:
 # ── Audio ─────────────────────────────────────────────────────────────────────
 
 func _build_audio() -> void:
-	_music      = _audio("res://assets/audio/celadune_city.mp3",                                         0.0,  true)
+	const MUSIC_PATH := "res://assets/audio/celadune_city.mp3"
+	Globals.current_music_path = MUSIC_PATH   # save so interiors can continue this track
+	_music      = _audio(MUSIC_PATH,                                                                     0.0,  true)
 	_jump_sfx   = _audio("res://assets/sfx/ribhavagrawal-woosh-230554.mp3",                              0.45, false)
 	_attack_sfx = _audio("res://assets/sfx/freesound_community-sword-sound-2-36274.mp3",                 0.55, false)
 	_hurt_sfx   = _audio("res://assets/sfx/freesound_community-male_hurt7-48124.mp3",                    0.6,  false)
@@ -538,7 +530,7 @@ func _fade_in() -> void:
 func _process(delta: float) -> void:
 	if not _player: return
 
-	_sky_drift -= 0.1
+	_sky_drift -= 12.0 * delta
 	if _sky_layer: _sky_layer.motion_offset = Vector2(_sky_drift, 0.0)
 
 	if _popup_timer > 0.0:
@@ -559,15 +551,15 @@ func _update_tooltips() -> void:
 	var px := _player.position.x
 	var py := _player.position.y
 
-	# Building door tooltips — permanent labels always shown; hint shown only when near
+	# Building door tooltips — name label shown only when player is near; no entry hint
 	var near_door_config: String = ""
 	for dt in _door_tips:
-		var hint: Label = dt["hint"]
-		var door_x: float = dt["door_x"]
-		var near := absf(px - door_x) < 100.0
-		hint.visible = near
+		var lbl:    Label  = dt["label"]
+		var door_x: float  = dt["door_x"]
+		var near := absf(px - door_x) < 140.0
+		lbl.visible = near
 		if near:
-			hint.position = Vector2(door_x - 44, GROUND_Y - 270)
+			lbl.position     = Vector2(door_x - 60, GROUND_Y - 300)
 			near_door_config = dt["config_id"]
 
 	# E to enter building

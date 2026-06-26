@@ -88,10 +88,11 @@ func _build_ui() -> void:
 	portrait_clip.z_index      = 1
 	add_child(portrait_clip)
 
-	# Portrait sprite — zoomed 6× and offset upward so head/torso fills the frame
+	# Portrait sprite — pre-cropped to 48×48 upper-body so it fills the frame at
+	# ~4.6× without needing clip_children (avoids GL Compatibility clipping issues)
 	_portrait_sprite = AnimatedSprite2D.new()
-	_portrait_sprite.position = Vector2(PORTRAIT_SZ / 2, PORTRAIT_SZ / 2 - 15)
-	_portrait_sprite.scale    = Vector2(6.0, 6.0)
+	_portrait_sprite.position = Vector2(0.0, 0.0)
+	_portrait_sprite.scale    = Vector2(float(PORTRAIT_SZ) / 48.0, float(PORTRAIT_SZ) / 48.0)
 	_portrait_sprite.flip_h   = true
 	_portrait_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	portrait_clip.add_child(_portrait_sprite)
@@ -170,20 +171,22 @@ func show_line(speaker: String, text: String, choices: Array, portrait_frames = 
 	_choice_index  = 0
 	_awaiting_choice = false
 
-	# Portrait
+	# Portrait — always restart animation on each line
 	if portrait_frames and _portrait_sprite:
 		_portrait_sprite.sprite_frames = portrait_frames
+		if _portrait_sprite.is_playing(): _portrait_sprite.stop()
 		_portrait_sprite.play("idle")
 		_portrait_sprite.visible = true
 	else:
 		if _portrait_sprite: _portrait_sprite.visible = false
 
-	# Start typewriter
+	# Start typewriter — always restart SFX and portrait animation
 	_current_text = text
 	_type_index   = 0
 	_is_typing    = true
 	_type_timer   = 0.0
-	if _writing_sfx and not _writing_sfx.playing:
+	if _writing_sfx:
+		_writing_sfx.stop()
 		_writing_sfx.play()
 
 func close() -> void:
@@ -286,7 +289,9 @@ func _confirm_choice() -> void:
 	_clear_options()
 	choice_confirmed.emit(_choice_index)
 
-## Build a simple SpriteFrames for an NPC portrait (idle strip only).
+## Build a portrait SpriteFrames from an NPC idle strip.
+## Crops each frame to a 48×48 upper-body region (head + torso) so the sprite
+## fills the 222×222 portrait frame at ~4.6× without needing clip_children.
 static func make_portrait_frames(idle_path: String, idle_count: int, frame_w: int = 64, frame_h: int = 64) -> SpriteFrames:
 	var tex: Texture2D = load(idle_path)
 	if not tex: return null
@@ -295,9 +300,11 @@ static func make_portrait_frames(idle_path: String, idle_count: int, frame_w: in
 	sf.add_animation("idle")
 	sf.set_animation_loop("idle", true)
 	sf.set_animation_speed("idle", 4.0)
-	for i in range(mini(idle_count, 2)):   # 2 frames for talking effect
+	const CROP_W := 48; const CROP_H := 48
+	var crop_x_off := (frame_w - CROP_W) / 2   # centre the crop horizontally
+	for i in range(mini(idle_count, 5)):
 		var a := AtlasTexture.new()
 		a.atlas  = tex
-		a.region = Rect2(i * frame_w, 0, frame_w, frame_h)
+		a.region = Rect2(i * frame_w + crop_x_off, 0, CROP_W, CROP_H)
 		sf.add_frame("idle", a)
 	return sf

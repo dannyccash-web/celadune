@@ -160,7 +160,9 @@ func _physics_process(delta: float) -> void:
 			elif velocity.y <= -20.0 and not sprite.is_playing():
 				sprite.play()  # resume ascending from paused state
 	else:
-		velocity.x = move_toward(velocity.x, 0.0, DRAG_X * delta)
+		# Only drag horizontal velocity when on the floor — in the air, preserve momentum
+		if is_on_floor():
+			velocity.x = move_toward(velocity.x, 0.0, DRAG_X * delta)
 
 	move_and_slide()
 

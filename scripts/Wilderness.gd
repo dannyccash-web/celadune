@@ -51,6 +51,7 @@ var _transitioning: bool = false
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
 func _ready() -> void:
+	_build_sky_bg()    # solid background fallback in case parallax is slow to render
 	_build_parallax()
 	_build_ground()
 	_spawn_player()
@@ -60,6 +61,16 @@ func _ready() -> void:
 	_build_hud()
 	_build_menu()
 	_fade_in()
+
+# ── Solid sky background (prevents gray canvas if parallax is slow) ───────────
+
+func _build_sky_bg() -> void:
+	var sky := ColorRect.new()
+	sky.color    = Color(0.35, 0.52, 0.74)   # mid-blue sky
+	sky.size     = Vector2(GAME_W, GROUND_Y)
+	sky.position = Vector2.ZERO
+	sky.z_index  = -5
+	add_child(sky)
 
 # ── Parallax ──────────────────────────────────────────────────────────────────
 
@@ -73,7 +84,7 @@ func _build_parallax() -> void:
 		var s := float(GAME_H) / float(tex.get_height())
 		var layer := ParallaxLayer.new()
 		layer.motion_scale     = Vector2(cfg["factor"], 0.0)
-		layer.motion_mirroring = Vector2(ceil(tex.get_width() * s), 0.0)
+		layer.motion_mirroring = Vector2(ceil(tex.get_width() * s) + 2.0, 0.0)
 		_parallax_bg.add_child(layer)
 		var sp := Sprite2D.new()
 		sp.texture = tex; sp.centered = false
@@ -274,7 +285,7 @@ func _fade_in() -> void:
 func _process(delta: float) -> void:
 	if not _player: return
 
-	_sky_drift -= 0.1
+	_sky_drift -= 12.0 * delta
 	if _sky_layer: _sky_layer.motion_offset = Vector2(_sky_drift, 0.0)
 
 	if _player_invincible > 0.0:

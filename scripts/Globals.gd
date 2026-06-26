@@ -42,6 +42,11 @@ var spawn_y: float = 768.0
 var from_transition: bool = false
 var interior_config_id: String = "mirelle_farmhouse"
 
+# ── Music continuity ──────────────────────────────────────────────────────────
+# Set to the current scene's music path before any scene transition, so
+# building interiors can continue playing the same track.
+var current_music_path: String = ""
+
 # ─────────────────────────────────────────────────────────────────────────────
 
 func has_item(item_name: String) -> bool:
@@ -98,3 +103,4 @@ func reset() -> void:
 	spawn_y            = 768.0
 	from_transition    = false
 	interior_config_id = "mirelle_farmhouse"
+	current_music_path = ""

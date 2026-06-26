@@ -18,7 +18,7 @@ const WIN_H   := 128
 const DOOR_X  := 64.0
 const EXIT_R  := 100.0
 
-const FURN_SCALE := 3.0
+const FURN_SCALE := 3.5
 const PROP_P := "res://assets/props/furniture/"
 const INT_P  := "res://assets/props/interior/"
 
@@ -105,7 +105,10 @@ func _build_camera() -> void:
 
 func _build_audio() -> void:
 	_music = AudioStreamPlayer.new()
-	var res := load("res://assets/audio/celadune_theme.mp3") as AudioStream
+	# Continue whatever track was playing in the overworld scene
+	var path := Globals.current_music_path
+	if path == "": path = "res://assets/audio/celadune_theme.mp3"
+	var res := load(path) as AudioStream
 	if res:
 		if res is AudioStreamMP3: (res as AudioStreamMP3).loop = true
 		_music.stream = res
@@ -232,13 +235,25 @@ func _fill_row(tex: Texture2D, y: float, tw: float, th: float, z: int) -> void:
 func _build_furniture() -> void:
 	match Globals.interior_config_id:
 		"mirelle_farmhouse":
-			_furn(PROP_P + "bed_canopy.png",    340, GY)
+			# Left window curtain (window at col 5 = x 320)
+			_furn(PROP_P + "curtain_red.png",    330, GY - 40)
+			# Bedroom zone — left side
+			_furn(PROP_P + "bed_canopy.png",     500, GY)
+			_furn(PROP_P + "dresser.png",        760, GY)
+			_furn_wall(PROP_P + "picture_sm.png", 650, CEIL_Y + 90)
+			# Living area — centre with chandelier above
 			_furn_top(PROP_P + "chandelier.png", 960, CEIL_Y + TILE)
-			_furn(PROP_P + "sofa_red.png",      1300, GY)
-			_furn(PROP_P + "floor_lamp.png",    1560, GY)
-			_furn(PROP_P + "flower_vase.png",   1750, GY)
-			_furn(PROP_P + "cabinet_wood.png",  1850, GY)
-			_furn_wall(PROP_P + "picture_med.png", 700, CEIL_Y + 80)
+			_furn(PROP_P + "floor_lamp.png",    1050, GY)
+			_furn(PROP_P + "sofa_red.png",      1150, GY)
+			# Dining / seating — benches as table stand-ins
+			_furn(PROP_P + "bench_green.png",   1360, GY)
+			_furn(PROP_P + "bench_teal.png",    1490, GY)
+			# Decor and storage — right side
+			_furn(PROP_P + "flower_vase.png",   1650, GY)
+			_furn(PROP_P + "cabinet_wood.png",  1760, GY)
+			_furn_wall(PROP_P + "picture_med.png", 1200, CEIL_Y + 85)
+			# Right window curtain (window at col 25 = x 1600)
+			_furn(PROP_P + "curtain_red.png",   1610, GY - 40)
 		"bram_smithy":
 			_furn(PROP_P + "barrel.png",        350, GY)
 			_furn(PROP_P + "chest_open.png",    560, GY)

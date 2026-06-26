@@ -128,7 +128,7 @@ func _build_parallax() -> void:
 		var s  := float(GAME_H) / float(tex.get_height())
 		var layer := ParallaxLayer.new()
 		layer.motion_scale     = Vector2(cfg["factor"], 0.0)
-		layer.motion_mirroring = Vector2(ceil(tex.get_width() * s), 0.0)  # ceil avoids 1px seams
+		layer.motion_mirroring = Vector2(ceil(tex.get_width() * s) + 2.0, 0.0)  # +2 eliminates seams
 		_parallax_bg.add_child(layer)
 		var sp := Sprite2D.new()
 		sp.texture = tex; sp.centered = false; sp.scale = Vector2(s, s)
@@ -317,7 +317,9 @@ func _build_camera() -> void:
 # ── Audio ─────────────────────────────────────────────────────────────────────
 
 func _build_audio() -> void:
-	_music      = _audio("res://assets/audio/celadune_forest.mp3",                                       0.0,  true)
+	const MUSIC_PATH := "res://assets/audio/celadune_forest.mp3"
+	Globals.current_music_path = MUSIC_PATH   # save so interiors can continue this track
+	_music      = _audio(MUSIC_PATH,                                                                     0.0,  true)
 	_jump_sfx   = _audio("res://assets/sfx/ribhavagrawal-woosh-230554.mp3",                              0.45, false)
 	_attack_sfx = _audio("res://assets/sfx/freesound_community-sword-sound-2-36274.mp3",                 0.55, false)
 	_door_sfx   = _audio("res://assets/sfx/dragon-studio-open-door-sfx-454245.mp3",                     0.7,  false)
@@ -471,8 +473,8 @@ func _process(delta: float) -> void:
 	if not _player: return
 	if not _intro_complete: return
 
-	# Sky drift — only move sky layer, not all parallax layers
-	_sky_drift -= 0.1
+	# Sky drift — continuous movement even when player stands still
+	_sky_drift -= 12.0 * delta
 	if _sky_layer: _sky_layer.motion_offset = Vector2(_sky_drift, 0.0)
 
 	# Popup timer

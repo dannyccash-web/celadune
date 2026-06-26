@@ -33,9 +33,9 @@ func _build_ui() -> void:
 	cl.add_child(bg)
 
 	# Logo — placed in a clipping container so the sheen is masked to the logo area
-	const LOGO_W := 1280; const LOGO_H := 640
-	const LOGO_X := (GAME_W - LOGO_W) / 2   # = 320
-	const LOGO_Y := 60
+	const LOGO_W := 1600; const LOGO_H := 700
+	const LOGO_X := (GAME_W - LOGO_W) / 2   # = 160
+	const LOGO_Y := 20
 
 	# Clipping container — children render only within its rect
 	var logo_clip := Control.new()
@@ -127,4 +127,7 @@ func _go_to_forest() -> void:
 	var cl := CanvasLayer.new(); cl.layer = 200; cl.add_child(ov); add_child(cl)
 	var tw2 := create_tween()
 	tw2.tween_property(ov, "color", Color(0,0,0,1), 0.4)
-	tw2.tween_callback(func(): get_tree().change_scene_to_file("res://scenes/HeroSelect.tscn"))
+	tw2.tween_callback(func():
+		Globals.from_transition = false
+		Globals.spawn_x         = 680.0
+		get_tree().change_scene_to_file("res://scenes/Forest.tscn"))

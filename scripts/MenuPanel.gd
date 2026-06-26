@@ -24,6 +24,7 @@ var _page_idx:    int = 0
 var _item_idx:    int = 0
 var _mode:        String = "categories"   # categories | section | actions
 var _action_idx:  int = 0
+var _just_opened: bool = false   # skip input on the frame the menu opens
 
 var _title_lbl:   Label
 var _gold_lbl:    Label
@@ -154,10 +155,11 @@ func _add_border(x: float, y: float, w: float, h: float, col: Color, th: int) ->
 # ── Public API ────────────────────────────────────────────────────────────────
 
 func open() -> void:
-	visible   = true
-	_page_idx = 0
-	_item_idx = 0
-	_mode     = "categories"
+	visible      = true
+	_page_idx    = 0
+	_item_idx    = 0
+	_mode        = "categories"
+	_just_opened = true   # don't process input until next frame
 	_refresh()
 
 func close() -> void:
@@ -168,6 +170,12 @@ func close() -> void:
 
 func _process(_delta: float) -> void:
 	if not visible: return
+
+	# Skip input on the opening frame so the same keypress that opens the menu
+	# doesn't immediately close it (parent _process fires before child _process).
+	if _just_opened:
+		_just_opened = false
+		return
 
 	if Input.is_action_just_pressed("ui_cancel") or _is_menu_key():
 		if _mode == "actions":
