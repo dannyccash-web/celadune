@@ -10,7 +10,17 @@ extends "res://addons/MetroidvaniaSystem/Template/Scripts/MetSysGame.gd"
 
 const START_ROOM := "res://scenes/rooms/Room1.tscn"
 
+# A copy of world/MapData.txt. Godot's web export does not always pack loose
+# .txt files, so if the res:// file is missing at runtime we write this copy to
+# user:// and load that instead. world/MapData.txt remains the source of truth
+# you edit (in the MetSys Map editor); keep this in sync if you change the map by
+# hand. When the res:// file IS packed, this fallback is never used.
+const EMBEDDED_MAP := "$ln;Overworld\n[0,0,0]\n1,-1,-1,-1|||uid://celadunerm1\n[1,0,0]\n-1,-1,1,-1|||uid://celadunerm2\n"
+
 func _ready() -> void:
+	# Make sure the world map is loaded (packed res:// file, or user:// fallback).
+	_ensure_world_map()
+
 	# Start from a clean MetSys state (matters when returning from a menu later).
 	MetSys.reset_state()
 	MetSys.set_save_data()
@@ -29,6 +39,21 @@ func _ready() -> void:
 
 	# Enable edge-based room transitions with a scrolling effect.
 	add_module("ScrollingRoomTransitions.gd")
+
+func _ensure_world_map() -> void:
+	var res_path := "res://world/MapData.txt"
+	if FileAccess.file_exists(res_path):
+		print("[Celadune] Map data loaded from packed res:// file.")
+		MetSys.load_map_data(res_path)
+		return
+	# Fallback for exported builds where the loose .txt wasn't packed.
+	var user_path := "user://MapData.txt"
+	var f := FileAccess.open(user_path, FileAccess.WRITE)
+	if f:
+		f.store_string(EMBEDDED_MAP)
+		f.close()
+	print("[Celadune] Map data loaded from user:// fallback copy.")
+	MetSys.load_map_data(user_path)
 
 func _on_room_loaded() -> void:
 	var room := MetSys.get_current_room_instance()
