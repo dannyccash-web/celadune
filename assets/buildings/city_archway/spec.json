@@ -1,0 +1,12 @@
+{
+  "name": "City Archway",
+  "seed": 20,
+  "size": "small",
+  "base": "Small_Base_2.png",
+  "door": "Door_3.png",
+  "door_x": 6,
+  "upper_floor": "Small_Upper_Floor_2.png",
+  "window": "Window_1.png",
+  "roof": "Small_Roof_1.png",
+  "_size_px": "384\u00d7528"
+}

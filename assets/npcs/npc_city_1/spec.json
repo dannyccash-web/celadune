@@ -1,0 +1,17 @@
+{
+  "gender": "male",
+  "seed": 117,
+  "skin": "/sessions/magical-optimistic-goodall/mnt/Celadune/assets/npc-parts/skin/Male Skin2.png",
+  "pants": "/sessions/magical-optimistic-goodall/mnt/Celadune/assets/npc-parts/clothing_male/Green Pants.png",
+  "shirt": "/sessions/magical-optimistic-goodall/mnt/Celadune/assets/npc-parts/clothing_male/orange Shirt v2.png",
+  "boots": "/sessions/magical-optimistic-goodall/mnt/Celadune/assets/npc-parts/clothing_male/Boots.png",
+  "clothing": null,
+  "hair": "/sessions/magical-optimistic-goodall/mnt/Celadune/assets/npc-parts/hair_male/Male Hair6.png",
+  "hat": null,
+  "back_layer": null,
+  "arm_layer": null,
+  "hand_item": null,
+  "name": "Bram Alder",
+  "_walk_frames": 8,
+  "_idle_frames": 5
+}

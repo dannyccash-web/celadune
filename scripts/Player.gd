@@ -1,58 +1,80 @@
 extends CharacterBody2D
-## Celadune player controller.
+## Celadune player controller — Caelan.
 ##
-## A solid, genre-standard 2D platformer character: run with acceleration,
-## variable-height jump, coyote time, jump buffering, double jump, wall slide,
-## wall jump, and dash. Abilities are gated through Globals so the game can
-## unlock them over time. Tune the constants below to change game feel —
-## you should never need to touch the logic to retune movement.
+## Platformer controller: run/accelerate, variable-height jump, coyote time,
+## jump buffering, double jump, wall slide, wall jump, dash, attack.
+## Abilities gated through Globals.abilities.
+## Signals: jumped, attacked — scenes connect these for SFX / reactions.
 
-# ── Movement tuning ───────────────────────────────────────────────────────────
-const SPEED            := 320.0    # top horizontal run speed (px/s)
-const ACCEL            := 2600.0   # ground acceleration (px/s^2)
-const FRICTION         := 3200.0   # ground deceleration (px/s^2)
-const AIR_ACCEL        := 1800.0   # weaker control in the air
-const AIR_FRICTION     := 900.0
+signal jumped
+signal attacked
 
-const GRAVITY          := 2000.0   # falling acceleration (px/s^2)
-const MAX_FALL         := 1100.0   # terminal velocity
-const JUMP_VELOCITY    := -720.0   # initial jump impulse
-const JUMP_CUT         := 0.45     # release jump early -> keep this fraction of up-velocity
+# ── Movement constants ────────────────────────────────────────────────────────
+const SPEED        := 320.0
+const ACCEL        := 2600.0
+const FRICTION     := 3200.0
+const AIR_ACCEL    := 1800.0
+const AIR_FRICTION := 900.0
 
-const COYOTE_TIME      := 0.10     # grace period to jump after leaving a ledge
-const JUMP_BUFFER      := 0.10     # press jump slightly before landing and it still fires
-
+const GRAVITY      := 2000.0
+const MAX_FALL     := 1100.0
+const JUMP_VELOCITY    := -720.0
+const JUMP_CUT         := 0.45
+const COYOTE_TIME      := 0.10
+const JUMP_BUFFER      := 0.10
 const DOUBLE_JUMP_VEL  := -640.0
 
-# Wall mechanics
-const WALL_SLIDE_SPEED := 140.0    # capped fall speed while hugging a wall
-const WALL_JUMP_PUSH   := 360.0    # horizontal kick away from the wall
+const WALL_SLIDE_SPEED := 140.0
+const WALL_JUMP_PUSH   := 360.0
 const WALL_JUMP_VEL    := -700.0
 
-# Dash
-const DASH_SPEED       := 720.0
-const DASH_TIME        := 0.16
-const DASH_COOLDOWN    := 0.45
+const DASH_SPEED    := 720.0
+const DASH_TIME     := 0.16
+const DASH_COOLDOWN := 0.45
+
+# Attack
+const ATTACK_DURATION := 0.35   # seconds the attack state lasts
+
+# Caelan sprite sheet: each frame is 300 × 576 px (RGBA), or 300 × 192 (RGB small sheets)
+const FRAME_W      := 300
+const FRAME_H_TALL := 576   # RGBA multi-frame sheets
+const FRAME_H_SMALL := 192  # RGB small-frame sheets
+const SPRITE_SCALE := 0.32  # 300 * 0.32 ≈ 96 px display width
 
 # ── State ─────────────────────────────────────────────────────────────────────
-var _coyote := 0.0
-var _buffer := 0.0
+var _coyote    := 0.0
+var _buffer    := 0.0
 var _can_double := false
-var _dashing := false
+var _dashing   := false
 var _dash_timer := 0.0
-var _dash_cd := 0.0
-var _dash_dir := 1.0
-var _facing := 1.0
+var _dash_cd   := 0.0
+var _dash_dir  := 1.0
+var _facing    := 1.0
+var _attacking := false
+var _attack_timer := 0.0
 
 @onready var sprite: AnimatedSprite2D = $Sprite
 
 func _ready() -> void:
 	_build_animations()
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	sprite.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
 	sprite.play("idle")
 
 func _physics_process(delta: float) -> void:
 	if _dash_cd > 0.0:
 		_dash_cd -= delta
+
+	# Attack state consumes the frame — still allow movement underneath
+	if _attacking:
+		_attack_timer -= delta
+		if _attack_timer <= 0.0:
+			_attacking = false
+		# Apply gravity while attacking
+		if not is_on_floor():
+			velocity.y = minf(velocity.y + GRAVITY * delta, MAX_FALL)
+		move_and_slide()
+		return
 
 	if _dashing:
 		_process_dash(delta)
@@ -66,8 +88,8 @@ func _physics_process(delta: float) -> void:
 	if not on_floor:
 		velocity.y = minf(velocity.y + GRAVITY * delta, MAX_FALL)
 
-	# Horizontal movement
-	var accel := ACCEL if on_floor else AIR_ACCEL
+	# Horizontal
+	var accel   := ACCEL   if on_floor else AIR_ACCEL
 	var friction := FRICTION if on_floor else AIR_FRICTION
 	if input_x != 0.0:
 		velocity.x = move_toward(velocity.x, input_x * SPEED, accel * delta)
@@ -91,7 +113,7 @@ func _physics_process(delta: float) -> void:
 	if pushing_wall and velocity.y > WALL_SLIDE_SPEED:
 		velocity.y = WALL_SLIDE_SPEED
 
-	# Jumping
+	# Jump
 	if _buffer > 0.0:
 		if _coyote > 0.0:
 			_do_jump(JUMP_VELOCITY)
@@ -101,7 +123,7 @@ func _physics_process(delta: float) -> void:
 			_can_double = false
 			_do_jump(DOUBLE_JUMP_VEL)
 
-	# Variable jump height
+	# Variable height
 	if Input.is_action_just_released("jump") and velocity.y < 0.0:
 		velocity.y *= JUMP_CUT
 
@@ -109,13 +131,19 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("dash") and Globals.has_ability("dash") and _dash_cd <= 0.0:
 		_start_dash()
 
+	# Attack
+	if Input.is_action_just_pressed("attack") and Globals.has_ability("attack") and not _attacking:
+		_start_attack()
+
 	move_and_slide()
 	_update_animation(input_x, on_floor, pushing_wall)
 
 func _do_jump(vel: float) -> void:
-	velocity.y = vel
+	var bonus := Globals.get_jump_bonus()
+	velocity.y = vel - bonus * 20.0  # each jump bonus point adds 20 px/s upward
 	_buffer = 0.0
 	_coyote = 0.0
+	jumped.emit()
 
 func _do_wall_jump() -> void:
 	var nx := signf(get_wall_normal().x)
@@ -123,12 +151,13 @@ func _do_wall_jump() -> void:
 	velocity.x = nx * WALL_JUMP_PUSH
 	_facing = nx
 	_buffer = 0.0
+	jumped.emit()
 
 func _start_dash() -> void:
-	_dashing = true
+	_dashing    = true
 	_dash_timer = DASH_TIME
-	_dash_cd = DASH_COOLDOWN
-	_dash_dir = _facing
+	_dash_cd    = DASH_COOLDOWN
+	_dash_dir   = _facing
 	sprite.play("jump")
 
 func _process_dash(delta: float) -> void:
@@ -137,34 +166,75 @@ func _process_dash(delta: float) -> void:
 	if _dash_timer <= 0.0:
 		_dashing = false
 
+func _start_attack() -> void:
+	_attacking    = true
+	_attack_timer = ATTACK_DURATION
+	velocity.x    = 0.0      # brief stop during swing
+	sprite.play("attack")
+	attacked.emit()
+
 func _update_animation(input_x: float, on_floor: bool, sliding: bool) -> void:
 	sprite.flip_h = _facing < 0.0
-	if not on_floor:
+	if _attacking:
+		pass  # attack anim already set
+	elif not on_floor:
 		sprite.play("jump")
 	elif input_x != 0.0:
 		sprite.play("run")
 	else:
 		sprite.play("idle")
 
-# Builds SpriteFrames from the placeholder strips at runtime so no .import-time
-# SpriteFrames resource is needed. Swap the textures for your real art later.
+# ── Animation builder ─────────────────────────────────────────────────────────
+## Each Caelan RGBA sheet is a horizontal strip: frame width = 300, height = 576.
+## Each RGB sheet (death, attack, etc.): frame width = 300, height = 192.
+
 func _build_animations() -> void:
 	var frames := SpriteFrames.new()
 	frames.remove_animation("default")
-	_add_anim(frames, "idle", "res://assets/sprites/player_idle.png", 2, 4.0, true)
-	_add_anim(frames, "run",  "res://assets/sprites/player_run.png",  4, 12.0, true)
-	_add_anim(frames, "jump", "res://assets/sprites/player_jump.png", 1, 1.0, false)
+
+	# Primary movement animations (RGBA tall sheets)
+	_add_anim_sheet(frames, "idle",   "res://assets/characters/caelan/idle.png",    3,  4.0, true,  FRAME_H_TALL)
+	_add_anim_sheet(frames, "run",    "res://assets/characters/caelan/run.png",     18, 14.0, true,  FRAME_H_TALL)
+	_add_anim_sheet(frames, "jump",   "res://assets/characters/caelan/jump.png",    9,  10.0, false, FRAME_H_TALL)
+	_add_anim_sheet(frames, "walk",   "res://assets/characters/caelan/walk.png",    18, 10.0, true,  FRAME_H_TALL)
+
+	# Action animations (RGB small sheets, 300×192)
+	_add_anim_sheet(frames, "attack", "res://assets/characters/caelan/attack.png",  3,  10.0, false, FRAME_H_SMALL)
+	_add_anim_sheet(frames, "death",  "res://assets/characters/caelan/death.png",   3,  6.0,  false, FRAME_H_SMALL)
+
+	# "rise" = death played backwards — we re-add frames in reverse order
+	_add_anim_reversed(frames, "rise", "res://assets/characters/caelan/death.png", 3, 5.0, FRAME_H_SMALL)
+
 	sprite.sprite_frames = frames
 
-func _add_anim(frames: SpriteFrames, name: String, path: String, count: int, fps: float, loop: bool) -> void:
-	frames.add_animation(name)
-	frames.set_animation_speed(name, fps)
-	frames.set_animation_loop(name, loop)
+func _add_anim_sheet(frames: SpriteFrames, anim: String, path: String,
+		count: int, fps: float, loop: bool, frame_h: int) -> void:
+	frames.add_animation(anim)
+	frames.set_animation_speed(anim, fps)
+	frames.set_animation_loop(anim, loop)
 	var sheet: Texture2D = load(path)
-	var fw := int(sheet.get_width() / count)
-	var fh := sheet.get_height()
-	for i in count:
+	if not sheet:
+		push_warning("Player: missing sprite " + path)
+		# Add a blank frame so the animation at least exists
+		frames.add_frame(anim, PlaceholderTexture2D.new())
+		return
+	for i in range(count):
 		var atlas := AtlasTexture.new()
-		atlas.atlas = sheet
-		atlas.region = Rect2(i * fw, 0, fw, fh)
-		frames.add_frame(name, atlas)
+		atlas.atlas  = sheet
+		atlas.region = Rect2(i * FRAME_W, 0, FRAME_W, frame_h)
+		frames.add_frame(anim, atlas)
+
+func _add_anim_reversed(frames: SpriteFrames, anim: String, path: String,
+		count: int, fps: float, frame_h: int) -> void:
+	frames.add_animation(anim)
+	frames.set_animation_speed(anim, fps)
+	frames.set_animation_loop(anim, false)
+	var sheet: Texture2D = load(path)
+	if not sheet:
+		frames.add_frame(anim, PlaceholderTexture2D.new())
+		return
+	for i in range(count - 1, -1, -1):
+		var atlas := AtlasTexture.new()
+		atlas.atlas  = sheet
+		atlas.region = Rect2(i * FRAME_W, 0, FRAME_W, frame_h)
+		frames.add_frame(anim, atlas)

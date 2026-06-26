@@ -1,0 +1,17 @@
+{
+  "gender": "male",
+  "seed": 124,
+  "skin": "/sessions/magical-optimistic-goodall/mnt/Celadune/assets/npc-parts/skin/Male Skin1.png",
+  "pants": "/sessions/magical-optimistic-goodall/mnt/Celadune/assets/npc-parts/clothing_male/Purple Pants.png",
+  "shirt": "/sessions/magical-optimistic-goodall/mnt/Celadune/assets/npc-parts/clothing_male/Green Shirt v2.png",
+  "boots": "/sessions/magical-optimistic-goodall/mnt/Celadune/assets/npc-parts/clothing_male/Boots.png",
+  "clothing": null,
+  "hair": "/sessions/magical-optimistic-goodall/mnt/Celadune/assets/npc-parts/hair_male/Male Hair29.png",
+  "hat": null,
+  "back_layer": null,
+  "arm_layer": null,
+  "hand_item": "/sessions/magical-optimistic-goodall/mnt/Celadune/assets/npc-parts/hand_items_male/Wooden Sword.png",
+  "name": "Teren Vale",
+  "_walk_frames": 8,
+  "_idle_frames": 5
+}

@@ -1,5 +1,6 @@
-$ln;Overworld
+$
+0;Overworld:0,0,0:1,0,0
 [0,0,0]
-1,-1,-1,-1|||uid://celadunerm1
+0,0,0,0|||
 [1,0,0]
--1,-1,1,-1|||uid://celadunerm2
+0,0,0,0|||

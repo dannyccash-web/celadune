@@ -1,0 +1,17 @@
+{
+  "gender": "male",
+  "seed": 141,
+  "skin": "/sessions/sharp-zealous-fermat/mnt/Celadune/assets/npc-parts/skin/Male Skin4.png",
+  "pants": "/sessions/sharp-zealous-fermat/mnt/Celadune/assets/npc-parts/clothing_male/Purple Pants.png",
+  "shirt": "/sessions/sharp-zealous-fermat/mnt/Celadune/assets/npc-parts/clothing_male/Purple Shirt v2.png",
+  "boots": "/sessions/sharp-zealous-fermat/mnt/Celadune/assets/npc-parts/clothing_male/Shoes.png",
+  "clothing": null,
+  "hair": null,
+  "hat": "/sessions/sharp-zealous-fermat/mnt/Celadune/assets/npc-parts/hats_male/Farming Hat M.png",
+  "back_layer": null,
+  "arm_layer": null,
+  "hand_item": null,
+  "name": "Padrig",
+  "_walk_frames": 8,
+  "_idle_frames": 5
+}

@@ -1,14 +1,16 @@
 [gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/Game.gd" id="game"]
+[ext_resource type="PackedScene" path="res://scenes/rooms/Room1.tscn" id="room1"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="player"]
-[ext_resource type="PackedScene" path="res://addons/MetroidvaniaSystem/Template/Nodes/Minimap.tscn" id="minimap"]
 
 [node name="Game" type="Node2D"]
 script = ExtResource("game")
+starting_room = ExtResource("room1")
+
+[node name="World" type="Node2D" parent="."]
 
 [node name="Player" parent="." instance=ExtResource("player")]
-z_index = 10
 position = Vector2(200, 598)
 
 [node name="UI" type="CanvasLayer" parent="."]
@@ -16,42 +18,7 @@ position = Vector2(200, 598)
 [node name="Hint" type="Label" parent="UI"]
 offset_left = 16.0
 offset_top = 12.0
-offset_right = 700.0
+offset_right = 600.0
 offset_bottom = 60.0
 theme_override_font_sizes/font_size = 22
-text = "Move: A/D or ←/→   Jump: Space/W   Dash: Shift   Talk: E   (walk east to the next room)"
-
-[node name="MinimapPanel" type="Panel" parent="UI"]
-anchor_left = 1.0
-anchor_top = 0.0
-anchor_right = 1.0
-anchor_bottom = 0.0
-offset_left = -188.0
-offset_top = 8.0
-offset_right = -8.0
-offset_bottom = 188.0
-grow_horizontal = 0
-
-[node name="Label" type="Label" parent="UI/MinimapPanel"]
-offset_left = 10.0
-offset_top = 4.0
-offset_right = 120.0
-offset_bottom = 28.0
-theme_override_font_sizes/font_size = 16
-theme_override_colors/font_color = Color(0.85, 0.89, 0.98, 1)
-text = "MAP"
-
-[node name="Minimap" parent="UI" instance=ExtResource("minimap")]
-anchor_left = 1.0
-anchor_top = 0.0
-anchor_right = 1.0
-anchor_bottom = 0.0
-offset_left = -180.0
-offset_top = 34.0
-offset_right = -16.0
-offset_bottom = 180.0
-grow_horizontal = 0
-track_position = true
-smooth_scroll = false
-display_player_location = true
-area = Vector2i(5, 5)
+text = "Move: A/D or ←/→   Jump: Space/W   Dash: Shift   Door: E"

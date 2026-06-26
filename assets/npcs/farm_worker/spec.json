@@ -1,0 +1,17 @@
+{
+  "gender": "female",
+  "seed": 77,
+  "skin": "/sessions/sharp-zealous-fermat/mnt/Celadune/assets/npc-parts/skin/Female Skin3.png",
+  "pants": "/sessions/sharp-zealous-fermat/mnt/Celadune/assets/npc-parts/clothing_female/Skirt.png",
+  "shirt": "/sessions/sharp-zealous-fermat/mnt/Celadune/assets/npc-parts/clothing_female/Orange Corset v2.png",
+  "boots": "/sessions/sharp-zealous-fermat/mnt/Celadune/assets/npc-parts/clothing_female/Orange Socks.png",
+  "clothing": null,
+  "hair": "/sessions/sharp-zealous-fermat/mnt/Celadune/assets/npc-parts/hair_female/Female Hair5.png",
+  "hat": null,
+  "back_layer": null,
+  "arm_layer": null,
+  "hand_item": null,
+  "name": "Lena",
+  "_walk_frames": 8,
+  "_idle_frames": 5
+}

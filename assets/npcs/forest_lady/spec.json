@@ -1,0 +1,9 @@
+{
+  "skin": "/sessions/eager-compassionate-hawking/mnt/Celadune/assets/npc-parts/skin/Female Skin1.png",
+  "boots": "/sessions/eager-compassionate-hawking/mnt/Celadune/assets/npc-parts/clothing_female/Boots.png",
+  "pants": "/sessions/eager-compassionate-hawking/mnt/Celadune/assets/npc-parts/clothing_female/Skirt.png",
+  "shirt": "/sessions/eager-compassionate-hawking/mnt/Celadune/assets/npc-parts/clothing_female/Corset.png",
+  "hair": "/sessions/eager-compassionate-hawking/mnt/Celadune/assets/npc-parts/hair_female/Female Hair4.png",
+  "_walk_frames": 8,
+  "_idle_frames": 5
+}
