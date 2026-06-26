@@ -18,6 +18,7 @@ metroidvania_system/settings_file="res://world/MetSysSettings.tres"
 
 [autoload]
 
+MetSys="*res://addons/MetroidvaniaSystem/Nodes/Singleton.tscn"
 Globals="*res://scripts/Globals.gd"
 Dialogue="*res://scripts/Dialogue.gd"
 

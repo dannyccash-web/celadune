@@ -1,16 +1,13 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/Game.gd" id="game"]
-[ext_resource type="PackedScene" path="res://scenes/rooms/Room1.tscn" id="room1"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="player"]
 
 [node name="Game" type="Node2D"]
 script = ExtResource("game")
-starting_room = ExtResource("room1")
-
-[node name="World" type="Node2D" parent="."]
 
 [node name="Player" parent="." instance=ExtResource("player")]
+z_index = 10
 position = Vector2(200, 598)
 
 [node name="UI" type="CanvasLayer" parent="."]
@@ -18,7 +15,7 @@ position = Vector2(200, 598)
 [node name="Hint" type="Label" parent="UI"]
 offset_left = 16.0
 offset_top = 12.0
-offset_right = 600.0
+offset_right = 700.0
 offset_bottom = 60.0
 theme_override_font_sizes/font_size = 22
-text = "Move: A/D or ←/→   Jump: Space/W   Dash: Shift   Door: E"
+text = "Move: A/D or ←/→   Jump: Space/W   Dash: Shift   Talk: E   (walk east to the next room)"
