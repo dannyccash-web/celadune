@@ -87,28 +87,29 @@ func has_ability(name: String) -> bool:
 ## Effective attack = base + weapon bonus
 func get_attack() -> int:
 	var bonus := 0
-	var w = equipped.get("weapon", null)
-	if w: bonus += w.get("stat_bonus", {}).get("attack", 0)
+	var w: Variant = equipped.get("weapon", null)
+	if w is Dictionary: bonus += (w as Dictionary).get("stat_bonus", {}).get("attack", 0)
 	return player_attack_base + bonus
 
 ## Effective defense = base + armor bonus
 func get_defense() -> int:
 	var bonus := 0
-	var a = equipped.get("armor", null)
-	if a: bonus += a.get("stat_bonus", {}).get("defense", 0)
+	var a: Variant = equipped.get("armor", null)
+	if a is Dictionary: bonus += (a as Dictionary).get("stat_bonus", {}).get("defense", 0)
 	return player_defense_base + bonus
 
 ## Effective jump bonus (0 = normal, positive = extra velocity)
 func get_jump_bonus() -> int:
 	var bonus := 0
-	for slot in equipped.values():
-		bonus += slot.get("stat_bonus", {}).get("jump", 0)
+	for slot: Variant in equipped.values():
+		if slot is Dictionary:
+			bonus += (slot as Dictionary).get("stat_bonus", {}).get("jump", 0)
 	return bonus
 
 ## Take damage. Returns true if player died.
 func take_damage(amount: int) -> bool:
-	var eff_dmg := max(1, amount - get_defense())
-	player_health = max(0, player_health - eff_dmg)
+	var eff_dmg := maxi(1, amount - get_defense())
+	player_health = maxi(0, player_health - eff_dmg)
 	return player_health <= 0
 
 ## Heal player.
@@ -226,9 +227,9 @@ func load_game() -> bool:
 	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
 	if not f: return false
 	var text := f.get_as_text(); f.close()
-	var result := JSON.parse_string(text)
-	if result == null: return false
-	var data: Dictionary = result
+	var result: Variant = JSON.parse_string(text)
+	if result == null or not (result is Dictionary): return false
+	var data := result as Dictionary
 	player_health      = data.get("player_health",      10)
 	player_max_health  = data.get("player_max_health",  10)
 	player_attack_base = data.get("player_attack_base", 1)
