@@ -387,9 +387,10 @@ func _build_grid() -> void:
 	var items := _current_items()
 	if items.size() == 0:
 		_empty_lbl.visible = true
-		_empty_lbl.text = match PAGES[_page_idx]:
-			"Equipment": "No equipment yet. Buy items at Oswin's shop."
-			_: "No items yet."
+		if PAGES[_page_idx] == "Equipment":
+			_empty_lbl.text = "No equipment yet. Buy items at Oswin's shop."
+		else:
+			_empty_lbl.text = "No items yet."
 		return
 
 	const COLS   := 6
