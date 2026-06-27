@@ -135,7 +135,15 @@ func _spawn_player() -> void:
 	_player.position = Vector2(sx, GROUND_Y - 64.0)
 	_player.z_index  = 5
 	add_child(_player)
-	# NO Camera2D — viewport is 1920×1080 = world size, no scrolling needed
+	# Camera2D follows player within scene bounds
+	var cam := Camera2D.new()
+	cam.limit_left   = 0
+	cam.limit_right  = GAME_W
+	cam.limit_top    = 0
+	cam.limit_bottom = GAME_H
+	cam.position_smoothing_enabled = true
+	cam.position_smoothing_speed   = 5.0
+	_player.add_child(cam)
 
 # ── Oswin NPC ─────────────────────────────────────────────────────────────────
 
@@ -299,54 +307,75 @@ func _try_buy(idx: int) -> void:
 	copy.erase("price"); copy.erase("desc")
 	Globals.add_item(copy); _refresh_shop()
 
-# ── HUD (lives in the black strip at bottom) ──────────────────────────────────
+# ── HUD (CanvasLayer — always fixed to screen, never moves with camera) ─────────
 
 func _build_hud() -> void:
+	var cl := CanvasLayer.new()
+	cl.layer = 20
+	add_child(cl)
+
+	# Dark strip backdrop at bottom
+	var strip := ColorRect.new()
+	strip.color    = Color(0.04, 0.04, 0.04, 0.88)
+	strip.size     = Vector2(GAME_W, 64)
+	strip.position = Vector2(0, GAME_H - 64)
+	cl.add_child(strip)
+
 	# HP bar background
 	var bar_bg := ColorRect.new()
 	bar_bg.color    = Color(0.1, 0.04, 0.04, 0.9)
 	bar_bg.size     = Vector2(180, 16)
-	bar_bg.position = Vector2(24, ROW_BLACK + 24)
-	bar_bg.z_index  = 25; add_child(bar_bg)
+	bar_bg.position = Vector2(24, GAME_H - 40)
+	cl.add_child(bar_bg)
+
 	# HP bar fill
 	_hud_hp_bar = ColorRect.new()
 	_hud_hp_bar.color    = Color(0.87, 0.20, 0.20)
 	_hud_hp_bar.size     = Vector2(176, 12)
-	_hud_hp_bar.position = Vector2(26, ROW_BLACK + 26)
-	_hud_hp_bar.z_index  = 26; add_child(_hud_hp_bar)
-	# HP label
+	_hud_hp_bar.position = Vector2(26, GAME_H - 38)
+	cl.add_child(_hud_hp_bar)
+
+	# "HP" tag
 	var hp_tag := Label.new()
-	hp_tag.text = "HP"; hp_tag.position = Vector2(24, ROW_BLACK + 6)
-	hp_tag.add_theme_font_size_override("font_size", 13)
+	hp_tag.text     = "HP"
+	hp_tag.position = Vector2(24, GAME_H - 60)
+	hp_tag.add_theme_font_size_override("font_size", 14)
 	hp_tag.add_theme_color_override("font_color", Color(0.87, 0.20, 0.20))
-	hp_tag.z_index = 25; add_child(hp_tag)
+	cl.add_child(hp_tag)
+
+	# HP value
 	_hud_hp_lbl = Label.new()
 	_hud_hp_lbl.text     = "10 / 10"
-	_hud_hp_lbl.position = Vector2(212, ROW_BLACK + 24)
-	_hud_hp_lbl.add_theme_font_size_override("font_size", 13)
+	_hud_hp_lbl.position = Vector2(212, GAME_H - 42)
+	_hud_hp_lbl.add_theme_font_size_override("font_size", 14)
 	_hud_hp_lbl.add_theme_color_override("font_color", Color(0.96, 0.89, 0.71))
-	_hud_hp_lbl.z_index = 25; add_child(_hud_hp_lbl)
+	cl.add_child(_hud_hp_lbl)
+
 	# Gold
 	_hud_gold = Label.new()
 	_hud_gold.text     = "Gold: 50"
-	_hud_gold.position = Vector2(GAME_W - 180, ROW_BLACK + 18)
-	_hud_gold.add_theme_font_size_override("font_size", 18)
+	_hud_gold.position = Vector2(GAME_W - 180, GAME_H - 48)
+	_hud_gold.add_theme_font_size_override("font_size", 20)
 	_hud_gold.add_theme_color_override("font_color", Color(0.96, 0.89, 0.45))
-	_hud_gold.z_index = 25; add_child(_hud_gold)
-	# Location name
+	cl.add_child(_hud_gold)
+
+	# Location name (centered)
 	var loc := Label.new()
-	loc.text = "Millhaven"; loc.position = Vector2(GAME_W/2 - 100, ROW_BLACK + 12)
-	loc.size = Vector2(200, 44); loc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	loc.text     = "Millhaven"
+	loc.position = Vector2(GAME_W / 2 - 100, GAME_H - 52)
+	loc.size     = Vector2(200, 44)
+	loc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	loc.add_theme_font_size_override("font_size", 22)
 	loc.add_theme_color_override("font_color", Color(0.75, 0.68, 0.55))
-	loc.z_index = 25; add_child(loc)
+	cl.add_child(loc)
+
 	# Controls hint
 	var ctrl := Label.new()
-	ctrl.text     = "Move: A/D   Jump: Space   Dash: Shift   Attack: Z   Menu: M"
-	ctrl.position = Vector2(24, ROW_BLACK + 44)
-	ctrl.add_theme_font_size_override("font_size", 12)
+	ctrl.text     = "Move: A/D   Jump: Space   Dash: Shift   Menu: M"
+	ctrl.position = Vector2(24, GAME_H - 22)
+	ctrl.add_theme_font_size_override("font_size", 13)
 	ctrl.add_theme_color_override("font_color", Color(0.55, 0.50, 0.42))
-	ctrl.z_index = 25; add_child(ctrl)
+	cl.add_child(ctrl)
 
 # ── Menu ──────────────────────────────────────────────────────────────────────
 
