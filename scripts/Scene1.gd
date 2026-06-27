@@ -278,23 +278,23 @@ func _refresh_shop() -> void:
 	for i in range(_shop_rows.size()):
 		var row: Dictionary = _shop_rows[i]
 		var item: Dictionary = SHOP_ITEMS[i]
-		var sel   := (i == _shop_idx)
-		var afford := Globals.player_gold >= item["price"]
-		var rs: StyleBoxFlat = row["style"]
+		var sel:    bool         = (i == _shop_idx)
+		var afford: bool         = Globals.player_gold >= (item["price"] as int)
+		var rs:     StyleBoxFlat = row["style"] as StyleBoxFlat
 		rs.bg_color     = Color(0.88,0.78,0.56,0.7) if sel else Color(0,0,0,0)
 		rs.border_color = Color(0.16,0.08,0.04)     if sel else Color(0.60,0.44,0.26)
 		rs.set_border_width_all(4 if sel else 2)
-		var nc := Color(0.10,0.06,0.03) if afford else Color(0.55,0.40,0.28)
-		row["name_lbl"].add_theme_color_override("font_color", nc)
+		var nc: Color = Color(0.10,0.06,0.03) if afford else Color(0.55,0.40,0.28)
+		(row["name_lbl"]  as Label).add_theme_color_override("font_color", nc)
 		var pc: Color
-		if not afford:       pc = Color(0.72,0.25,0.20)
-		elif sel:            pc = Color(0.30,0.55,0.15)
-		else:                pc = Color(0.45,0.30,0.05)
-		row["price_lbl"].add_theme_color_override("font_color", pc)
+		if not afford:    pc = Color(0.72,0.25,0.20)
+		elif sel:         pc = Color(0.30,0.55,0.15)
+		else:             pc = Color(0.45,0.30,0.05)
+		(row["price_lbl"] as Label).add_theme_color_override("font_color", pc)
 
 func _try_buy(idx: int) -> void:
 	var item: Dictionary = SHOP_ITEMS[idx]
-	if not Globals.spend_gold(item["price"]): return
+	if not Globals.spend_gold(item["price"] as int): return
 	var copy := item.duplicate(true)
 	copy.erase("price"); copy.erase("desc")
 	Globals.add_item(copy); _refresh_shop()
