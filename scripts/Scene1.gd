@@ -141,9 +141,9 @@ func _spawn_player() -> void:
 	cam.limit_right  = GAME_W
 	cam.limit_top    = 0
 	cam.limit_bottom = GAME_H
-	cam.position_smoothing_enabled = true
-	cam.position_smoothing_speed   = 5.0
+	cam.position_smoothing_enabled = false
 	_player.add_child(cam)
+	cam.reset_smoothing()
 
 # ── Oswin NPC ─────────────────────────────────────────────────────────────────
 
