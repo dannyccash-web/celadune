@@ -28,6 +28,7 @@ var spawn_x:            float  = 300.0   # X position for overworld spawn
 var from_transition:    bool   = false   # true = skip intro, just place player
 var interior_config_id: String = ""      # which building interior to render
 var current_music_path: String = ""      # so interiors can continue outdoor track
+var return_scene_path:  String = ""      # where to go when exiting an interior
 
 # ── Player stats (base values; effective = base + equipment bonuses) ───────────
 var player_health:      int = 10

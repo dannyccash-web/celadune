@@ -56,6 +56,7 @@ var _attack_timer := 0.0
 @onready var sprite: AnimatedSprite2D = $Sprite
 
 func _ready() -> void:
+	add_to_group("player")
 	_build_animations()
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sprite.play("idle")

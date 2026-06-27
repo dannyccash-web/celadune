@@ -442,8 +442,11 @@ func _exit_room() -> void:
 	var tw := create_tween()
 	if _music: tw.tween_property(_music, "volume_db", -80.0, 0.3)
 	tw.parallel().tween_property(ov, "color", Color(0,0,0,1), 0.3)
-	tw.tween_callback(func():
-		get_tree().change_scene_to_file("res://scenes/" + _return_scene() + ".tscn"))
+	tw.tween_callback(func() -> void:
+		var path: String = Globals.return_scene_path
+		if path == "": path = "res://scenes/" + _return_scene() + ".tscn"
+		Globals.return_scene_path = ""
+		get_tree().change_scene_to_file(path))
 
 func _build_room() -> void:
 	var roof_tex  := _tex(INT_P + "house_roof.png")
