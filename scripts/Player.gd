@@ -35,11 +35,11 @@ const DASH_COOLDOWN := 0.45
 # Attack
 const ATTACK_DURATION := 0.35   # seconds the attack state lasts
 
-# Caelan sprite sheet: each frame is 300 × 576 px (RGBA), or 300 × 192 (RGB small sheets)
-const FRAME_W      := 300
-const FRAME_H_TALL := 576   # RGBA multi-frame sheets
-const FRAME_H_SMALL := 192  # RGB small-frame sheets
-const SPRITE_SCALE := 0.32  # 300 * 0.32 ≈ 96 px display width
+# Placeholder sprites (assets/sprites/player_*.png, generated pixel art).
+# Replace these paths when real character art is ready.
+const SPRITE_PATH_IDLE := "res://assets/sprites/player_idle.png"   # 64×48, 2 frames
+const SPRITE_PATH_RUN  := "res://assets/sprites/player_run.png"    # 128×48, 4 frames
+const SPRITE_PATH_JUMP := "res://assets/sprites/player_jump.png"   # 32×48, 1 frame
 
 # ── State ─────────────────────────────────────────────────────────────────────
 var _coyote    := 0.0
@@ -58,7 +58,6 @@ var _attack_timer := 0.0
 func _ready() -> void:
 	_build_animations()
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	sprite.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
 	sprite.play("idle")
 
 func _physics_process(delta: float) -> void:
@@ -185,56 +184,39 @@ func _update_animation(input_x: float, on_floor: bool, sliding: bool) -> void:
 		sprite.play("idle")
 
 # ── Animation builder ─────────────────────────────────────────────────────────
-## Each Caelan RGBA sheet is a horizontal strip: frame width = 300, height = 576.
-## Each RGB sheet (death, attack, etc.): frame width = 300, height = 192.
+## Builds from the placeholder sprites in assets/sprites/.
+## When real character art is ready, update SPRITE_PATH_* at the top and
+## adjust frame counts here — no other changes needed.
 
 func _build_animations() -> void:
 	var frames := SpriteFrames.new()
 	frames.remove_animation("default")
 
-	# Primary movement animations (RGBA tall sheets)
-	_add_anim_sheet(frames, "idle",   "res://assets/characters/caelan/idle.png",    3,  4.0, true,  FRAME_H_TALL)
-	_add_anim_sheet(frames, "run",    "res://assets/characters/caelan/run.png",     18, 14.0, true,  FRAME_H_TALL)
-	_add_anim_sheet(frames, "jump",   "res://assets/characters/caelan/jump.png",    9,  10.0, false, FRAME_H_TALL)
-	_add_anim_sheet(frames, "walk",   "res://assets/characters/caelan/walk.png",    18, 10.0, true,  FRAME_H_TALL)
-
-	# Action animations (RGB small sheets, 300×192)
-	_add_anim_sheet(frames, "attack", "res://assets/characters/caelan/attack.png",  3,  10.0, false, FRAME_H_SMALL)
-	_add_anim_sheet(frames, "death",  "res://assets/characters/caelan/death.png",   3,  6.0,  false, FRAME_H_SMALL)
-
-	# "rise" = death played backwards — we re-add frames in reverse order
-	_add_anim_reversed(frames, "rise", "res://assets/characters/caelan/death.png", 3, 5.0, FRAME_H_SMALL)
+	_add_strip(frames, "idle",   SPRITE_PATH_IDLE, 2, 4.0,  true)
+	_add_strip(frames, "run",    SPRITE_PATH_RUN,  4, 10.0, true)
+	_add_strip(frames, "jump",   SPRITE_PATH_JUMP, 1, 1.0,  false)
+	# attack/death/rise reuse idle frames until real art is supplied
+	_add_strip(frames, "attack", SPRITE_PATH_IDLE, 2, 12.0, false)
+	_add_strip(frames, "death",  SPRITE_PATH_IDLE, 2, 6.0,  false)
+	_add_strip(frames, "rise",   SPRITE_PATH_IDLE, 2, 5.0,  false)
 
 	sprite.sprite_frames = frames
 
-func _add_anim_sheet(frames: SpriteFrames, anim: String, path: String,
-		count: int, fps: float, loop: bool, frame_h: int) -> void:
+## Slices a horizontal strip sheet into `count` equal-width frames.
+func _add_strip(frames: SpriteFrames, anim: String, path: String,
+		count: int, fps: float, loop: bool) -> void:
 	frames.add_animation(anim)
 	frames.set_animation_speed(anim, fps)
 	frames.set_animation_loop(anim, loop)
 	var sheet: Texture2D = load(path)
 	if not sheet:
 		push_warning("Player: missing sprite " + path)
-		# Add a blank frame so the animation at least exists
 		frames.add_frame(anim, PlaceholderTexture2D.new())
 		return
+	var fw := sheet.get_width() / count
+	var fh := sheet.get_height()
 	for i in range(count):
 		var atlas := AtlasTexture.new()
 		atlas.atlas  = sheet
-		atlas.region = Rect2(i * FRAME_W, 0, FRAME_W, frame_h)
-		frames.add_frame(anim, atlas)
-
-func _add_anim_reversed(frames: SpriteFrames, anim: String, path: String,
-		count: int, fps: float, frame_h: int) -> void:
-	frames.add_animation(anim)
-	frames.set_animation_speed(anim, fps)
-	frames.set_animation_loop(anim, false)
-	var sheet: Texture2D = load(path)
-	if not sheet:
-		frames.add_frame(anim, PlaceholderTexture2D.new())
-		return
-	for i in range(count - 1, -1, -1):
-		var atlas := AtlasTexture.new()
-		atlas.atlas  = sheet
-		atlas.region = Rect2(i * FRAME_W, 0, FRAME_W, frame_h)
+		atlas.region = Rect2(i * fw, 0, fw, fh)
 		frames.add_frame(anim, atlas)
